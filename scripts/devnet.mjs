@@ -1,0 +1,673 @@
+// Tirai DevNet deploy/seed against the shared 5N hackathon validator.
+// Reads scripts/.env.devnet (gitignored). Node >= 20.
+//   node scripts/devnet.mjs probe
+//   node scripts/devnet.mjs upload .daml/dist/tirai-otc-0.1.0.dar
+//   node scripts/devnet.mjs allocate
+//   node scripts/devnet.mjs seed
+import { readFile, writeFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(HERE, '..');
+
+async function loadEnv() {
+  const txt = await readFile(join(HERE, '.env.devnet'), 'utf8');
+  const e = {};
+  for (const line of txt.split(/\r?\n/)) {
+    const m = line.match(/^([A-Z_]+)=(.*)$/);
+    if (m) e[m[1]] = m[2];
+  }
+  return e;
+}
+
+let ENV, TOKEN, TOKEN_AT = 0;
+const L = () => ENV.DEVNET_LEDGER_URL.replace(/\/$/, '');
+
+async function token() {
+  if (TOKEN && Date.now() - TOKEN_AT < 6 * 60 * 1000) return TOKEN; // reuse ~6min
+  const body = new URLSearchParams({
+    grant_type: 'client_credentials',
+    client_id: ENV.DEVNET_CLIENT_ID,
+    client_secret: ENV.DEVNET_CLIENT_SECRET,
+    audience: ENV.DEVNET_AUDIENCE,
+    scope: ENV.DEVNET_SCOPE,
+  });
+  let lastErr;
+  for (let i = 0; i < 5; i++) {
+    try {
+      const r = await fetch(ENV.DEVNET_TOKEN_URL, {
+        method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body,
+      });
+      const t = await r.text();
+      const j = JSON.parse(t);
+      if (j.access_token) { TOKEN = j.access_token.trim(); TOKEN_AT = Date.now(); return TOKEN; }
+      lastErr = new Error('no access_token: ' + t.slice(0, 120));
+    } catch (e) { lastErr = e; }
+    await new Promise((r) => setTimeout(r, 800 * (i + 1)));
+  }
+  throw lastErr;
+}
+
+async function api(path, { method = 'GET', json, raw, contentType, retry = false } = {}) {
+  let last;
+  for (let i = 0; i < (retry ? 5 : 1); i++) {
+    try {
+      const t = await token();
+      const headers = { authorization: `Bearer ${t}` };
+      let body;
+      if (json !== undefined) { headers['content-type'] = 'application/json'; body = JSON.stringify(json); }
+      else if (raw !== undefined) { headers['content-type'] = contentType ?? 'application/octet-stream'; body = raw; }
+      const r = await fetch(L() + path, { method, headers, body });
+      const text = await r.text();
+      let data; try { data = JSON.parse(text); } catch { data = text; }
+      if (r.ok || !retry || ![429, 500, 502, 503, 504].includes(r.status)) return { status: r.status, ok: r.ok, data };
+      last = `HTTP ${r.status}`;
+    } catch (e) { last = e; if (!retry) throw e; }
+    await new Promise((res) => setTimeout(res, 1200 * (i + 1)));
+  }
+  throw new Error('read failed after retries: ' + last);
+}
+
+const P = () => 'participant_admin'; // userId is derived from token sub; unused for commands here
+const NS = { value: null };
+
+// ---- commands ----
+async function probe() {
+  const end = await api('/v2/state/ledger-end');
+  console.log('ledger-end:', end.status, JSON.stringify(end.data));
+  const ver = await api('/v2/version');
+  console.log('version:', ver.status, typeof ver.data === 'object' ? ver.data.version : ver.data);
+  const parties = await api('/v2/parties');
+  const list = parties.data?.partyDetails ?? [];
+  console.log('parties:', parties.status, 'count=', list.length);
+  for (const p of list.slice(0, 8)) console.log('   ', p.party);
+  // who am I / rights
+  const me = await api('/v2/users/6');
+  console.log('user 6:', me.status, JSON.stringify(me.data).slice(0, 200));
+  const rights = await api('/v2/users/6/rights');
+  console.log('user 6 rights:', rights.status, JSON.stringify(rights.data).slice(0, 400));
+}
+
+async function upload(darPath) {
+  const bytes = await readFile(join(ROOT, darPath));
+  // retry: the shared validator returns 503 (gateway timeout) under load; the
+  // package upload + vetting can still need several tries to land a clean 200.
+  const r = await api('/v2/packages', { method: 'POST', raw: bytes, retry: true });
+  console.log('upload:', r.status, JSON.stringify(r.data).slice(0, 200));
+}
+
+const USER = '6';
+// v2 party set — isolates this deployment's (new package) contracts from any
+// earlier ones on the shared validator, so party queries return only our data.
+const HINTS = {
+  buyer: 'tirai-v1-buyer', dealerA: 'tirai-v1-dealerA', dealerB: 'tirai-v1-dealerB',
+  regulator: 'tirai-v1-regulator', cashIssuer: 'tirai-v1-cashissuer', bondIssuer: 'tirai-v1-bondissuer',
+};
+
+async function namespace() {
+  if (NS.value) return NS.value;
+  const me = await api('/v2/users/' + USER);
+  NS.value = me.data?.user?.primaryParty?.split('::')[1];
+  return NS.value;
+}
+
+async function allocateOne(hint) {
+  const r = await api('/v2/parties', { method: 'POST', retry: true, json: { partyIdHint: hint, identityProviderId: '' } });
+  if (r.status === 200) return r.data?.partyDetails?.party;
+  const cause = JSON.stringify(r.data);
+  if (cause.includes('already allocated') || cause.includes('already exists')) {
+    return `${hint}::${await namespace()}`; // idempotent on the shared namespace
+  }
+  console.log('  allocate failed for', hint, r.status, cause.slice(0, 160));
+  return null;
+}
+
+async function grant(party) {
+  const r = await api(`/v2/users/${USER}/rights`, { method: 'POST', json: {
+    userId: USER,
+    identityProviderId: '',
+    rights: [
+      { kind: { CanActAs: { value: { party } } } },
+      { kind: { CanReadAs: { value: { party } } } },
+    ],
+  } });
+  if (r.status !== 200 && process.env.DEBUG) console.log('  grant body:', JSON.stringify(r.data).slice(0, 300));
+  return r.status;
+}
+
+async function allocate() {
+  const out = {};
+  for (const [role, hint] of Object.entries(HINTS)) {
+    const party = await allocateOne(hint);
+    if (!party) continue;
+    const gs = await grant(party);
+    out[role] = party;
+    console.log(`${role.padEnd(11)} ${party}   grant=${gs}`);
+  }
+  await writeFile(join(HERE, 'devnet.parties.json'), JSON.stringify(out, null, 2));
+  console.log('wrote scripts/devnet.parties.json');
+}
+
+// Main package id of .daml/dist/tirai-otc-0.1.0.dar. Regenerate after a model change
+// with: daml damlc inspect-dar --json .daml/dist/tirai-otc-0.1.0.dar  (or set TIRAI_PKG).
+const PKG = process.env.TIRAI_PKG ?? 'SET_AFTER_DEPLOY';
+let CID = 0;
+async function submit(actAs, command) {
+  const commandId = `tirai-${Date.now()}-${CID++}`; // stable across retries → dedup on the ledger
+  let last;
+  for (let i = 0; i < 6; i++) {
+    const r = await api('/v2/commands/submit-and-wait-for-transaction', { method: 'POST', json: {
+      commands: { userId: USER, commandId, actAs: [actAs], commands: [command] },
+    } });
+    if (r.ok) return r.data;
+    last = `submit ${r.status}: ${JSON.stringify(r.data).slice(0, 200)}`;
+    // A duplicate means the ORIGINAL submit already committed on-ledger but its HTTP
+    // response was lost — retrying the same commandId 409s forever. Stop immediately
+    // with a clear message; the idempotent seeders skip the completed work on rerun.
+    if (/DUPLICATE_COMMAND/i.test(last))
+      throw new Error('command already committed (response lost) — rerun the idempotent seed to continue. ' + last);
+    // 409 SEQUENCER_BACKPRESSURE = transient overload on the shared validator.
+    if (![409, 503, 429, 500, 502, 504].includes(r.status)) throw new Error(last);
+    process.stdout.write(` (retry ${r.status})`);
+    await new Promise((res) => setTimeout(res, 2000 * (i + 1)));
+  }
+  throw new Error('gave up: ' + last);
+}
+const createHolding = (issuer, owner, instrument, amount) =>
+  ({ CreateCommand: { templateId: `${PKG}:Tirai:Holding`, createArguments: { issuer, owner, instrument, amount: String(amount) } } });
+
+const cidOf = (tx) => tx.transaction?.events?.find((e) => e.CreatedEvent)?.CreatedEvent?.contractId;
+// A SubmitQuote tx creates both an EscrowedHolding and a Quote — pick by template.
+const cidOfTpl = (tx, suffix) => (tx.transaction?.events ?? [])
+  .map((e) => e.CreatedEvent).filter(Boolean)
+  .find((c) => c.templateId?.endsWith(suffix))?.contractId;
+
+async function parties() {
+  const out = {};
+  for (const [role, hint] of Object.entries(HINTS)) {
+    const p = await allocateOne(hint);
+    await grant(p);
+    out[role] = p;
+  }
+  return out;
+}
+
+async function seed() {
+  const p = await parties();
+  console.log('parties ready:');
+  for (const [r, v] of Object.entries(p)) console.log('  ', r.padEnd(11), v);
+
+  // Idempotent: if this party set already has a live RFQ, don't double-seed.
+  const existing = (await acsAs(p.buyer)).filter((e) => e.templateId.endsWith(':Tirai:RFQ'));
+  if (existing.length) {
+    await writeFile(join(HERE, 'devnet.parties.json'), JSON.stringify(p, null, 2));
+    console.log(`already seeded (${existing.length} live RFQ) — run "cleanup" or use fresh party hints to reseed.`);
+    return;
+  }
+
+  const cash = cidOf(await submit(p.cashIssuer, createHolding(p.cashIssuer, p.buyer, 'USDC', '5000000.0')));
+  const bondA = cidOf(await submit(p.bondIssuer, createHolding(p.bondIssuer, p.dealerA, 'TBOND30', '1000.0')));
+  const bondB = cidOf(await submit(p.bondIssuer, createHolding(p.bondIssuer, p.dealerB, 'TBOND30', '1000.0')));
+  console.log('minted holdings (cash + 2 bonds)');
+
+  const rfq = cidOf(await submit(p.buyer, { CreateCommand: { templateId: `${PKG}:Tirai:RFQ`, createArguments: {
+    buyer: p.buyer, regulator: p.regulator, invitedDealers: [p.dealerA, p.dealerB],
+    instrument: 'TBOND30', quantity: '1000.0', payInstrument: 'USDC',
+    assetIssuer: p.bondIssuer, payIssuer: p.cashIssuer,
+    deadline: '2030-01-01T00:00:00Z' } } }));
+  console.log('RFQ live:', rfq.slice(0, 24) + '…');
+
+  const quote = (dealer, price, assetCid) => ({ ExerciseCommand: { templateId: `${PKG}:Tirai:RFQ`,
+    contractId: rfq, choice: 'SubmitQuote', choiceArgument: { dealer, price, assetCid } } });
+  await submit(p.dealerA, quote(p.dealerA, '4210000.0', bondA));
+  await submit(p.dealerB, quote(p.dealerB, '4250000.0', bondB));
+  console.log('two sealed quotes submitted (A: 4.21M, B: 4.25M)');
+
+  await writeFile(join(HERE, 'devnet.parties.json'), JSON.stringify(p, null, 2));
+  console.log('\nwrote scripts/devnet.parties.json — point the web UI at DevNet and open it.');
+}
+
+async function acsAs(party) {
+  const off = (await api('/v2/state/ledger-end', { retry: true })).data?.offset;
+  if (typeof off !== 'number') throw new Error('ledger-end returned no offset (devnet unreachable?)');
+  const r = await api('/v2/state/active-contracts', { method: 'POST', retry: true, json: {
+    filter: { filtersByParty: { [party]: { cumulative: [] } } }, verbose: true, activeAtOffset: off } });
+  if (!Array.isArray(r.data)) throw new Error('active-contracts returned no array: ' + JSON.stringify(r.data).slice(0, 120));
+  return r.data.map((x) => x.contractEntry?.JsActiveContract?.createdEvent).filter(Boolean);
+}
+
+async function verify() {
+  const p = JSON.parse(await readFile(join(HERE, 'devnet.parties.json'), 'utf8'));
+  const acs = {};
+  for (const role of ['buyer', 'dealerA', 'dealerB', 'regulator']) acs[role] = await acsAs(p[role]);
+  const quotesOf = (role) => acs[role].filter((e) => e.templateId.endsWith(':Tirai:Quote'));
+  for (const role of ['buyer', 'dealerA', 'dealerB', 'regulator']) {
+    const byTpl = {};
+    for (const e of acs[role]) { const t = e.templateId.split(':').slice(-1)[0]; byTpl[t] = (byTpl[t] ?? 0) + 1; }
+    const q = quotesOf(role).map((e) => e.createArgument.dealer.split('::')[0]);
+    console.log(role.padEnd(11), JSON.stringify(byTpl), q.length ? 'quotes from: ' + q.join(',') : '');
+  }
+  // Assert the privacy invariants the desk claims — a real pass/fail, not just a dump.
+  const fails = [];
+  for (const d of ['dealerA', 'dealerB']) {
+    const rival = quotesOf(d).filter((e) => e.createArgument.dealer !== p[d]);
+    if (rival.length) fails.push(`${d} received ${rival.length} rival quote(s) — sub-transaction privacy broken`);
+  }
+  const regQuotes = quotesOf('regulator').length;
+  const regRfq = acs.regulator.filter((e) => e.templateId.endsWith(':Tirai:RFQ') || e.templateId.endsWith(':Tirai:BasketRFQ')).length;
+  if (regQuotes) fails.push(`regulator sees ${regQuotes} sealed quote(s) — must see none pre-trade`);
+  if (regRfq) fails.push(`regulator sees ${regRfq} live RFQ(s) — must see none pre-trade`);
+  if (fails.length) { console.error('\n✗ PRIVACY VERIFICATION FAILED:\n  ' + fails.join('\n  ')); process.exit(1); }
+  console.log('\n✓ privacy verified on-ledger: each dealer sees only its own quotes; the regulator sees zero pre-trade.');
+}
+
+// Add ONE prior settled trade (a separate instrument, GILT10) to the live desk, so
+// the regulator's post-trade audit column isn't empty — it proves the "regulator
+// observes executed trades, and only executed trades" half of the story on Devnet.
+// Idempotent: skips if the regulator already sees a TradeReport.
+async function settleDemo() {
+  const p = JSON.parse(await readFile(join(HERE, 'devnet.parties.json'), 'utf8'));
+  const regEv = await acsAs(p.regulator);
+  if (regEv.some((e) => e.templateId.endsWith(':Tirai:TradeReport'))) {
+    console.log('regulator already has a settled trade — nothing to do.');
+    return;
+  }
+  const inst = 'GILT10';
+  // Dedicated 195000 cash so the buyer's 5M TBOND30 float stays intact (exact clear = no change).
+  const cash = cidOf(await submit(p.cashIssuer, createHolding(p.cashIssuer, p.buyer, 'USDC', '195000.0')));
+  const gA = cidOf(await submit(p.bondIssuer, createHolding(p.bondIssuer, p.dealerA, inst, '100.0')));
+  const gB = cidOf(await submit(p.bondIssuer, createHolding(p.bondIssuer, p.dealerB, inst, '100.0')));
+  const rfq = cidOf(await submit(p.buyer, { CreateCommand: { templateId: `${PKG}:Tirai:RFQ`, createArguments: {
+    buyer: p.buyer, regulator: p.regulator, invitedDealers: [p.dealerA, p.dealerB],
+    instrument: inst, quantity: '100.0', payInstrument: 'USDC',
+    assetIssuer: p.bondIssuer, payIssuer: p.cashIssuer, deadline: '2030-01-01T00:00:00Z' } } }));
+  const quote = (dealer, price, assetCid) => ({ ExerciseCommand: { templateId: `${PKG}:Tirai:RFQ`,
+    contractId: rfq, choice: 'SubmitQuote', choiceArgument: { dealer, price, assetCid } } });
+  const qA = cidOfTpl(await submit(p.dealerA, quote(p.dealerA, '190000.0', gA)), ':Tirai:Quote');
+  const qB = cidOfTpl(await submit(p.dealerB, quote(p.dealerB, '195000.0', gB)), ':Tirai:Quote');
+  // Cheapest (A) wins, paid the second price (195000) — atomic DvP; TradeReport → regulator.
+  await submit(p.buyer, { ExerciseCommand: { templateId: `${PKG}:Tirai:RFQ`, contractId: rfq,
+    choice: 'Award', choiceArgument: { quoteCids: [qA, qB], cashCid: cash } } });
+  console.log('settled GILT10 100 @ 195000 (Vickrey) — regulator now sees one executed trade.');
+}
+
+// Archive duplicate buyer USDC holdings left by 503-retries; keep exactly one.
+async function cleanup() {
+  const p = JSON.parse(await readFile(join(HERE, 'devnet.parties.json'), 'utf8'));
+  const ev = await acsAs(p.buyer);
+  const cash = ev.filter((e) => e.templateId.endsWith(':Tirai:Holding')
+    && e.createArgument.owner === p.buyer && e.createArgument.instrument === 'USDC');
+  console.log('buyer USDC holdings:', cash.length);
+  for (const c of cash.slice(1)) {
+    await submit(p.cashIssuer, { ExerciseCommand: { templateId: `${PKG}:Tirai:Holding`,
+      contractId: c.contractId, choice: 'Archive', choiceArgument: {} } });
+    console.log('  archived duplicate', c.contractId.slice(0, 18) + '…');
+  }
+  console.log('done — buyer now holds one USDC position');
+}
+
+// Seed a live multi-instrument BASKET (TBOND30 + GILT10) with two sealed basket
+// quotes, un-settled, so the hosted desk showcases the basket lane on Devnet.
+// Mints fresh legs (the dealers' original bonds are escrowed in the single RFQ).
+// Idempotent: skips if the buyer already sees a BasketRFQ.
+async function seedBasket() {
+  const p = JSON.parse(await readFile(join(HERE, 'devnet.parties.json'), 'utf8'));
+  if ((await acsAs(p.buyer)).some((e) => e.templateId.endsWith(':Tirai:BasketRFQ'))) {
+    console.log('basket already seeded — nothing to do.');
+    return;
+  }
+  const legs = [
+    { instrument: 'TBOND30', quantity: '1000.0', assetIssuer: p.bondIssuer },
+    { instrument: 'GILT10', quantity: '100.0', assetIssuer: p.bondIssuer },
+  ];
+  const mkAssets = async (dealer) => [
+    cidOf(await submit(p.bondIssuer, createHolding(p.bondIssuer, dealer, 'TBOND30', '1000.0'))),
+    cidOf(await submit(p.bondIssuer, createHolding(p.bondIssuer, dealer, 'GILT10', '100.0'))),
+  ];
+  const aAssets = await mkAssets(p.dealerA);
+  const bAssets = await mkAssets(p.dealerB);
+  const rfq = cidOf(await submit(p.buyer, { CreateCommand: { templateId: `${PKG}:Tirai:BasketRFQ`, createArguments: {
+    buyer: p.buyer, regulator: p.regulator, invitedDealers: [p.dealerA, p.dealerB],
+    legs, payInstrument: 'USDC', payIssuer: p.cashIssuer, deadline: '2030-01-01T00:00:00Z' } } }));
+  const bq = (dealer, price, assetCids) => ({ ExerciseCommand: { templateId: `${PKG}:Tirai:BasketRFQ`,
+    contractId: rfq, choice: 'SubmitBasketQuote', choiceArgument: { dealer, price, assetCids } } });
+  await submit(p.dealerA, bq(p.dealerA, '4400000.0', aAssets));
+  await submit(p.dealerB, bq(p.dealerB, '4450000.0', bAssets));
+  console.log('basket RFQ live with two sealed basket quotes (A 4.40M, B 4.45M).');
+}
+
+// Seed a spread of REALISTIC settled trades across instruments and settlement
+// modes (Vickrey, direct OTC, partial fill, basket), so the regulator's on-chain
+// audit trail on the hosted desk looks like a real desk's post-trade record.
+// Idempotent per instrument. Institutional tickers, block-size notionals in USD.
+async function seedCases() {
+  const p = JSON.parse(await readFile(join(HERE, 'devnet.parties.json'), 'utf8'));
+  const reg = await acsAs(p.regulator);
+  const doneInst = new Set(reg.filter((e) => e.templateId.endsWith(':Tirai:TradeReport')).map((e) => e.createArgument.instrument));
+  const doneBasket = reg.filter((e) => e.templateId.endsWith(':Tirai:BasketTradeReport')).length >= 1;
+
+  const cash = async (amt) => cidOf(await submit(p.cashIssuer, createHolding(p.cashIssuer, p.buyer, 'USDC', amt)));
+  const bond = async (owner, inst, qty) => cidOf(await submit(p.bondIssuer, createHolding(p.bondIssuer, owner, inst, qty)));
+  const mkRfq = async (inst, qty) => cidOf(await submit(p.buyer, { CreateCommand: { templateId: `${PKG}:Tirai:RFQ`, createArguments: {
+    buyer: p.buyer, regulator: p.regulator, invitedDealers: [p.dealerA, p.dealerB],
+    instrument: inst, quantity: qty, payInstrument: 'USDC', assetIssuer: p.bondIssuer, payIssuer: p.cashIssuer,
+    deadline: '2030-01-01T00:00:00Z' } } }));
+  const quote = async (dealer, rfq, price, assetCid) => cidOfTpl(await submit(dealer, { ExerciseCommand: {
+    templateId: `${PKG}:Tirai:RFQ`, contractId: rfq, choice: 'SubmitQuote', choiceArgument: { dealer, price, assetCid } } }), ':Tirai:Quote');
+  const onQuote = (qCid, choice, arg) => submit(p.buyer, { ExerciseCommand: { templateId: `${PKG}:Tirai:Quote`, contractId: qCid, choice, choiceArgument: arg } });
+  // A third dealer for the 3-dealer Vickrey cases (idempotent allocation).
+  const dealerC = await allocateOne('tirai-v1-dealerC'); await grant(dealerC);
+  // Helpers: run a full 2- or 3-dealer Vickrey and settle it.
+  const vickrey2 = async (inst, qty, pA, pB, cashAmt) => {
+    const c = await cash(cashAmt); const bA = await bond(p.dealerA, inst, qty); const bB = await bond(p.dealerB, inst, qty);
+    const rfq = await mkRfq(inst, qty); const qA = await quote(p.dealerA, rfq, pA, bA); const qB = await quote(p.dealerB, rfq, pB, bB);
+    await submit(p.buyer, { ExerciseCommand: { templateId: `${PKG}:Tirai:RFQ`, contractId: rfq, choice: 'Award', choiceArgument: { quoteCids: [qA, qB], cashCid: c } } });
+  };
+  const vickrey3 = async (inst, qty, pA, pB, pC, cashAmt) => {
+    const c = await cash(cashAmt); const bA = await bond(p.dealerA, inst, qty); const bB = await bond(p.dealerB, inst, qty); const bC = await bond(dealerC, inst, qty);
+    const rfq = cidOf(await submit(p.buyer, { CreateCommand: { templateId: `${PKG}:Tirai:RFQ`, createArguments: {
+      buyer: p.buyer, regulator: p.regulator, invitedDealers: [p.dealerA, p.dealerB, dealerC],
+      instrument: inst, quantity: qty, payInstrument: 'USDC', assetIssuer: p.bondIssuer, payIssuer: p.cashIssuer, deadline: '2030-01-01T00:00:00Z' } } }));
+    const qA = await quote(p.dealerA, rfq, pA, bA); const qB = await quote(p.dealerB, rfq, pB, bB); const qC = await quote(dealerC, rfq, pC, bC);
+    await submit(p.buyer, { ExerciseCommand: { templateId: `${PKG}:Tirai:RFQ`, contractId: rfq, choice: 'Award', choiceArgument: { quoteCids: [qA, qB, qC], cashCid: c } } });
+  };
+  const directOtc = async (inst, qty, price, cashAmt) => {
+    const c = await cash(cashAmt); const bA = await bond(p.dealerA, inst, qty);
+    const rfq = await mkRfq(inst, qty); const qA = await quote(p.dealerA, rfq, price, bA);
+    await onQuote(qA, 'SettleQuote', { cashCid: c, clearingPrice: price });
+  };
+  const partial = async (inst, qty, price, fill, cashAmt) => {
+    const c = await cash(cashAmt); const bA = await bond(p.dealerA, inst, qty);
+    const rfq = await mkRfq(inst, qty); const qA = await quote(p.dealerA, rfq, price, bA);
+    await onQuote(qA, 'AcceptPartial', { cashCid: c, fillQuantity: fill });
+  };
+  const basketTrade = async (legDefs, price, cashAmt) => {
+    const c = await cash(cashAmt);
+    const assetCids = []; for (const [inst, qty] of legDefs) assetCids.push(await bond(p.dealerA, inst, qty));
+    const legs = legDefs.map(([inst, qty]) => ({ instrument: inst, quantity: qty, assetIssuer: p.bondIssuer }));
+    const brfq = cidOf(await submit(p.buyer, { CreateCommand: { templateId: `${PKG}:Tirai:BasketRFQ`, createArguments: {
+      buyer: p.buyer, regulator: p.regulator, invitedDealers: [p.dealerA, p.dealerB], legs, payInstrument: 'USDC', payIssuer: p.cashIssuer, deadline: '2030-01-01T00:00:00Z' } } }));
+    const bq = cidOfTpl(await submit(p.dealerA, { ExerciseCommand: { templateId: `${PKG}:Tirai:BasketRFQ`, contractId: brfq, choice: 'SubmitBasketQuote', choiceArgument: { dealer: p.dealerA, price, assetCids } } }), ':Tirai:BasketQuote');
+    await submit(p.buyer, { ExerciseCommand: { templateId: `${PKG}:Tirai:BasketQuote`, contractId: bq, choice: 'SettleBasket', choiceArgument: { cashCid: c } } });
+  };
+
+  // 1 · Competitive Vickrey (2 dealers): German Bund 10Y, A 490k / B 495k → A paid the 2nd price 495k.
+  if (!doneInst.has('BUND10')) {
+    const c = await cash('600000.0'); const bA = await bond(p.dealerA, 'BUND10', '500.0'); const bB = await bond(p.dealerB, 'BUND10', '500.0');
+    const rfq = await mkRfq('BUND10', '500.0');
+    const qA = await quote(p.dealerA, rfq, '490000.0', bA); const qB = await quote(p.dealerB, rfq, '495000.0', bB);
+    await submit(p.buyer, { ExerciseCommand: { templateId: `${PKG}:Tirai:RFQ`, contractId: rfq, choice: 'Award', choiceArgument: { quoteCids: [qA, qB], cashCid: c } } });
+    console.log('· Vickrey     BUND10  500 @ 495,000 (2 dealers, 2nd price)');
+  }
+  // 2 · Direct bilateral OTC (settle at ask): US Treasury 2Y, 2,000 @ 1.98M.
+  if (!doneInst.has('UST2Y')) {
+    const c = await cash('1980000.0'); const bA = await bond(p.dealerA, 'UST2Y', '2000.0');
+    const rfq = await mkRfq('UST2Y', '2000.0'); const qA = await quote(p.dealerA, rfq, '1980000.0', bA);
+    await onQuote(qA, 'SettleQuote', { cashCid: c, clearingPrice: '1980000.0' });
+    console.log('· direct OTC  UST2Y  2000 @ 1,980,000 (at ask)');
+  }
+  // 3 · Partial fill: Apple 2030 corp, ask 520k on 500, buyer fills 300 → 312,000 prorated.
+  if (!doneInst.has('AAPL30')) {
+    const c = await cash('520000.0'); const bA = await bond(p.dealerA, 'AAPL30', '500.0');
+    const rfq = await mkRfq('AAPL30', '500.0'); const qA = await quote(p.dealerA, rfq, '520000.0', bA);
+    await onQuote(qA, 'AcceptPartial', { cashCid: c, fillQuantity: '300.0' });
+    console.log('· partial     AAPL30 300/500 @ 312,000 (prorated ask)');
+  }
+  // 4 · Multi-instrument basket settled: [US Treasury 10Y ×1000 + JPMorgan 2028 ×200] @ 2.30M.
+  if (!doneBasket) {
+    const c = await cash('2300000.0'); const t = await bond(p.dealerA, 'UST10Y', '1000.0'); const j = await bond(p.dealerA, 'JPM28', '200.0');
+    const legs = [{ instrument: 'UST10Y', quantity: '1000.0', assetIssuer: p.bondIssuer }, { instrument: 'JPM28', quantity: '200.0', assetIssuer: p.bondIssuer }];
+    const brfq = cidOf(await submit(p.buyer, { CreateCommand: { templateId: `${PKG}:Tirai:BasketRFQ`, createArguments: {
+      buyer: p.buyer, regulator: p.regulator, invitedDealers: [p.dealerA, p.dealerB], legs, payInstrument: 'USDC', payIssuer: p.cashIssuer, deadline: '2030-01-01T00:00:00Z' } } }));
+    const bq = cidOfTpl(await submit(p.dealerA, { ExerciseCommand: { templateId: `${PKG}:Tirai:BasketRFQ`, contractId: brfq,
+      choice: 'SubmitBasketQuote', choiceArgument: { dealer: p.dealerA, price: '2300000.0', assetCids: [t, j] } } }), ':Tirai:BasketQuote');
+    await submit(p.buyer, { ExerciseCommand: { templateId: `${PKG}:Tirai:BasketQuote`, contractId: bq, choice: 'SettleBasket', choiceArgument: { cashCid: c } } });
+    console.log('· basket      [UST10Y 1000 + JPM28 200] @ 2,300,000 (atomic multi-leg)');
+  }
+  // 5 · Three-dealer Vickrey (proves 3+ competing dealers on-chain): US Treasury 5Y.
+  if (!doneInst.has('UST5Y')) {
+    await vickrey3('UST5Y', '1500.0', '1470000.0', '1485000.0', '1500000.0', '1500000.0');
+    console.log('· Vickrey×3   UST5Y 1500 @ 1,485,000 (3 dealers, 2nd price)');
+  }
+  // 6 · Direct OTC: Microsoft 2029 corp, 400 @ 410,000 (at ask).
+  if (!doneInst.has('MSFT29')) {
+    const c = await cash('410000.0'); const bA = await bond(p.dealerA, 'MSFT29', '400.0');
+    const rfq = await mkRfq('MSFT29', '400.0'); const qA = await quote(p.dealerA, rfq, '410000.0', bA);
+    await onQuote(qA, 'SettleQuote', { cashCid: c, clearingPrice: '410000.0' });
+    console.log('· direct OTC  MSFT29 400 @ 410,000');
+  }
+  // 7 · Partial fill: Mexico 2034 sovereign, ask 950k on 1000, buyer fills 600 → 570,000.
+  if (!doneInst.has('MEX34')) {
+    const c = await cash('950000.0'); const bA = await bond(p.dealerA, 'MEX34', '1000.0');
+    const rfq = await mkRfq('MEX34', '1000.0'); const qA = await quote(p.dealerA, rfq, '950000.0', bA);
+    await onQuote(qA, 'AcceptPartial', { cashCid: c, fillQuantity: '600.0' });
+    console.log('· partial     MEX34 600/1000 @ 570,000');
+  }
+  // 8 · Second basket settled: [UK Gilt 30Y ×500 + German Bund 5Y ×300] @ 1.80M.
+  if (reg.filter((e) => e.templateId.endsWith(':Tirai:BasketTradeReport')).length < 2) {
+    const c = await cash('1800000.0'); const g = await bond(p.dealerA, 'GILT30', '500.0'); const bu = await bond(p.dealerA, 'BUND5Y', '300.0');
+    const legs = [{ instrument: 'GILT30', quantity: '500.0', assetIssuer: p.bondIssuer }, { instrument: 'BUND5Y', quantity: '300.0', assetIssuer: p.bondIssuer }];
+    const brfq = cidOf(await submit(p.buyer, { CreateCommand: { templateId: `${PKG}:Tirai:BasketRFQ`, createArguments: { buyer: p.buyer, regulator: p.regulator, invitedDealers: [p.dealerA, p.dealerB], legs, payInstrument: 'USDC', payIssuer: p.cashIssuer, deadline: '2030-01-01T00:00:00Z' } } }));
+    const bq = cidOfTpl(await submit(p.dealerA, { ExerciseCommand: { templateId: `${PKG}:Tirai:BasketRFQ`, contractId: brfq, choice: 'SubmitBasketQuote', choiceArgument: { dealer: p.dealerA, price: '1800000.0', assetCids: [g, bu] } } }), ':Tirai:BasketQuote');
+    await submit(p.buyer, { ExerciseCommand: { templateId: `${PKG}:Tirai:BasketQuote`, contractId: bq, choice: 'SettleBasket', choiceArgument: { cashCid: c } } });
+    console.log('· basket      [GILT30 500 + BUND5Y 300] @ 1,800,000');
+  }
+  // 9 · Vickrey: Alphabet 2031 corp, A 255k / B 260k → A paid 260k.
+  if (!doneInst.has('GOOGL31')) {
+    const c = await cash('300000.0'); const bA = await bond(p.dealerA, 'GOOGL31', '250.0'); const bB = await bond(p.dealerB, 'GOOGL31', '250.0');
+    const rfq = await mkRfq('GOOGL31', '250.0'); const qA = await quote(p.dealerA, rfq, '255000.0', bA); const qB = await quote(p.dealerB, rfq, '260000.0', bB);
+    await submit(p.buyer, { ExerciseCommand: { templateId: `${PKG}:Tirai:RFQ`, contractId: rfq, choice: 'Award', choiceArgument: { quoteCids: [qA, qB], cashCid: c } } });
+    console.log('· Vickrey     GOOGL31 250 @ 260,000');
+  }
+  // 10 · Vickrey: Japan Government Bond 10Y, A 1.960M / B 1.975M → A paid 1.975M.
+  if (!doneInst.has('JGB10Y')) { await vickrey2('JGB10Y', '2000.0', '1960000.0', '1975000.0', '2000000.0'); console.log('· Vickrey     JGB10Y 2000 @ 1,975,000'); }
+  // 11 · Direct OTC: France OAT 10Y, 600 @ 615,000 (at ask).
+  if (!doneInst.has('OAT10Y')) { await directOtc('OAT10Y', '600.0', '615000.0', '615000.0'); console.log('· direct OTC  OAT10Y 600 @ 615,000'); }
+  // 12 · Partial fill: Brazil 2033 sovereign, ask 720k on 800, buyer fills 500 → 450,000.
+  if (!doneInst.has('BRAZIL33')) { await partial('BRAZIL33', '800.0', '720000.0', '500.0', '500000.0'); console.log('· partial     BRAZIL33 500/800 @ 450,000'); }
+  // 13 · Three-dealer Vickrey: Tesla 2030 corp, A 310k / B 315k / C 320k → A paid 315k.
+  if (!doneInst.has('TSLA30')) { await vickrey3('TSLA30', '300.0', '310000.0', '315000.0', '320000.0', '320000.0'); console.log('· Vickrey×3   TSLA30 300 @ 315,000 (3 dealers)'); }
+  // 14 · Third basket settled: [France OAT 30Y ×400 + Japan JGB 5Y ×600] @ 1.05M.
+  if (reg.filter((e) => e.templateId.endsWith(':Tirai:BasketTradeReport')).length < 3) {
+    await basketTrade([['OAT30', '400.0'], ['JGB5Y', '600.0']], '1050000.0', '1050000.0');
+    console.log('· basket      [OAT30 400 + JGB5Y 600] @ 1,050,000');
+  }
+
+  // ── Extended spread — a broader institutional book on-chain (idempotent per instrument) ──
+  // More sovereigns (developed markets)
+  if (!doneInst.has('CAN10Y'))  { await vickrey2('CAN10Y', '1000.0', '985000.0', '992000.0', '1000000.0');           console.log('· Vickrey     CAN10Y 1000 @ 992,000 (Canada, 2nd price)'); }
+  if (!doneInst.has('ACGB10Y')) { await directOtc('ACGB10Y', '800.0', '824000.0', '824000.0');                       console.log('· direct OTC  ACGB10Y 800 @ 824,000 (Australia)'); }
+  if (!doneInst.has('DSL10Y'))  { await partial('DSL10Y', '1500.0', '1470000.0', '900.0', '1470000.0');              console.log('· partial     DSL10Y 900/1500 @ 882,000 (Netherlands)'); }
+  if (!doneInst.has('CONF10Y')) { await vickrey3('CONF10Y', '600.0', '588000.0', '594000.0', '600000.0', '600000.0'); console.log('· Vickrey×3   CONF10Y 600 @ 594,000 (Switzerland, 3 dealers)'); }
+  if (!doneInst.has('KTB10Y'))  { await directOtc('KTB10Y', '2000.0', '1940000.0', '1940000.0');                     console.log('· direct OTC  KTB10Y 2000 @ 1,940,000 (Korea)'); }
+  if (!doneInst.has('SGS10Y'))  { await vickrey2('SGS10Y', '1000.0', '978000.0', '985000.0', '1000000.0');           console.log('· Vickrey     SGS10Y 1000 @ 985,000 (Singapore)'); }
+  // Supranationals / agencies
+  if (!doneInst.has('IBRD28'))  { await vickrey2('IBRD28', '1500.0', '1485000.0', '1492000.0', '1500000.0');         console.log('· Vickrey     IBRD28 1500 @ 1,492,000 (World Bank)'); }
+  if (!doneInst.has('EIB30'))   { await directOtc('EIB30', '1000.0', '990000.0', '990000.0');                        console.log('· direct OTC  EIB30 1000 @ 990,000 (EIB)'); }
+  if (!doneInst.has('KFW27'))   { await partial('KFW27', '2000.0', '1960000.0', '1200.0', '1960000.0');              console.log('· partial     KFW27 1200/2000 @ 1,176,000 (KfW)'); }
+  // More corporates
+  if (!doneInst.has('AMZN32'))  { await vickrey3('AMZN32', '400.0', '408000.0', '414000.0', '420000.0', '420000.0'); console.log('· Vickrey×3   AMZN32 400 @ 414,000 (Amazon, 3 dealers)'); }
+  if (!doneInst.has('NVDA34'))  { await directOtc('NVDA34', '300.0', '318000.0', '318000.0');                        console.log('· direct OTC  NVDA34 300 @ 318,000 (Nvidia)'); }
+  if (!doneInst.has('GS30'))    { await partial('GS30', '500.0', '505000.0', '350.0', '505000.0');                   console.log('· partial     GS30 350/500 @ 353,500 (Goldman Sachs)'); }
+  // EM sovereigns
+  if (!doneInst.has('INGB33'))  { await vickrey2('INGB33', '1000.0', '910000.0', '925000.0', '1000000.0');           console.log('· Vickrey     INGB33 1000 @ 925,000 (India)'); }
+  if (!doneInst.has('INDON34')) { await directOtc('INDON34', '800.0', '760000.0', '760000.0');                       console.log('· direct OTC  INDON34 800 @ 760,000 (Indonesia)'); }
+  // 4th basket — a 3-leg European-periphery package (more legs = more detail on-chain)
+  if (reg.filter((e) => e.templateId.endsWith(':Tirai:BasketTradeReport')).length < 4) {
+    await basketTrade([['SPGB5Y', '500.0'], ['BTP5Y', '400.0'], ['OLO5Y', '300.0']], '1180000.0', '1180000.0');
+    console.log('· basket3     [SPGB5Y 500 + BTP5Y 400 + OLO5Y 300] @ 1,180,000 (3-leg periphery)');
+  }
+  // 5th basket — an Asia package
+  if (reg.filter((e) => e.templateId.endsWith(':Tirai:BasketTradeReport')).length < 5) {
+    await basketTrade([['KTB5Y', '1000.0'], ['SGS5Y', '800.0']], '1750000.0', '1750000.0');
+    console.log('· basket      [KTB5Y 1000 + SGS5Y 800] @ 1,750,000 (Asia)');
+  }
+
+  // Extra OPEN RFQs on-chain (real un-settled data): the buyer holds several live
+  // requests at once, each with two sealed quotes.
+  const openInst = new Set((await acsAs(p.buyer)).filter((e) => e.templateId.endsWith(':Tirai:RFQ')).map((e) => e.createArgument.instrument));
+  const openRfq = async (inst, qty, pA, pB) => {
+    if (openInst.has(inst)) return;
+    const bA = await bond(p.dealerA, inst, qty); const bB = await bond(p.dealerB, inst, qty);
+    const rfq = await mkRfq(inst, qty);
+    await quote(p.dealerA, rfq, pA, bA); await quote(p.dealerB, rfq, pB, bB);
+    console.log(`· open RFQ    ${inst} ${qty} (2 sealed quotes, un-settled)`);
+  };
+  await openRfq('UST30Y', '800.0', '3800000.0', '3820000.0');
+  await openRfq('BUND30', '400.0', '1900000.0', '1920000.0');
+  await openRfq('JGB30Y', '1000.0', '2400000.0', '2415000.0');
+  await openRfq('OAT5Y', '700.0', '710000.0', '715000.0');
+
+  // Tidy: direct-OTC and partial settles archive the winning Quote, not the RFQ,
+  // and SettleBasket archives the BasketQuote, not the BasketRFQ — so those shells
+  // linger with no live quotes. Cancel/archive any quote-less RFQ or basket RFQ.
+  const buyerNow = await acsAs(p.buyer);
+  const withQuotes = new Set(buyerNow.filter((e) => e.templateId.endsWith(':Tirai:Quote')).map((e) => e.createArgument.rfqId).filter(Boolean));
+  for (const r of buyerNow.filter((e) => e.templateId.endsWith(':Tirai:RFQ'))) {
+    if (!withQuotes.has(r.contractId)) {
+      await submit(p.buyer, { ExerciseCommand: { templateId: `${PKG}:Tirai:RFQ`, contractId: r.contractId, choice: 'CancelRFQ', choiceArgument: {} } });
+      console.log(`· tidied orphan RFQ ${r.createArgument.instrument}`);
+    }
+  }
+  // BasketRFQ has no cancel choice, but the buyer is its sole signatory → the
+  // built-in Archive choice tidies the settled-basket shells (no redeploy needed).
+  const withBQuotes = new Set(buyerNow.filter((e) => e.templateId.endsWith(':Tirai:BasketQuote')).map((e) => e.createArgument.rfqId).filter(Boolean));
+  for (const r of buyerNow.filter((e) => e.templateId.endsWith(':Tirai:BasketRFQ'))) {
+    if (!withBQuotes.has(r.contractId)) {
+      await submit(p.buyer, { ExerciseCommand: { templateId: `${PKG}:Tirai:BasketRFQ`, contractId: r.contractId, choice: 'Archive', choiceArgument: {} } });
+      console.log('· tidied orphan BasketRFQ');
+    }
+  }
+
+  console.log('\nseed-cases done — the regulator now audits a spread of real settlement types on-chain.');
+}
+
+// Auctions where the buyer selectively DISCLOSES both competing sealed asks to the
+// regulator before awarding — so the hosted "Provable best execution" view and the
+// MCP best_execution tool show real, green attestations on live Devnet data. One per
+// fresh institutional instrument; idempotent (skips any already settled).
+async function seedBestExec() {
+  const p = JSON.parse(await readFile(join(HERE, 'devnet.parties.json'), 'utf8'));
+  const reg = await acsAs(p.regulator);
+  const done = new Set(reg.filter((e) => e.templateId.endsWith(':Tirai:TradeReport')).map((e) => e.createArgument.instrument));
+  const disclose = (qc) => submit(p.buyer, { ExerciseCommand: { templateId: `${PKG}:Tirai:Quote`, contractId: qc,
+    choice: 'DiscloseTo', choiceArgument: { auditor: p.regulator, reason: 'best-execution audit' } } });
+  // One disclosed 2-dealer Vickrey: dealerA (lower ask) wins, cleared at dealerB's price.
+  const auction = async (inst, qty, pA, pB, cashAmt) => {
+    if (done.has(inst)) { console.log(`· ${inst} already settled — skip`); return; }
+    const cash = cidOf(await submit(p.cashIssuer, createHolding(p.cashIssuer, p.buyer, 'USDC', cashAmt)));
+    const bA = cidOf(await submit(p.bondIssuer, createHolding(p.bondIssuer, p.dealerA, inst, qty)));
+    const bB = cidOf(await submit(p.bondIssuer, createHolding(p.bondIssuer, p.dealerB, inst, qty)));
+    const rfq = cidOf(await submit(p.buyer, { CreateCommand: { templateId: `${PKG}:Tirai:RFQ`, createArguments: {
+      buyer: p.buyer, regulator: p.regulator, invitedDealers: [p.dealerA, p.dealerB],
+      instrument: inst, quantity: qty, payInstrument: 'USDC', assetIssuer: p.bondIssuer, payIssuer: p.cashIssuer,
+      deadline: '2030-01-01T00:00:00Z' } } }));
+    const q = async (dealer, price, asset) => cidOfTpl(await submit(dealer, { ExerciseCommand: { templateId: `${PKG}:Tirai:RFQ`,
+      contractId: rfq, choice: 'SubmitQuote', choiceArgument: { dealer, price, assetCid: asset } } }), ':Tirai:Quote');
+    const qA = await q(p.dealerA, pA, bA);
+    const qB = await q(p.dealerB, pB, bB);
+    await disclose(qA); await disclose(qB); // both sealed asks revealed to the regulator BEFORE award
+    await submit(p.buyer, { ExerciseCommand: { templateId: `${PKG}:Tirai:RFQ`, contractId: rfq,
+      choice: 'Award', choiceArgument: { quoteCids: [qA, qB], cashCid: cash } } });
+    console.log(`· ${inst} ${qty} — Vickrey: dealerA ${pA} wins, cleared at ${pB}; both asks disclosed ✓ attested`);
+  };
+  // Shared setup for the bilateral rails: two disclosed sealed asks (A cheaper).
+  const twoQuotesDisclosed = async (inst, qty, pA, pB, cashAmt) => {
+    const cash = cidOf(await submit(p.cashIssuer, createHolding(p.cashIssuer, p.buyer, 'USDC', cashAmt)));
+    const bA = cidOf(await submit(p.bondIssuer, createHolding(p.bondIssuer, p.dealerA, inst, qty)));
+    const bB = cidOf(await submit(p.bondIssuer, createHolding(p.bondIssuer, p.dealerB, inst, qty)));
+    const rfq = cidOf(await submit(p.buyer, { CreateCommand: { templateId: `${PKG}:Tirai:RFQ`, createArguments: {
+      buyer: p.buyer, regulator: p.regulator, invitedDealers: [p.dealerA, p.dealerB],
+      instrument: inst, quantity: qty, payInstrument: 'USDC', assetIssuer: p.bondIssuer, payIssuer: p.cashIssuer,
+      deadline: '2030-01-01T00:00:00Z' } } }));
+    const q = async (dealer, price, asset) => cidOfTpl(await submit(dealer, { ExerciseCommand: { templateId: `${PKG}:Tirai:RFQ`,
+      contractId: rfq, choice: 'SubmitQuote', choiceArgument: { dealer, price, assetCid: asset } } }), ':Tirai:Quote');
+    const qA = await q(p.dealerA, pA, bA);
+    const qB = await q(p.dealerB, pB, bB);
+    await disclose(qA); await disclose(qB);
+    return { cash, qA, qB, rfq };
+  };
+  const onQuote = (qc, choice, arg) => submit(p.buyer, { ExerciseCommand: { templateId: `${PKG}:Tirai:Quote`, contractId: qc, choice, choiceArgument: arg } });
+  // SettleQuote/AcceptPartial act on the Quote, not the RFQ — so the RFQ itself would
+  // linger empty. Cancel it (buyer is sole signatory) so no orphan open RFQ is left.
+  const cancelRfq = (rfq) => submit(p.buyer, { ExerciseCommand: { templateId: `${PKG}:Tirai:RFQ`, contractId: rfq, choice: 'CancelRFQ', choiceArgument: {} } });
+  // Direct bilateral OTC: the buyer HITS the cheaper disclosed dealer at its ask
+  // (SettleQuote). The loser's quote is withdrawn so no escrow is left stranded.
+  const directOtc = async (inst, qty, pA, pB, cashAmt) => {
+    if (done.has(inst)) { console.log(`· ${inst} already settled — skip`); return; }
+    const { cash, qA, qB, rfq } = await twoQuotesDisclosed(inst, qty, pA, pB, cashAmt);
+    await onQuote(qA, 'SettleQuote', { cashCid: cash, clearingPrice: pA });
+    await submit(p.dealerB, { ExerciseCommand: { templateId: `${PKG}:Tirai:Quote`, contractId: qB, choice: 'WithdrawQuote', choiceArgument: {} } });
+    await cancelRfq(rfq);
+    console.log(`· ${inst} ${qty} — direct OTC: hit dealerA ${pA} (beat disclosed dealerB ${pB}) ✓ attested`);
+  };
+  // Partial direct fill: the buyer takes `fill` of the cheaper lot at the prorated ask.
+  const partial = async (inst, qty, pA, pB, fill, cashAmt) => {
+    if (done.has(inst)) { console.log(`· ${inst} already settled — skip`); return; }
+    const { cash, qA, qB, rfq } = await twoQuotesDisclosed(inst, qty, pA, pB, cashAmt);
+    await onQuote(qA, 'AcceptPartial', { cashCid: cash, fillQuantity: fill });
+    await submit(p.dealerB, { ExerciseCommand: { templateId: `${PKG}:Tirai:Quote`, contractId: qB, choice: 'WithdrawQuote', choiceArgument: {} } });
+    await cancelRfq(rfq);
+    console.log(`· ${inst} ${fill}/${qty} — partial fill of dealerA ${pA} (beat disclosed dealerB ${pB}) ✓ attested`);
+  };
+  // Vickrey rail — winner ask < runner-up = clearing price.
+  await auction('UST7Y', '1000.0', '1470000.0', '1490000.0', '1500000.0');
+  await auction('UST3Y', '2000.0', '1960000.0', '1980000.0', '2000000.0');
+  await auction('GILT7Y', '1000.0', '1180000.0', '1195000.0', '1200000.0');
+  await auction('BUND7Y', '1500.0', '1465000.0', '1485000.0', '1500000.0');
+  await auction('JPM30', '500.0', '505000.0', '512000.0', '520000.0');
+  await auction('OAT7Y', '800.0', '815000.0', '825000.0', '830000.0');
+  // Direct-OTC rail — buyer hits the cheaper disclosed ask.
+  await directOtc('GILT20Y', '1000.0', '1240000.0', '1255000.0', '1300000.0');
+  await directOtc('BTP10Y', '1500.0', '1440000.0', '1460000.0', '1500000.0');
+  // Partial rail — buyer takes part of the cheaper disclosed lot.
+  await partial('UST20Y', '2000.0', '1900000.0', '1930000.0', '800.0', '2000000.0');
+  await partial('SPGB10Y', '1000.0', '1120000.0', '1140000.0', '600.0', '1200000.0');
+  // ── Extended attestations — more instruments across all three rails (fresh maturities) ──
+  await auction('CAN7Y', '1000.0', '980000.0', '990000.0', '1000000.0');              // Canada · Vickrey
+  await auction('SGS7Y', '1000.0', '970000.0', '982000.0', '1000000.0');              // Singapore · Vickrey
+  await directOtc('ACGB5Y', '800.0', '810000.0', '822000.0', '850000.0');             // Australia · direct OTC
+  await directOtc('INDON30', '800.0', '745000.0', '758000.0', '800000.0');            // Indonesia · direct OTC
+  await partial('NVDA30', '500.0', '320000.0', '328000.0', '300.0', '330000.0');      // Nvidia · partial
+  await partial('IBRD30', '1000.0', '1480000.0', '1495000.0', '600.0', '1500000.0');  // World Bank · partial
+  console.log('seed-bestexec done — best execution proven across Vickrey, direct-OTC, and partial-fill rails.');
+}
+
+// Cancel any quote-less open RFQ the buyer holds — e.g. an orphan left when a
+// direct-OTC / partial settle consumed the quotes but not the RFQ. Idempotent.
+async function tidy() {
+  const p = JSON.parse(await readFile(join(HERE, 'devnet.parties.json'), 'utf8'));
+  const ev = await acsAs(p.buyer);
+  const rfqs = ev.filter((e) => e.templateId.endsWith(':Tirai:RFQ'));
+  const quotedRfqIds = new Set(ev.filter((e) => e.templateId.endsWith(':Tirai:Quote'))
+    .map((q) => q.createArgument.rfqId).filter(Boolean));
+  const orphans = rfqs.filter((r) => !quotedRfqIds.has(r.contractId));
+  if (!orphans.length) { console.log('tidy: no orphan RFQs.'); return; }
+  // NB: this cancels EVERY quote-less RFQ — including one that's genuinely open and
+  // still waiting for its first quote. Only run tidy when no live RFQ is intended.
+  console.log(`tidy: cancelling ${orphans.length} quote-less RFQ(s) — this also cancels any RFQ still awaiting its first quote.`);
+  for (const r of orphans) {
+    await submit(p.buyer, { ExerciseCommand: { templateId: `${PKG}:Tirai:RFQ`, contractId: r.contractId, choice: 'CancelRFQ', choiceArgument: {} } });
+    console.log(`· cancelled orphan RFQ ${r.createArgument.instrument} qty ${r.createArgument.quantity}`);
+  }
+  console.log(`tidy: cancelled ${orphans.length} orphan RFQ(s).`);
+}
+
+const cmd = process.argv[2];
+(async () => {
+  ENV = await loadEnv();
+  if (cmd === 'probe') await probe();
+  else if (cmd === 'cleanup') await cleanup();
+  else if (cmd === 'upload') await upload(process.argv[3] ?? '.daml/dist/tirai-otc-0.1.0.dar');
+  else if (cmd === 'allocate-one') console.log(await allocateOne(process.argv[3] ?? 'tirai-probe-1'));
+  else if (cmd === 'allocate') await allocate();
+  else if (cmd === 'seed') await seed();
+  else if (cmd === 'settle-demo') await settleDemo();
+  else if (cmd === 'seed-basket') await seedBasket();
+  else if (cmd === 'seed-cases') await seedCases();
+  else if (cmd === 'seed-bestexec') await seedBestExec();
+  else if (cmd === 'tidy') await tidy();
+  else if (cmd === 'verify') await verify();
+  else console.log('usage: probe | upload <dar> | allocate | seed | settle-demo | seed-basket | seed-cases | seed-bestexec | tidy | verify');
+})().catch((e) => { console.error('ERR', e.message); process.exit(1); });

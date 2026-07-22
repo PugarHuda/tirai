@@ -1,0 +1,16 @@
+.daml/
+*.dar
+node_modules/
+.env
+.env.local
+dist/
+
+log/
+
+# secrets
+.env
+.env.*
+*.token
+!*.example
+
+.vercel

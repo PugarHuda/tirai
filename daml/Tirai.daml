@@ -1,0 +1,493 @@
+-- Tirai - confidential multi-dealer RFQ OTC desk on Canton.
+-- Dealers whisper quotes to the buyer; competing dealers never receive them.
+-- Blindness is Canton sub-transaction privacy, not cryptography bolted on.
+module Tirai where
+
+import DA.Foldable (forA_)
+import DA.List (dedup, head, sortOn, tail)
+
+-- CIP-0056-aligned token interface (directional). Lets generic tooling — a wallet,
+-- an explorer, a settlement engine — treat any position as a standard transferable
+-- token via its view + a Transfer choice, without knowing the concrete `Holding`
+-- template. The full standard (TransferInstruction / Allocation registries) is the
+-- stated next step; this is the interface it plugs into.
+data TokenView = TokenView with
+    issuer : Party
+    owner : Party
+    instrument : Text
+    amount : Decimal
+  deriving (Eq, Show)
+
+interface Token where
+  viewtype TokenView
+  transferImpl : Party -> Update (ContractId Token)
+
+  choice TransferToken : ContractId Token
+    with newOwner : Party
+    controller (view this).owner
+    do transferImpl this newOwner
+
+-- A fungible position in one instrument. Used for both legs (asset and cash).
+template Holding
+  with
+    issuer : Party
+    owner : Party
+    instrument : Text
+    amount : Decimal
+  where
+    signatory issuer
+    observer owner
+    ensure amount > 0.0
+
+    -- Standard-token view + transfer, so generic tooling can handle a Holding
+    -- through the CIP-0056-aligned `Token` interface (see above).
+    interface instance Token for Holding where
+      view = TokenView with issuer; owner; instrument; amount
+      transferImpl newOwner = toInterfaceContractId @Token <$> create this with owner = newOwner
+
+    choice Transfer : ContractId Holding
+      with newOwner : Party
+      controller owner
+      do create this with owner = newOwner
+
+    choice Split : (ContractId Holding, ContractId Holding)
+      with splitAmount : Decimal
+      controller owner
+      do assertMsg "splitAmount must be positive and below amount"
+           (splitAmount > 0.0 && splitAmount < amount)
+         part <- create this with amount = splitAmount
+         rest <- create this with amount = amount - splitAmount
+         pure (part, rest)
+
+    -- Lock the asset into escrow, disclosed to the buyer, when quoting.
+    -- The dealer can no longer double-sell it; it is released atomically at
+    -- settlement (to buyer) or returned (to dealer) on reject/withdraw.
+    choice Lock : ContractId EscrowedHolding
+      with buyer : Party
+      controller owner
+      do create EscrowedHolding with
+           issuer; dealer = owner; buyer; instrument; amount
+
+-- Asset held in escrow while a quote is live. Visible to the buyer (observer),
+-- so settlement - run with the dealer's delegated authority - can deliver it
+-- to the buyer inside one atomic transaction.
+template EscrowedHolding
+  with
+    issuer : Party
+    dealer : Party
+    buyer : Party
+    instrument : Text
+    amount : Decimal
+  where
+    signatory issuer, dealer
+    observer buyer
+    ensure amount > 0.0
+
+    -- Release the escrow to a recipient, re-materialising a Holding.
+    -- Requires BOTH dealer and buyer authority: the dealer cannot unilaterally
+    -- pull the collateral back out while its Quote is still live (which would
+    -- let them double-sell or poison the buyer's Award). Every legitimate
+    -- release runs inside a Quote choice, where dealer+buyer authority is
+    -- present via the Quote's signatories.
+    choice DeliverTo : ContractId Holding
+      with recipient : Party
+      controller dealer, buyer
+      do create Holding with issuer; owner = recipient; instrument; amount
+
+    -- Partial delivery: `toBuyer` units of the escrow go to the buyer, the rest
+    -- back to the dealer. Same dual authority as DeliverTo (present inside a Quote
+    -- choice). Used by AcceptPartial for a partial fill.
+    choice DeliverSplit : (ContractId Holding, Optional (ContractId Holding))
+      with toBuyer : Decimal
+      controller dealer, buyer
+      do assertMsg "split must be within the escrow" (toBuyer > 0.0 && toBuyer <= amount)
+         b <- create Holding with issuer; owner = buyer; instrument; amount = toBuyer
+         rest <- if toBuyer == amount then pure None
+                 else Some <$> create Holding with issuer; owner = dealer; instrument; amount = amount - toBuyer
+         pure (b, rest)
+
+-- Buyer requests quotes from a chosen dealer panel. The market never sees it;
+-- only invited dealers do. The RFQ carries no price information.
+template RFQ
+  with
+    buyer : Party
+    regulator : Party
+    invitedDealers : [Party]
+    instrument : Text
+    quantity : Decimal
+    payInstrument : Text
+    assetIssuer : Optional Party -- if set, the asset leg must be issued by this party
+    payIssuer : Optional Party   -- if set, the cash leg must be issued by this party
+    deadline : Optional Time     -- if set, quotes are rejected once the ledger passes it
+  where
+    signatory buyer
+    observer invitedDealers
+    ensure quantity > 0.0 && not (null invitedDealers)
+
+    -- A dealer answers with a sealed quote, locking the asset into escrow.
+    -- The created Quote is visible to this dealer and the buyer ONLY - other
+    -- dealers never receive it.
+    nonconsuming choice SubmitQuote : ContractId Quote
+      with
+        dealer : Party
+        price : Decimal          -- total ask for the full quantity
+        assetCid : ContractId Holding
+      controller dealer
+      do assertMsg "dealer not invited" (dealer `elem` invitedDealers)
+         assertMsg "price must be positive" (price > 0.0)
+         now <- getTime
+         assertMsg "RFQ has expired" (optional True (now <) deadline)
+         asset <- fetch assetCid
+         assertMsg "asset not owned by dealer" (asset.owner == dealer)
+         assertMsg "wrong instrument" (asset.instrument == instrument)
+         assertMsg "wrong quantity" (asset.amount == quantity)
+         assertMsg "asset from unexpected issuer" (optional True (== asset.issuer) assetIssuer)
+         escrowCid <- exercise assetCid Lock with buyer
+         -- Stamp this RFQ's own id so a quote can only ever settle its RFQ,
+         -- never cross-settle into another RFQ that shares instrument/size.
+         create Quote with buyer; regulator; dealer; instrument; quantity
+                           payInstrument; price; escrowCid; rfqId = Some self; payIssuer
+
+    -- Buyer settles against the submitted quotes: cheapest ask wins, but is
+    -- paid the SECOND-cheapest price (reverse Vickrey), atomically DvP.
+    -- Losing quotes are archived without ever being revealed to anyone else.
+    choice Award : ContractId TradeReport
+      with
+        quoteCids : [ContractId Quote]
+        cashCid : ContractId Holding
+      controller buyer
+      do assertMsg "no quotes submitted" (not (null quoteCids))
+         let uniqueCids = dedup quoteCids
+         assertMsg "duplicate quote ids" (length uniqueCids == length quoteCids)
+         quotes <- forA quoteCids \cid -> do
+           q <- fetch cid
+           -- Bind by the RFQ's own id: a quote settles this RFQ or nothing.
+           assertMsg "quote belongs to a different RFQ" (q.rfqId == Some self)
+           pure (cid, q)
+         -- One quote per dealer in a single auction: a dealer that happens to hold
+         -- surplus assets can't stuff the book with several of its own bids.
+         let dealers = map (\(_, q) -> q.dealer) quotes
+         assertMsg "a dealer may only have one quote in the auction"
+           (length (dedup dealers) == length dealers)
+         -- Secondary sort on dealer makes the winner deterministic on a price
+         -- tie, independent of the order the buyer listed the quotes in.
+         let sorted = sortOn (\(_, q) -> (q.price, q.dealer)) quotes
+         let (winCid, winQ) = head sorted
+         let clearing = case sorted of
+               _ :: (_, second) :: _ -> second.price
+               _ -> winQ.price
+         forA_ (tail sorted) \(cid, _) -> exercise cid RejectQuote
+         exercise winCid SettleQuote with cashCid; clearingPrice = clearing
+
+    -- Award, but the buyer takes only `fillQuantity` of the winning lot at the
+    -- prorated Vickrey (second) price. Competitive price discovery + partial fills
+    -- together: losers are returned, and the winner's unfilled remainder to it.
+    choice AwardPartial : ContractId TradeReport
+      with
+        quoteCids : [ContractId Quote]
+        cashCid : ContractId Holding
+        fillQuantity : Decimal
+      controller buyer
+      do assertMsg "no quotes submitted" (not (null quoteCids))
+         let uniqueCids = dedup quoteCids
+         assertMsg "duplicate quote ids" (length uniqueCids == length quoteCids)
+         quotes <- forA quoteCids \cid -> do
+           q <- fetch cid
+           assertMsg "quote belongs to a different RFQ" (q.rfqId == Some self)
+           pure (cid, q)
+         let dealers = map (\(_, q) -> q.dealer) quotes
+         assertMsg "a dealer may only have one quote in the auction"
+           (length (dedup dealers) == length dealers)
+         let sorted = sortOn (\(_, q) -> (q.price, q.dealer)) quotes
+         let (winCid, winQ) = head sorted
+         let clearing = case sorted of
+               _ :: (_, second) :: _ -> second.price
+               _ -> winQ.price
+         forA_ (tail sorted) \(cid, _) -> exercise cid RejectQuote
+         exercise winCid SettleQuotePartial with cashCid; clearingPrice = clearing; fillQuantity
+
+    choice CancelRFQ : ()
+      controller buyer
+      do pure ()
+
+-- Sealed quote. Signatories: dealer + buyer (both bound). No observers:
+-- competing dealers and the regulator cannot see it - by ledger model, not policy.
+template Quote
+  with
+    buyer : Party
+    regulator : Party
+    dealer : Party
+    instrument : Text
+    quantity : Decimal
+    payInstrument : Text
+    price : Decimal
+    escrowCid : ContractId EscrowedHolding
+    rfqId : Optional (ContractId RFQ) -- Optional so the template stays upgrade-compatible
+    payIssuer : Optional Party        -- expected issuer of the cash leg, from the RFQ
+  where
+    signatory dealer, buyer
+
+    -- Atomic DvP: cash to dealer and the escrowed asset to buyer in ONE
+    -- transaction. The dealer's delivery authority comes from being a
+    -- Quote signatory.
+    choice SettleQuote : ContractId TradeReport
+      with
+        cashCid : ContractId Holding
+        clearingPrice : Decimal
+      controller buyer
+      do assertMsg "clearing below dealer ask" (clearingPrice >= price)
+         cash <- fetch cashCid
+         assertMsg "wrong cash instrument" (cash.instrument == payInstrument)
+         assertMsg "cash owned by buyer" (cash.owner == buyer)
+         assertMsg "cash from unexpected issuer" (optional True (== cash.issuer) payIssuer)
+         assertMsg "insufficient cash" (cash.amount >= clearingPrice)
+         payCid <-
+           if cash.amount == clearingPrice
+             then pure cashCid
+             else do
+               (part, _rest) <- exercise cashCid Split with splitAmount = clearingPrice
+               pure part
+         _ <- exercise payCid Transfer with newOwner = dealer
+         _ <- exercise escrowCid DeliverTo with recipient = buyer
+         create TradeReport with
+           buyer; dealer; regulator; instrument; quantity; clearingPrice
+
+    -- Like SettleQuote but fills only `fillQuantity` of the lot at the prorated
+    -- clearing price. AwardPartial uses this to settle a winner partially at the
+    -- Vickrey (second) price; the unfilled remainder returns to the dealer.
+    choice SettleQuotePartial : ContractId TradeReport
+      with
+        cashCid : ContractId Holding
+        clearingPrice : Decimal
+        fillQuantity : Decimal
+      controller buyer
+      do assertMsg "clearing below dealer ask" (clearingPrice >= price)
+         assertMsg "fill must be positive" (fillQuantity > 0.0)
+         assertMsg "fill exceeds the quote quantity" (fillQuantity <= quantity)
+         let fillPay = clearingPrice * fillQuantity / quantity
+         cash <- fetch cashCid
+         assertMsg "wrong cash instrument" (cash.instrument == payInstrument)
+         assertMsg "cash owned by buyer" (cash.owner == buyer)
+         assertMsg "cash from unexpected issuer" (optional True (== cash.issuer) payIssuer)
+         assertMsg "insufficient cash" (cash.amount >= fillPay)
+         payCid <-
+           if cash.amount == fillPay
+             then pure cashCid
+             else do
+               (part, _rest) <- exercise cashCid Split with splitAmount = fillPay
+               pure part
+         _ <- exercise payCid Transfer with newOwner = dealer
+         _ <- exercise escrowCid DeliverSplit with toBuyer = fillQuantity
+         create TradeReport with
+           buyer; dealer; regulator; instrument; quantity = fillQuantity; clearingPrice = fillPay
+
+    -- Partial bilateral fill: the buyer takes `fillQuantity` (≤ the quote's size)
+    -- from this one dealer at its ask, prorated, in one atomic DvP. The unfilled
+    -- remainder of the escrow returns to the dealer; the quote is consumed. This is
+    -- the direct-OTC path with partial fills — additive; Award/SettleQuote (full
+    -- fill) are untouched. `fillPrice` prorates the ask by the fill fraction.
+    choice AcceptPartial : ContractId TradeReport
+      with
+        cashCid : ContractId Holding
+        fillQuantity : Decimal
+      controller buyer
+      do assertMsg "fill must be positive" (fillQuantity > 0.0)
+         assertMsg "fill exceeds the quote quantity" (fillQuantity <= quantity)
+         let fillPrice = price * fillQuantity / quantity
+         cash <- fetch cashCid
+         assertMsg "wrong cash instrument" (cash.instrument == payInstrument)
+         assertMsg "cash owned by buyer" (cash.owner == buyer)
+         assertMsg "cash from unexpected issuer" (optional True (== cash.issuer) payIssuer)
+         assertMsg "insufficient cash" (cash.amount >= fillPrice)
+         payCid <-
+           if cash.amount == fillPrice
+             then pure cashCid
+             else do
+               (part, _rest) <- exercise cashCid Split with splitAmount = fillPrice
+               pure part
+         _ <- exercise payCid Transfer with newOwner = dealer
+         _ <- exercise escrowCid DeliverSplit with toBuyer = fillQuantity
+         create TradeReport with
+           buyer; dealer; regulator; instrument; quantity = fillQuantity; clearingPrice = fillPrice
+
+    -- Buyer declines (losing quotes in Award); escrow returns to the dealer.
+    choice RejectQuote : ()
+      controller buyer
+      do _ <- exercise escrowCid DeliverTo with recipient = dealer
+         pure ()
+
+    -- Dealer walks away before award; escrow returns to the dealer.
+    choice WithdrawQuote : ()
+      controller dealer
+      do _ <- exercise escrowCid DeliverTo with recipient = dealer
+         pure ()
+
+    -- Selective disclosure — Canton's real superpower. The buyer reveals THIS
+    -- sealed quote to a chosen auditor (a regulator, an arbiter) on demand — e.g.
+    -- to prove best execution, or to resolve a dispute — WITHOUT ever making it
+    -- public or revealing it to rival dealers. Who sees what is chosen per
+    -- contract, at any time. The quote itself stays sealed; only the named auditor
+    -- receives this disclosure.
+    nonconsuming choice DiscloseTo : ContractId QuoteDisclosure
+      with
+        auditor : Party
+        reason : Text
+      controller buyer
+      do create QuoteDisclosure with
+           discloser = buyer; buyer; auditor; dealer; instrument; quantity; price; reason
+
+    -- Symmetric: the DEALER can reveal its own sealed quote to a chosen auditor —
+    -- e.g. to prove in a dispute that it quoted a fair price, without exposing it to
+    -- rival dealers or the public. Either side of the trade controls its own
+    -- disclosure, per contract, at any time.
+    nonconsuming choice DealerDiscloseTo : ContractId QuoteDisclosure
+      with
+        auditor : Party
+        reason : Text
+      controller dealer
+      do create QuoteDisclosure with
+           discloser = dealer; buyer; auditor; dealer; instrument; quantity; price; reason
+
+-- Post-trade transparency: the regulator sees the executed trade - and only
+-- the executed trade. Pre-trade flow (RFQ, losing quotes) stays dark to them.
+template TradeReport
+  with
+    buyer : Party
+    dealer : Party
+    regulator : Party
+    instrument : Text
+    quantity : Decimal
+    clearingPrice : Decimal
+  where
+    signatory buyer, dealer
+    observer regulator
+
+-- An on-demand disclosure of one sealed quote to a chosen auditor (see
+-- Quote.DiscloseTo). Only the buyer who disclosed it and that auditor ever receive
+-- it — rival dealers and the public never do. Selective disclosure: privacy you
+-- control, per contract, at any time — not all-or-nothing transparency.
+template QuoteDisclosure
+  with
+    discloser : Party  -- the party that chose to reveal this quote (buyer or dealer)
+    buyer : Party
+    auditor : Party
+    dealer : Party
+    instrument : Text
+    quantity : Decimal
+    price : Decimal
+    reason : Text
+  where
+    signatory discloser
+    observer auditor
+
+-- ===========================================================================
+-- Multi-instrument baskets. A buyer requests several instrument legs as ONE
+-- package; a dealer quotes a single price for the whole basket, escrowing every
+-- leg; settlement delivers all legs + cash in one atomic transaction. Additive to
+-- the single-instrument flow above (reuses Holding/EscrowedHolding), so nothing in
+-- the core RFQ path changes. Direct bilateral settle (basket auctions are future).
+-- ===========================================================================
+
+data Leg = Leg with
+    instrument : Text
+    quantity : Decimal
+    assetIssuer : Optional Party  -- if set, that leg's asset must be from this issuer
+  deriving (Eq, Show)
+
+-- Buyer requests a basket from a chosen dealer panel. Priceless, market-invisible.
+template BasketRFQ
+  with
+    buyer : Party
+    regulator : Party
+    invitedDealers : [Party]
+    legs : [Leg]
+    payInstrument : Text
+    payIssuer : Optional Party
+    deadline : Optional Time
+  where
+    signatory buyer
+    observer invitedDealers
+    ensure not (null legs) && not (null invitedDealers)
+
+    -- A dealer answers with ONE sealed price for the whole basket, locking every
+    -- leg into escrow (one EscrowedHolding per leg, order-matched to `legs`).
+    nonconsuming choice SubmitBasketQuote : ContractId BasketQuote
+      with
+        dealer : Party
+        price : Decimal
+        assetCids : [ContractId Holding]
+      controller dealer
+      do assertMsg "dealer not invited" (dealer `elem` invitedDealers)
+         assertMsg "price must be positive" (price > 0.0)
+         assertMsg "one asset per leg required" (length assetCids == length legs)
+         now <- getTime
+         assertMsg "basket RFQ has expired" (optional True (now <) deadline)
+         escrowCids <- forA (zip legs assetCids) \(leg, acid) -> do
+           asset <- fetch acid
+           assertMsg "asset not owned by dealer" (asset.owner == dealer)
+           assertMsg "wrong instrument for leg" (asset.instrument == leg.instrument)
+           assertMsg "wrong quantity for leg" (asset.amount == leg.quantity)
+           assertMsg "leg asset from unexpected issuer" (optional True (== asset.issuer) leg.assetIssuer)
+           exercise acid Lock with buyer
+         create BasketQuote with
+           buyer; regulator; dealer; legs; payInstrument; price
+           escrowCids; rfqId = Some self; payIssuer
+
+-- Sealed basket quote. Signatories dealer + buyer, no observers — rival dealers
+-- and the regulator never receive it, exactly like the single-instrument Quote.
+template BasketQuote
+  with
+    buyer : Party
+    regulator : Party
+    dealer : Party
+    legs : [Leg]
+    payInstrument : Text
+    price : Decimal
+    escrowCids : [ContractId EscrowedHolding]
+    rfqId : Optional (ContractId BasketRFQ)
+    payIssuer : Optional Party
+  where
+    signatory dealer, buyer
+
+    -- Atomic multi-leg DvP: cash to the dealer, every escrowed leg to the buyer,
+    -- one BasketTradeReport for the regulator — all in one transaction.
+    choice SettleBasket : ContractId BasketTradeReport
+      with cashCid : ContractId Holding
+      controller buyer
+      do cash <- fetch cashCid
+         assertMsg "wrong cash instrument" (cash.instrument == payInstrument)
+         assertMsg "cash owned by buyer" (cash.owner == buyer)
+         assertMsg "cash from unexpected issuer" (optional True (== cash.issuer) payIssuer)
+         assertMsg "insufficient cash" (cash.amount >= price)
+         payCid <-
+           if cash.amount == price
+             then pure cashCid
+             else do
+               (part, _rest) <- exercise cashCid Split with splitAmount = price
+               pure part
+         _ <- exercise payCid Transfer with newOwner = dealer
+         forA_ escrowCids \ecid -> exercise ecid DeliverTo with recipient = buyer
+         create BasketTradeReport with buyer; dealer; regulator; legs; clearingPrice = price
+
+    -- Dealer walks away before settle; every escrowed leg returns to the dealer.
+    choice WithdrawBasketQuote : ()
+      controller dealer
+      do forA_ escrowCids \ecid -> exercise ecid DeliverTo with recipient = dealer
+
+    -- Buyer declines; every leg returns to the dealer.
+    choice RejectBasketQuote : ()
+      controller buyer
+      do forA_ escrowCids \ecid -> exercise ecid DeliverTo with recipient = dealer
+
+-- Post-trade audit for a settled basket: the regulator sees the executed legs and
+-- the clearing price, and nothing about the RFQ or any losing quote.
+template BasketTradeReport
+  with
+    buyer : Party
+    dealer : Party
+    regulator : Party
+    legs : [Leg]
+    clearingPrice : Decimal
+  where
+    signatory buyer, dealer
+    observer regulator

@@ -1,0 +1,14 @@
+sdk-version: 3.4.11
+name: tirai-otc
+version: 0.1.0
+source: daml
+# Fresh package lineage (was `tirai` 0.5.0). The CIP-0056-aligned Token interface is
+# implemented in the same package as its Holding template, which changes the interface
+# package-id per version; Daml's smart-contract-upgrade check therefore cannot upgrade
+# `tirai` 0.5.0 in place (NOT_VALID_UPGRADE_PACKAGE). A new package name sidesteps the
+# upgrade lineage entirely — the module stays `Tirai`, so template ids are unchanged.
+build-options:
+  - -Wno-upgrade-interfaces
+dependencies:
+  - daml-prim
+  - daml-stdlib

@@ -1,0 +1,405 @@
+-- Full behavioural suite for the Tirai desk. Covers the happy path, the
+-- privacy guarantees that ARE the product, Vickrey pricing across 1/2/3 quotes,
+-- escrow return on withdraw, and the failure modes (insufficient cash,
+-- cross-RFQ settlement, duplicate quotes).
+module TiraiTest where
+
+import DA.Assert ((===))
+import DA.Date (Month(Jan), date)
+import DA.List (sort)
+import DA.Optional (isNone)
+import DA.Time (days, time)
+import Daml.Script
+import Tirai
+
+data Env = Env with
+  buyer : Party
+  regulator : Party
+  cashIssuer : Party
+  bondIssuer : Party
+
+setupEnv : Script Env
+setupEnv = do
+  buyer <- allocateParty "Buyer"
+  regulator <- allocateParty "Regulator"
+  cashIssuer <- allocateParty "CashIssuer"
+  bondIssuer <- allocateParty "BondIssuer"
+  pure Env with buyer; regulator; cashIssuer; bondIssuer
+
+mintCash : Env -> Decimal -> Script (ContractId Holding)
+mintCash e amt = submit e.cashIssuer do
+  createCmd Holding with issuer = e.cashIssuer; owner = e.buyer; instrument = "USDC"; amount = amt
+
+mintBond : Env -> Party -> Script (ContractId Holding)
+mintBond e dealer = submit e.bondIssuer do
+  createCmd Holding with issuer = e.bondIssuer; owner = dealer; instrument = "TBOND30"; amount = 1000.0
+
+-- A far-future deadline so the existing tests (which quote at ledger epoch) are
+-- unaffected; the deadline behaviour has its own test below.
+farFuture : Time
+farFuture = time (date 2100 Jan 1) 0 0 0
+
+openRfq : Env -> [Party] -> Script (ContractId RFQ)
+openRfq e dealers = submit e.buyer do
+  createCmd RFQ with
+    buyer = e.buyer; regulator = e.regulator; invitedDealers = dealers
+    instrument = "TBOND30"; quantity = 1000.0; payInstrument = "USDC"
+    assetIssuer = Some e.bondIssuer; payIssuer = Some e.cashIssuer
+    deadline = Some farFuture
+
+ownedBy : Party -> [(a, Holding)] -> [(Text, Decimal)]
+ownedBy p hs = sort [(h.instrument, h.amount) | (_, h) <- hs, h.owner == p]
+
+-- Happy path + the two privacy guarantees + Vickrey second price on two quotes.
+testHappyPathAndPrivacy : Script ()
+testHappyPathAndPrivacy = do
+  e <- setupEnv
+  dealerA <- allocateParty "DealerA"
+  dealerB <- allocateParty "DealerB"
+  outsider <- allocateParty "Outsider"
+  cash <- mintCash e 5000000.0
+  bondA <- mintBond e dealerA
+  bondB <- mintBond e dealerB
+  rfq <- openRfq e [dealerA, dealerB]
+
+  submitMustFail outsider do
+    exerciseCmd rfq SubmitQuote with dealer = outsider; price = 1.0; assetCid = bondA
+
+  quoteA <- submit dealerA do exerciseCmd rfq SubmitQuote with dealer = dealerA; price = 4210000.0; assetCid = bondA
+  quoteB <- submit dealerB do exerciseCmd rfq SubmitQuote with dealer = dealerB; price = 4250000.0; assetCid = bondB
+
+  -- Rivals never receive each other's quote.
+  (isNone <$> queryContractId dealerB quoteA) >>= assertMsg "B must not see A's quote"
+  (isNone <$> queryContractId dealerA quoteB) >>= assertMsg "A must not see B's quote"
+  -- Regulator sees no pre-trade flow.
+  (=== []) =<< query @Quote e.regulator
+  (=== []) =<< query @RFQ e.regulator
+
+  submit e.buyer do exerciseCmd rfq Award with quoteCids = [quoteA, quoteB]; cashCid = cash
+
+  ownedBy e.buyer <$> query @Holding e.buyer >>= \h -> h === [("TBOND30", 1000.0), ("USDC", 750000.0)]
+  ownedBy dealerA <$> query @Holding dealerA >>= \h -> h === [("USDC", 4250000.0)] -- Vickrey 2nd price
+  ownedBy dealerB <$> query @Holding dealerB >>= \h -> h === [("TBOND30", 1000.0)] -- loser keeps asset
+  reports <- map snd <$> query @TradeReport e.regulator
+  [(r.instrument, r.quantity, r.clearingPrice) | r <- reports] === [("TBOND30", 1000.0, 4250000.0)]
+
+-- Three quotes: cheapest wins, pays the SECOND-cheapest (not third, not its own).
+testThreeQuoteVickrey : Script ()
+testThreeQuoteVickrey = do
+  e <- setupEnv
+  [dealerA, dealerB, dealerC] <- mapA allocateParty ["DealerA", "DealerB", "DealerC"]
+  cash <- mintCash e 5000000.0
+  bondA <- mintBond e dealerA
+  bondB <- mintBond e dealerB
+  bondC <- mintBond e dealerC
+  rfq <- openRfq e [dealerA, dealerB, dealerC]
+  qA <- submit dealerA do exerciseCmd rfq SubmitQuote with dealer = dealerA; price = 4210000.0; assetCid = bondA
+  qB <- submit dealerB do exerciseCmd rfq SubmitQuote with dealer = dealerB; price = 4250000.0; assetCid = bondB
+  qC <- submit dealerC do exerciseCmd rfq SubmitQuote with dealer = dealerC; price = 4300000.0; assetCid = bondC
+  submit e.buyer do exerciseCmd rfq Award with quoteCids = [qA, qB, qC]; cashCid = cash
+  -- A wins, paid B's 4.25M (the second-lowest), NOT C's 4.30M and NOT its own 4.21M.
+  ownedBy dealerA <$> query @Holding dealerA >>= \h -> h === [("USDC", 4250000.0)]
+  ownedBy e.buyer <$> query @Holding e.buyer >>= \h -> h === [("TBOND30", 1000.0), ("USDC", 750000.0)]
+
+-- Single quote: degenerate Vickrey pays the winner its own price.
+testSingleQuote : Script ()
+testSingleQuote = do
+  e <- setupEnv
+  dealerA <- allocateParty "DealerA"
+  cash <- mintCash e 5000000.0
+  bondA <- mintBond e dealerA
+  rfq <- openRfq e [dealerA]
+  qA <- submit dealerA do exerciseCmd rfq SubmitQuote with dealer = dealerA; price = 4210000.0; assetCid = bondA
+  submit e.buyer do exerciseCmd rfq Award with quoteCids = [qA]; cashCid = cash
+  ownedBy dealerA <$> query @Holding dealerA >>= \h -> h === [("USDC", 4210000.0)]
+  ownedBy e.buyer <$> query @Holding e.buyer >>= \h -> h === [("TBOND30", 1000.0), ("USDC", 790000.0)]
+
+-- Award fails cleanly if the buyer's cash cannot cover the clearing price.
+testInsufficientCash : Script ()
+testInsufficientCash = do
+  e <- setupEnv
+  dealerA <- allocateParty "DealerA"
+  cash <- mintCash e 4000000.0 -- less than the 4.21M ask
+  bondA <- mintBond e dealerA
+  rfq <- openRfq e [dealerA]
+  qA <- submit dealerA do exerciseCmd rfq SubmitQuote with dealer = dealerA; price = 4210000.0; assetCid = bondA
+  submitMustFail e.buyer do exerciseCmd rfq Award with quoteCids = [qA]; cashCid = cash
+
+-- A dealer can withdraw before award; the escrow returns to them intact.
+testWithdraw : Script ()
+testWithdraw = do
+  e <- setupEnv
+  dealerA <- allocateParty "DealerA"
+  bondA <- mintBond e dealerA
+  rfq <- openRfq e [dealerA]
+  qA <- submit dealerA do exerciseCmd rfq SubmitQuote with dealer = dealerA; price = 4210000.0; assetCid = bondA
+  submit dealerA do exerciseCmd qA WithdrawQuote
+  ownedBy dealerA <$> query @Holding dealerA >>= \h -> h === [("TBOND30", 1000.0)]
+  (isNone <$> queryContractId dealerA qA) >>= assertMsg "withdrawn quote is archived"
+
+-- A quote made against one RFQ cannot be settled by a different RFQ, even one
+-- with the same instrument/size. Proves the rfqId binding.
+testCrossRfqRejected : Script ()
+testCrossRfqRejected = do
+  e <- setupEnv
+  dealerA <- allocateParty "DealerA"
+  cash <- mintCash e 5000000.0
+  bondA <- mintBond e dealerA
+  rfq1 <- openRfq e [dealerA]
+  rfq2 <- openRfq e [dealerA]
+  qOnRfq2 <- submit dealerA do exerciseCmd rfq2 SubmitQuote with dealer = dealerA; price = 4210000.0; assetCid = bondA
+  submitMustFail e.buyer do exerciseCmd rfq1 Award with quoteCids = [qOnRfq2]; cashCid = cash
+
+-- Award rejects a duplicated quote id rather than double-processing it.
+testDuplicateQuoteRejected : Script ()
+testDuplicateQuoteRejected = do
+  e <- setupEnv
+  dealerA <- allocateParty "DealerA"
+  cash <- mintCash e 5000000.0
+  bondA <- mintBond e dealerA
+  rfq <- openRfq e [dealerA]
+  qA <- submit dealerA do exerciseCmd rfq SubmitQuote with dealer = dealerA; price = 4210000.0; assetCid = bondA
+  submitMustFail e.buyer do exerciseCmd rfq Award with quoteCids = [qA, qA]; cashCid = cash
+
+-- Vickrey with a partial fill: A wins at 4.21M, clears at the 4.25M second price,
+-- but the buyer takes only 400 of 1000 → pays 4.25M * 400/1000 = 1,700,000.
+testPartialVickrey : Script ()
+testPartialVickrey = do
+  e <- setupEnv
+  dealerA <- allocateParty "DealerA"
+  dealerB <- allocateParty "DealerB"
+  cash <- mintCash e 5000000.0
+  bondA <- mintBond e dealerA
+  bondB <- mintBond e dealerB
+  rfq <- openRfq e [dealerA, dealerB]
+  qA <- submit dealerA do exerciseCmd rfq SubmitQuote with dealer = dealerA; price = 4210000.0; assetCid = bondA
+  qB <- submit dealerB do exerciseCmd rfq SubmitQuote with dealer = dealerB; price = 4250000.0; assetCid = bondB
+  submit e.buyer do exerciseCmd rfq AwardPartial with quoteCids = [qA, qB]; cashCid = cash; fillQuantity = 400.0
+  ownedBy e.buyer <$> query @Holding e.buyer >>= \h -> h === [("TBOND30", 400.0), ("USDC", 3300000.0)]
+  ownedBy dealerA <$> query @Holding dealerA >>= \h -> h === [("TBOND30", 600.0), ("USDC", 1700000.0)]
+  ownedBy dealerB <$> query @Holding dealerB >>= \h -> h === [("TBOND30", 1000.0)] -- loser fully returned
+  reports <- map snd <$> query @TradeReport e.regulator
+  [(r.instrument, r.quantity, r.clearingPrice) | r <- reports] === [("TBOND30", 400.0, 1700000.0)]
+
+-- Selective disclosure: the buyer reveals ONE sealed quote to a chosen auditor on
+-- demand (e.g. best-execution audit). The auditor receives exactly that quote; a
+-- rival dealer never does, and the quote itself stays sealed.
+testSelectiveDisclosure : Script ()
+testSelectiveDisclosure = do
+  e <- setupEnv
+  dealerA <- allocateParty "DealerA"
+  dealerB <- allocateParty "DealerB"
+  auditor <- allocateParty "Auditor"
+  bondA <- mintBond e dealerA
+  bondB <- mintBond e dealerB
+  rfq <- openRfq e [dealerA, dealerB]
+  qA <- submit dealerA do exerciseCmd rfq SubmitQuote with dealer = dealerA; price = 4210000.0; assetCid = bondA
+  qB <- submit dealerB do exerciseCmd rfq SubmitQuote with dealer = dealerB; price = 4250000.0; assetCid = bondB
+  (=== []) =<< query @QuoteDisclosure auditor -- auditor sees nothing pre-disclosure
+  submit e.buyer do exerciseCmd qA DiscloseTo with auditor; reason = "best-execution audit"
+  disc <- map snd <$> query @QuoteDisclosure auditor
+  [(d.discloser, d.dealer, d.price, d.reason) | d <- disc] === [(e.buyer, dealerA, 4210000.0, "best-execution audit")]
+  (=== []) =<< query @QuoteDisclosure dealerB -- a rival dealer never receives it
+  (isNone <$> queryContractId dealerB qA) >>= assertMsg "rival still can't see A's quote"
+  -- Symmetric: the dealer discloses its OWN quote (dispute defence), signed by the dealer.
+  submit dealerB do exerciseCmd qB DealerDiscloseTo with auditor; reason = "fair-pricing defence"
+  disc2 <- map snd <$> query @QuoteDisclosure auditor
+  [(d.discloser, d.dealer, d.reason) | d <- disc2, d.discloser == dealerB]
+    === [(dealerB, dealerB, "fair-pricing defence")]
+
+-- Multi-instrument basket: one RFQ for two legs (1000 TBOND30 + 100 GILT10),
+-- a single sealed price for the package, settled atomically leg-by-leg.
+testBasket : Script ()
+testBasket = do
+  e <- setupEnv
+  dealerA <- allocateParty "DealerA"
+  cash <- mintCash e 5000000.0
+  bondT <- mintBond e dealerA -- TBOND30 1000
+  giltA <- submit e.bondIssuer do
+    createCmd Holding with issuer = e.bondIssuer; owner = dealerA; instrument = "GILT10"; amount = 100.0
+  let legs = [Leg "TBOND30" 1000.0 (Some e.bondIssuer), Leg "GILT10" 100.0 (Some e.bondIssuer)]
+  rfq <- submit e.buyer do
+    createCmd BasketRFQ with
+      buyer = e.buyer; regulator = e.regulator; invitedDealers = [dealerA]
+      legs; payInstrument = "USDC"; payIssuer = Some e.cashIssuer; deadline = Some farFuture
+  bq <- submit dealerA do
+    exerciseCmd rfq SubmitBasketQuote with dealer = dealerA; price = 4400000.0; assetCids = [bondT, giltA]
+  submit e.buyer do exerciseCmd bq SettleBasket with cashCid = cash
+  ownedBy e.buyer <$> query @Holding e.buyer >>= \h ->
+    h === [("GILT10", 100.0), ("TBOND30", 1000.0), ("USDC", 600000.0)]
+  ownedBy dealerA <$> query @Holding dealerA >>= \h -> h === [("USDC", 4400000.0)]
+  reps <- map snd <$> query @BasketTradeReport e.regulator
+  [(length r.legs, r.clearingPrice) | r <- reps] === [(2, 4400000.0)]
+
+-- A Holding is transferable through the standard CIP-0056-aligned Token interface,
+-- not just its concrete Transfer choice — generic tooling can move it blind to type.
+testTokenInterface : Script ()
+testTokenInterface = do
+  e <- setupEnv
+  dealerA <- allocateParty "DealerA"
+  hcid <- mintBond e dealerA
+  let tcid = toInterfaceContractId @Token hcid
+  _ <- submit dealerA do exerciseCmd tcid TransferToken with newOwner = e.buyer
+  ownedBy e.buyer <$> query @Holding e.buyer >>= \h -> h === [("TBOND30", 1000.0)]
+  ownedBy dealerA <$> query @Holding dealerA >>= \h -> h === []
+
+-- Partial bilateral fill: buyer takes 400 of a 1000-lot quote at the prorated ask.
+-- 4,250,000 * 400/1000 = 1,700,000 (exact). Dealer keeps the unfilled 600.
+testPartialFill : Script ()
+testPartialFill = do
+  e <- setupEnv
+  dealerA <- allocateParty "DealerA"
+  cash <- mintCash e 5000000.0
+  bondA <- mintBond e dealerA
+  rfq <- openRfq e [dealerA]
+  qA <- submit dealerA do exerciseCmd rfq SubmitQuote with dealer = dealerA; price = 4250000.0; assetCid = bondA
+  submitMustFail e.buyer do exerciseCmd qA AcceptPartial with cashCid = cash; fillQuantity = 1500.0 -- over the lot
+  submit e.buyer do exerciseCmd qA AcceptPartial with cashCid = cash; fillQuantity = 400.0
+  ownedBy e.buyer <$> query @Holding e.buyer >>= \h -> h === [("TBOND30", 400.0), ("USDC", 3300000.0)]
+  ownedBy dealerA <$> query @Holding dealerA >>= \h -> h === [("TBOND30", 600.0), ("USDC", 1700000.0)]
+  reports <- map snd <$> query @TradeReport e.regulator
+  [(r.instrument, r.quantity, r.clearingPrice) | r <- reports] === [("TBOND30", 400.0, 1700000.0)]
+
+-- A dealer with surplus assets cannot stuff the auction with two of its own
+-- quotes: Award rejects a quote set that repeats a dealer.
+testDuplicateDealerRejected : Script ()
+testDuplicateDealerRejected = do
+  e <- setupEnv
+  dealerA <- allocateParty "DealerA"
+  cash <- mintCash e 5000000.0
+  bond1 <- mintBond e dealerA
+  bond2 <- mintBond e dealerA -- dealer holds a surplus bond
+  rfq <- openRfq e [dealerA]
+  q1 <- submit dealerA do exerciseCmd rfq SubmitQuote with dealer = dealerA; price = 4210000.0; assetCid = bond1
+  q2 <- submit dealerA do exerciseCmd rfq SubmitQuote with dealer = dealerA; price = 4200000.0; assetCid = bond2
+  submitMustFail e.buyer do exerciseCmd rfq Award with quoteCids = [q1, q2]; cashCid = cash
+  -- but the buyer can still settle ONE of them (q2's bond stays locked in escrow)
+  submit e.buyer do exerciseCmd rfq Award with quoteCids = [q1]; cashCid = cash
+  ownedBy dealerA <$> query @Holding dealerA >>= \h -> h === [("USDC", 4210000.0)]
+
+-- A dealer cannot pull the escrowed asset back out on their own while the quote
+-- is live (that would enable double-selling and poison the buyer's Award).
+-- Releasing the escrow needs buyer authority too, present only inside Quote choices.
+testEscrowNotUnilaterallyReleasable : Script ()
+testEscrowNotUnilaterallyReleasable = do
+  e <- setupEnv
+  dealerA <- allocateParty "DealerA"
+  bondA <- mintBond e dealerA
+  rfq <- openRfq e [dealerA]
+  qA <- submit dealerA do exerciseCmd rfq SubmitQuote with dealer = dealerA; price = 4210000.0; assetCid = bondA
+  Some q <- queryContractId dealerA qA
+  submitMustFail dealerA do exerciseCmd q.escrowCid DeliverTo with recipient = dealerA
+
+-- A dealer cannot quote a self-issued counterfeit of the RFQ's asset.
+testCounterfeitAssetRejected : Script ()
+testCounterfeitAssetRejected = do
+  e <- setupEnv
+  dealerA <- allocateParty "DealerA"
+  fakeBond <- submit dealerA do
+    createCmd Holding with issuer = dealerA; owner = dealerA; instrument = "TBOND30"; amount = 1000.0
+  rfq <- openRfq e [dealerA]
+  submitMustFail dealerA do exerciseCmd rfq SubmitQuote with dealer = dealerA; price = 4210000.0; assetCid = fakeBond
+
+-- A dealer cannot quote after the RFQ's deadline has passed.
+testQuoteAfterDeadlineRejected : Script ()
+testQuoteAfterDeadlineRejected = do
+  e <- setupEnv
+  dealerA <- allocateParty "DealerA"
+  bondA <- mintBond e dealerA
+  -- Ledger time starts at epoch; set the deadline one day out.
+  rfq <- submit e.buyer do
+    createCmd RFQ with
+      buyer = e.buyer; regulator = e.regulator; invitedDealers = [dealerA]
+      instrument = "TBOND30"; quantity = 1000.0; payInstrument = "USDC"
+      assetIssuer = Some e.bondIssuer; payIssuer = Some e.cashIssuer
+      deadline = Some (time (date 1970 Jan 2) 0 0 0)
+  passTime (days 2) -- now past the deadline
+  submitMustFail dealerA do
+    exerciseCmd rfq SubmitQuote with dealer = dealerA; price = 4210000.0; assetCid = bondA
+
+-- The buyer cannot settle with self-issued counterfeit cash.
+testCounterfeitCashRejected : Script ()
+testCounterfeitCashRejected = do
+  e <- setupEnv
+  dealerA <- allocateParty "DealerA"
+  bondA <- mintBond e dealerA
+  fakeCash <- submit e.buyer do
+    createCmd Holding with issuer = e.buyer; owner = e.buyer; instrument = "USDC"; amount = 5000000.0
+  rfq <- openRfq e [dealerA]
+  qA <- submit dealerA do exerciseCmd rfq SubmitQuote with dealer = dealerA; price = 4210000.0; assetCid = bondA
+  submitMustFail e.buyer do exerciseCmd rfq Award with quoteCids = [qA]; cashCid = fakeCash
+
+-- Direct bilateral OTC: the buyer hits one dealer's quote at its own ask via
+-- SettleQuote (clearingPrice = ask), no auction. Atomic DvP, dealer paid its ask.
+testDirectOtc : Script ()
+testDirectOtc = do
+  e <- setupEnv
+  dealerA <- allocateParty "DealerA"
+  cash <- mintCash e 5000000.0
+  bondA <- mintBond e dealerA
+  rfq <- openRfq e [dealerA]
+  qA <- submit dealerA do exerciseCmd rfq SubmitQuote with dealer = dealerA; price = 4210000.0; assetCid = bondA
+  submit e.buyer do exerciseCmd qA SettleQuote with cashCid = cash; clearingPrice = 4210000.0
+  ownedBy dealerA <$> query @Holding dealerA >>= \h -> h === [("USDC", 4210000.0)] -- paid its own ask
+  ownedBy e.buyer <$> query @Holding e.buyer >>= \h -> h === [("TBOND30", 1000.0), ("USDC", 790000.0)]
+  -- SettleQuote cannot clear below the dealer's ask.
+  bondB <- mintBond e dealerA
+  rfq2 <- openRfq e [dealerA]
+  qB <- submit dealerA do exerciseCmd rfq2 SubmitQuote with dealer = dealerA; price = 4210000.0; assetCid = bondB
+  cash2 <- mintCash e 5000000.0
+  submitMustFail e.buyer do exerciseCmd qB SettleQuote with cashCid = cash2; clearingPrice = 4000000.0
+
+-- The buyer declines a sealed quote: RejectQuote returns the escrowed bond to the dealer.
+testRejectQuote : Script ()
+testRejectQuote = do
+  e <- setupEnv
+  dealerA <- allocateParty "DealerA"
+  bondA <- mintBond e dealerA
+  rfq <- openRfq e [dealerA]
+  qA <- submit dealerA do exerciseCmd rfq SubmitQuote with dealer = dealerA; price = 4210000.0; assetCid = bondA
+  submit e.buyer do exerciseCmd qA RejectQuote
+  ownedBy dealerA <$> query @Holding dealerA >>= \h -> h === [("TBOND30", 1000.0)] -- escrow returned
+  (isNone <$> queryContractId dealerA qA) >>= assertMsg "rejected quote is archived"
+
+-- The buyer (sole signatory) can cancel its own live RFQ; only the buyer can.
+testCancelRfq : Script ()
+testCancelRfq = do
+  e <- setupEnv
+  dealerA <- allocateParty "DealerA"
+  rfq <- openRfq e [dealerA]
+  submitMustFail dealerA do exerciseCmd rfq CancelRFQ -- a dealer cannot cancel it
+  submit e.buyer do exerciseCmd rfq CancelRFQ
+  (isNone <$> queryContractId e.buyer rfq) >>= assertMsg "cancelled RFQ is archived"
+
+-- A basket setup shared by the two basket-return tests below.
+setupBasket : Env -> Party -> Script (ContractId BasketQuote)
+setupBasket e dealerA = do
+  bondT <- mintBond e dealerA
+  giltA <- submit e.bondIssuer do
+    createCmd Holding with issuer = e.bondIssuer; owner = dealerA; instrument = "GILT10"; amount = 100.0
+  let legs = [Leg "TBOND30" 1000.0 (Some e.bondIssuer), Leg "GILT10" 100.0 (Some e.bondIssuer)]
+  rfq <- submit e.buyer do
+    createCmd BasketRFQ with
+      buyer = e.buyer; regulator = e.regulator; invitedDealers = [dealerA]
+      legs; payInstrument = "USDC"; payIssuer = Some e.cashIssuer; deadline = Some farFuture
+  submit dealerA do exerciseCmd rfq SubmitBasketQuote with dealer = dealerA; price = 4400000.0; assetCids = [bondT, giltA]
+
+-- Dealer withdraws its basket quote: every escrowed leg returns to the dealer.
+testWithdrawBasketQuote : Script ()
+testWithdrawBasketQuote = do
+  e <- setupEnv
+  dealerA <- allocateParty "DealerA"
+  bq <- setupBasket e dealerA
+  submit dealerA do exerciseCmd bq WithdrawBasketQuote
+  ownedBy dealerA <$> query @Holding dealerA >>= \h -> h === [("GILT10", 100.0), ("TBOND30", 1000.0)]
+  (isNone <$> queryContractId dealerA bq) >>= assertMsg "withdrawn basket quote is archived"
+
+-- Buyer declines a basket quote: every leg returns to the dealer.
+testRejectBasketQuote : Script ()
+testRejectBasketQuote = do
+  e <- setupEnv
+  dealerA <- allocateParty "DealerA"
+  bq <- setupBasket e dealerA
+  submit e.buyer do exerciseCmd bq RejectBasketQuote
+  ownedBy dealerA <$> query @Holding dealerA >>= \h -> h === [("GILT10", 100.0), ("TBOND30", 1000.0)]
+  (isNone <$> queryContractId dealerA bq) >>= assertMsg "rejected basket quote is archived"

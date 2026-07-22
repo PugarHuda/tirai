@@ -1,0 +1,14 @@
+{
+  "name": "tirai-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "description": "Tirai MCP server — read the confidential RFQ desk as AI-native tools",
+  "bin": { "tirai-mcp": "server.mjs" },
+  "scripts": { "start": "node server.mjs" },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4"
+  },
+  "engines": { "node": ">=20" }
+}
