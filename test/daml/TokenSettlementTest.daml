@@ -107,6 +107,41 @@ testTokenDvpVickrey = do
   (rep.dealer, rep.clearingPrice) === (te.dealerA, 1250.0)
   (=== []) =<< query @Quote te.e.regulator
 
+-- Asset-agnostic: the SAME settlement path works for CBTC (BitSafe) — a
+-- different registry administering a different instrument — with no code change.
+-- One integration, every CIP-0056 asset. Here the cash leg is CBTC quoted in sats.
+testCbtcDvp : Script ()
+testCbtcDvp = do
+  e <- setupEnv
+  bitsafe <- allocateParty "BitSafeRegistry"  -- CBTC's instrument admin
+  dealerA <- allocateParty "DealerA"
+  let cbtc = InstrumentId with admin = bitsafe; id = "CBTC"
+  -- BitSafe mints CBTC to the buyer (the faucet's job on Devnet).
+  cash <- submit bitsafe do
+    createCmd MockHolding with registry = bitsafe; owner = e.buyer; instrumentTag = "CBTC"; amount = 5.0
+  bondA <- mintBond e dealerA
+  rfq <- submit e.buyer do
+    createCmd RFQ with
+      buyer = e.buyer; regulator = e.regulator; invitedDealers = [dealerA]
+      instrument = "TBOND30"; quantity = 1000.0; payInstrument = "CBTC"
+      assetIssuer = Some e.bondIssuer; payIssuer = Some bitsafe; deadline = Some farFuture
+  quoteA <- submit dealerA do
+    exerciseCmd rfq SubmitQuote with dealer = dealerA; price = 3.0; assetCid = bondA
+  trade <- submit e.buyer do
+    exerciseCmd quoteA ConvertToTokenTrade with
+      cashInstrument = cbtc; clearingPrice = 3.0
+      allocateBefore = allocBefore; settleBefore = settleBy
+  Some payload <- queryContractId e.buyer trade
+  alloc <- submit e.buyer do exerciseCmd cash MockAllocate with spec = expectedAllocation payload
+  submit e.buyer do
+    exerciseCmd trade TokenTrade_Settle with
+      allocCid = toInterfaceContractId alloc; extraArgs = emptyExtra
+  -- Dealer paid in CBTC, buyer holds the bond, regulator sees the settled trade.
+  [(_, dHold)] <- query @MockHolding dealerA
+  (dHold.instrumentTag, dHold.amount) === ("CBTC", 3.0)
+  [(_, rep)] <- query @TradeReport e.regulator
+  rep.clearingPrice === 3.0
+
 -- Direct OTC on the token rail: buyer lifts one dealer's ask as-is.
 testTokenDvpDirect : Script ()
 testTokenDvpDirect = do
