@@ -71,7 +71,7 @@ async function api(path, opts = {}) {
 
 // Write path (post_rfq only): submit a command with the operator's local token.
 const USER = ENV.LEDGER_USER_ID ?? (ENV.DEVNET_TOKEN_URL ? '6' : 'participant_admin');
-const PKG = ENV.TIRAI_PKG ?? 'SET_AFTER_DEPLOY';
+const PKG = ENV.TIRAI_PKG ?? '4b1e408f6eda27364a55da076d9251ee117f0641f03aaf20883995f1e507a7e3';
 let CID = 0;
 async function submit(actAs, command) {
   const commandId = `tirai-mcp-${Date.now()}-${CID++}`; // stable across retries → ledger dedup

@@ -151,7 +151,7 @@ async function allocate() {
 
 // Main package id of .daml/dist/tirai-desk-0.1.0.dar. Regenerate after a model change
 // with: daml damlc inspect-dar --json .daml/dist/tirai-desk-0.1.0.dar  (or set TIRAI_PKG).
-const PKG = process.env.TIRAI_PKG ?? 'SET_AFTER_DEPLOY';
+const PKG = process.env.TIRAI_PKG ?? '4b1e408f6eda27364a55da076d9251ee117f0641f03aaf20883995f1e507a7e3';
 let CID = 0;
 async function submit(actAs, command) {
   const commandId = `tirai-${Date.now()}-${CID++}`; // stable across retries → dedup on the ledger
