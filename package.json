@@ -12,7 +12,7 @@
     "record": "node scripts/record.mjs",
     "record:video": "node scripts/record-video.mjs",
     "record:demo": "node scripts/record-demo.mjs",
-    "devnet:upload": "node scripts/devnet.mjs upload .daml/dist/tirai-otc-0.1.0.dar",
+    "devnet:upload": "node scripts/devnet.mjs upload .daml/dist/tirai-desk-0.1.0.dar",
     "devnet:seed": "node scripts/devnet.mjs seed",
     "devnet:verify": "node scripts/devnet.mjs verify",
     "mcp": "node mcp/server.mjs",

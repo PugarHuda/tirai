@@ -10,6 +10,7 @@ import DA.List (sort)
 import DA.Optional (isNone)
 import DA.Time (days, time)
 import Daml.Script
+import Splice.Api.Token.HoldingV1 qualified as HoldingV1
 import Tirai
 
 data Env = Env with
@@ -231,17 +232,21 @@ testBasket = do
   reps <- map snd <$> query @BasketTradeReport e.regulator
   [(length r.legs, r.clearingPrice) | r <- reps] === [(2, 4400000.0)]
 
--- A Holding is transferable through the standard CIP-0056-aligned Token interface,
--- not just its concrete Transfer choice — generic tooling can move it blind to type.
+-- Desk positions are readable through the REAL CIP-0056 Holding interface
+-- (Splice HoldingV1): a free Holding reads unlocked, an escrowed one reads as a
+-- LOCKED position — exactly what any standard wallet or explorer renders.
 testTokenInterface : Script ()
 testTokenInterface = do
   e <- setupEnv
   dealerA <- allocateParty "DealerA"
   hcid <- mintBond e dealerA
-  let tcid = toInterfaceContractId @Token hcid
-  _ <- submit dealerA do exerciseCmd tcid TransferToken with newOwner = e.buyer
-  ownedBy e.buyer <$> query @Holding e.buyer >>= \h -> h === [("TBOND30", 1000.0)]
-  ownedBy dealerA <$> query @Holding dealerA >>= \h -> h === []
+  [(_, Some hv)] <- queryInterface @HoldingV1.Holding dealerA
+  (hv.owner, hv.instrumentId.id, hv.instrumentId.admin, hv.amount, hv.lock)
+    === (dealerA, "TBOND30", e.bondIssuer, 1000.0, None)
+  -- Lock the bond into escrow: the standard view now shows a lock held by the buyer.
+  _ <- submit dealerA do exerciseCmd hcid Lock with buyer = e.buyer
+  views <- map snd <$> queryInterface @HoldingV1.Holding dealerA
+  [l.holders | Some v <- views, Some l <- [v.lock]] === [[e.buyer]]
 
 -- Partial bilateral fill: buyer takes 400 of a 1000-lot quote at the prorated ask.
 -- 4,250,000 * 400/1000 = 1,700,000 (exact). Dealer keeps the unfilled 600.

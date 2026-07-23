@@ -1,7 +1,7 @@
 // Tirai DevNet deploy/seed against the shared 5N hackathon validator.
 // Reads scripts/.env.devnet (gitignored). Node >= 20.
 //   node scripts/devnet.mjs probe
-//   node scripts/devnet.mjs upload .daml/dist/tirai-otc-0.1.0.dar
+//   node scripts/devnet.mjs upload .daml/dist/tirai-desk-0.1.0.dar
 //   node scripts/devnet.mjs allocate
 //   node scripts/devnet.mjs seed
 import { readFile, writeFile } from 'node:fs/promises';
@@ -149,8 +149,8 @@ async function allocate() {
   console.log('wrote scripts/devnet.parties.json');
 }
 
-// Main package id of .daml/dist/tirai-otc-0.1.0.dar. Regenerate after a model change
-// with: daml damlc inspect-dar --json .daml/dist/tirai-otc-0.1.0.dar  (or set TIRAI_PKG).
+// Main package id of .daml/dist/tirai-desk-0.1.0.dar. Regenerate after a model change
+// with: daml damlc inspect-dar --json .daml/dist/tirai-desk-0.1.0.dar  (or set TIRAI_PKG).
 const PKG = process.env.TIRAI_PKG ?? 'SET_AFTER_DEPLOY';
 let CID = 0;
 async function submit(actAs, command) {
@@ -659,7 +659,7 @@ const cmd = process.argv[2];
   ENV = await loadEnv();
   if (cmd === 'probe') await probe();
   else if (cmd === 'cleanup') await cleanup();
-  else if (cmd === 'upload') await upload(process.argv[3] ?? '.daml/dist/tirai-otc-0.1.0.dar');
+  else if (cmd === 'upload') await upload(process.argv[3] ?? '.daml/dist/tirai-desk-0.1.0.dar');
   else if (cmd === 'allocate-one') console.log(await allocateOne(process.argv[3] ?? 'tirai-probe-1'));
   else if (cmd === 'allocate') await allocate();
   else if (cmd === 'seed') await seed();

@@ -1,0 +1,206 @@
+-- The CIP-0056 settlement rail, end to end against the REAL standard interfaces
+-- (via MockRegistry): Vickrey + direct OTC in a registry asset, cancel/expiry
+-- escrow return, forged-allocation rejection, and the wallet-facing
+-- AllocationRequest choices.
+module TokenSettlementTest where
+
+import DA.Assert ((===))
+import DA.Date (Month(Jan), date)
+import DA.Optional (isNone)
+import DA.Time (time)
+import Daml.Script
+
+import Splice.Api.Token.MetadataV1
+import Splice.Api.Token.HoldingV1 (InstrumentId(..))
+import Splice.Api.Token.AllocationRequestV1
+
+import Tirai
+import MockRegistry
+import TiraiTest (Env(..), setupEnv, mintBond, farFuture)
+
+-- The registry (instrument admin) for the cash leg — plays cETH's onRails role.
+data TokenEnv = TokenEnv with
+  e : Env
+  registry : Party
+  dealerA : Party
+  dealerB : Party
+
+cEth : Party -> InstrumentId
+cEth registry = InstrumentId with admin = registry; id = "cETH"
+
+allocBefore : Time
+allocBefore = time (date 2100 Jan 1) 0 0 0
+
+settleBy : Time
+settleBy = time (date 2101 Jan 1) 0 0 0
+
+emptyExtra : ExtraArgs
+emptyExtra = ExtraArgs with context = emptyChoiceContext; meta = emptyMetadata
+
+setupToken : Script TokenEnv
+setupToken = do
+  e <- setupEnv
+  registry <- allocateParty "CethRegistry"
+  dealerA <- allocateParty "DealerA"
+  dealerB <- allocateParty "DealerB"
+  pure TokenEnv with e; registry; dealerA; dealerB
+
+-- The registry mints standard holdings to the buyer (the faucet's job on Devnet).
+mintCeth : TokenEnv -> Decimal -> Script (ContractId MockHolding)
+mintCeth te amt = submit te.registry do
+  createCmd MockHolding with
+    registry = te.registry; owner = te.e.buyer; instrumentTag = "cETH"; amount = amt
+
+openTokenRfq : TokenEnv -> [Party] -> Script (ContractId RFQ)
+openTokenRfq te dealers = submit te.e.buyer do
+  createCmd RFQ with
+    buyer = te.e.buyer; regulator = te.e.regulator; invitedDealers = dealers
+    instrument = "TBOND30"; quantity = 1000.0; payInstrument = "cETH"
+    assetIssuer = Some te.e.bondIssuer; payIssuer = Some te.registry
+    deadline = Some farFuture
+
+-- Award a two-dealer auction into a TokenTrade and hand back the trade + payload.
+awardedTrade : TokenEnv -> Script (ContractId TokenTrade, TokenTrade)
+awardedTrade te = do
+  bondA <- mintBond te.e te.dealerA
+  bondB <- mintBond te.e te.dealerB
+  rfq <- openTokenRfq te [te.dealerA, te.dealerB]
+  quoteA <- submit te.dealerA do
+    exerciseCmd rfq SubmitQuote with dealer = te.dealerA; price = 1200.0; assetCid = bondA
+  quoteB <- submit te.dealerB do
+    exerciseCmd rfq SubmitQuote with dealer = te.dealerB; price = 1250.0; assetCid = bondB
+  -- Rivals still never receive each other's quote on the token rail.
+  (isNone <$> queryContractId te.dealerB quoteA) >>= assertMsg "B must not see A's quote"
+  trade <- submit te.e.buyer do
+    exerciseCmd rfq AwardWithAllocation with
+      quoteCids = [quoteA, quoteB]; cashInstrument = cEth te.registry
+      allocateBefore = allocBefore; settleBefore = settleBy
+  Some payload <- queryContractId te.e.buyer trade
+  pure (trade, payload)
+
+-- Vickrey in a registry asset: winner A (ask 1200) clears at B's 1250, paid in
+-- standard cETH holdings, atomically against the escrowed bond.
+testTokenDvpVickrey : Script ()
+testTokenDvpVickrey = do
+  te <- setupToken
+  cash <- mintCeth te 2000.0
+  (trade, payload) <- awardedTrade te
+  payload.clearingPrice === 1250.0
+  -- Buyer's wallet funds the allocation against the trade's settlement spec.
+  alloc <- submit te.e.buyer do
+    exerciseCmd cash MockAllocate with spec = expectedAllocation payload
+  -- Atomic DvP.
+  submit te.e.buyer do
+    exerciseCmd trade TokenTrade_Settle with
+      allocCid = toInterfaceContractId alloc; extraArgs = emptyExtra
+  -- Dealer got the cETH, buyer got the bond and keeps the change.
+  [(_, dHold)] <- query @MockHolding te.dealerA
+  (dHold.owner, dHold.instrumentTag, dHold.amount) === (te.dealerA, "cETH", 1250.0)
+  [(_, change)] <- query @MockHolding te.e.buyer
+  change.amount === 750.0
+  [(_, bond)] <- query @Holding te.e.buyer
+  (bond.instrument, bond.amount) === ("TBOND30", 1000.0)
+  -- Loser's escrow returned; regulator sees the trade and nothing pre-trade.
+  [(_, bBond)] <- query @Holding te.dealerB
+  (bBond.owner, bBond.instrument) === (te.dealerB, "TBOND30")
+  [(_, rep)] <- query @TradeReport te.e.regulator
+  (rep.dealer, rep.clearingPrice) === (te.dealerA, 1250.0)
+  (=== []) =<< query @Quote te.e.regulator
+
+-- Direct OTC on the token rail: buyer lifts one dealer's ask as-is.
+testTokenDvpDirect : Script ()
+testTokenDvpDirect = do
+  te <- setupToken
+  cash <- mintCeth te 1200.0
+  bondA <- mintBond te.e te.dealerA
+  rfq <- openTokenRfq te [te.dealerA]
+  quoteA <- submit te.dealerA do
+    exerciseCmd rfq SubmitQuote with dealer = te.dealerA; price = 1200.0; assetCid = bondA
+  trade <- submit te.e.buyer do
+    exerciseCmd quoteA ConvertToTokenTrade with
+      cashInstrument = cEth te.registry; clearingPrice = 1200.0
+      allocateBefore = allocBefore; settleBefore = settleBy
+  Some payload <- queryContractId te.e.buyer trade
+  alloc <- submit te.e.buyer do
+    exerciseCmd cash MockAllocate with spec = expectedAllocation payload
+  submit te.e.buyer do
+    exerciseCmd trade TokenTrade_Settle with
+      allocCid = toInterfaceContractId alloc; extraArgs = emptyExtra
+  [(_, dHold)] <- query @MockHolding te.dealerA
+  dHold.amount === 1200.0
+
+-- Cancel: allocation returns to the buyer, escrow returns to the dealer.
+testTokenTradeCancel : Script ()
+testTokenTradeCancel = do
+  te <- setupToken
+  cash <- mintCeth te 1250.0
+  (trade, payload) <- awardedTrade te
+  alloc <- submit te.e.buyer do
+    exerciseCmd cash MockAllocate with spec = expectedAllocation payload
+  submit te.e.buyer do
+    exerciseCmd trade TokenTrade_Cancel with
+      allocWithContext = Some (toInterfaceContractId alloc, emptyExtra)
+  [(_, back)] <- query @MockHolding te.e.buyer
+  back.amount === 1250.0
+  -- Winner's escrowed bond is back with the dealer; no report was ever created.
+  [(_, aBond)] <- query @Holding te.dealerA
+  (aBond.owner, aBond.instrument) === (te.dealerA, "TBOND30")
+  (=== []) =<< query @TradeReport te.e.regulator
+
+-- Expiry: past settleBefore the DEALER can pull its collateral back.
+testTokenTradeExpire : Script ()
+testTokenTradeExpire = do
+  te <- setupToken
+  (trade, _) <- awardedTrade te
+  -- Not expired yet: the dealer cannot grab the escrow early.
+  submitMustFail te.dealerA do exerciseCmd trade TokenTrade_Expire
+  setTime settleBy
+  submit te.dealerA do exerciseCmd trade TokenTrade_Expire
+  [(_, aBond)] <- query @Holding te.dealerA
+  (aBond.owner, aBond.instrument) === (te.dealerA, "TBOND30")
+
+-- A forged allocation — right instrument, wrong amount — can never settle.
+testAllocationMismatchRejected : Script ()
+testAllocationMismatchRejected = do
+  te <- setupToken
+  cash <- mintCeth te 2000.0
+  (trade, payload) <- awardedTrade te
+  let spec = expectedAllocation payload
+  let forged = spec with transferLeg = spec.transferLeg with amount = 1.0
+  alloc <- submit te.e.buyer do exerciseCmd cash MockAllocate with spec = forged
+  submitMustFail te.e.buyer do
+    exerciseCmd trade TokenTrade_Settle with
+      allocCid = toInterfaceContractId alloc; extraArgs = emptyExtra
+
+-- The instrument is bound end-to-end: a quote for cETH cannot convert to CBTC,
+-- nor to a cETH instrument administered by an impostor registry.
+testWrongInstrumentRejected : Script ()
+testWrongInstrumentRejected = do
+  te <- setupToken
+  impostor <- allocateParty "Impostor"
+  bondA <- mintBond te.e te.dealerA
+  rfq <- openTokenRfq te [te.dealerA]
+  quoteA <- submit te.dealerA do
+    exerciseCmd rfq SubmitQuote with dealer = te.dealerA; price = 1200.0; assetCid = bondA
+  submitMustFail te.e.buyer do
+    exerciseCmd quoteA ConvertToTokenTrade with
+      cashInstrument = InstrumentId with admin = te.registry; id = "CBTC"
+      clearingPrice = 1200.0; allocateBefore = allocBefore; settleBefore = settleBy
+  submitMustFail te.e.buyer do
+    exerciseCmd quoteA ConvertToTokenTrade with
+      cashInstrument = InstrumentId with admin = impostor; id = "cETH"
+      clearingPrice = 1200.0; allocateBefore = allocBefore; settleBefore = settleBy
+
+-- The wallet-facing interface: the buyer rejects the allocation request through
+-- the STANDARD choice (as any CIP-0056 wallet would render it), releasing the
+-- dealer's collateral.
+testAllocationRequestReject : Script ()
+testAllocationRequestReject = do
+  te <- setupToken
+  (trade, _) <- awardedTrade te
+  _ <- submit te.e.buyer do
+    exerciseCmd (toInterfaceContractId @AllocationRequest trade)
+      AllocationRequest_Reject with actor = te.e.buyer; extraArgs = emptyExtra
+  [(_, aBond)] <- query @Holding te.dealerA
+  (aBond.owner, aBond.instrument) === (te.dealerA, "TBOND30")
+  (=== []) =<< query @TradeReport te.e.regulator

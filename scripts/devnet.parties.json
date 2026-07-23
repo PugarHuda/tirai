@@ -1,0 +1,8 @@
+{
+  "buyer": "tirai-v1-buyer::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8",
+  "dealerA": "tirai-v1-dealerA::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8",
+  "dealerB": "tirai-v1-dealerB::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8",
+  "regulator": "tirai-v1-regulator::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8",
+  "cashIssuer": "tirai-v1-cashissuer::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8",
+  "bondIssuer": "tirai-v1-bondissuer::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8"
+}

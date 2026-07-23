@@ -1,14 +1,19 @@
 sdk-version: 3.4.11
-name: tirai-otc
+name: tirai-desk
 version: 0.1.0
 source: daml
-# Fresh package lineage (was `tirai` 0.5.0). The CIP-0056-aligned Token interface is
-# implemented in the same package as its Holding template, which changes the interface
-# package-id per version; Daml's smart-contract-upgrade check therefore cannot upgrade
-# `tirai` 0.5.0 in place (NOT_VALID_UPGRADE_PACKAGE). A new package name sidesteps the
-# upgrade lineage entirely — the module stays `Tirai`, so template ids are unchanged.
-build-options:
-  - -Wno-upgrade-interfaces
+# `tirai-desk` defines NO interfaces of its own — the token interfaces it deals in
+# are the frozen Canton Token Standard (CIP-0056) packages below — so the package
+# upgrades cleanly forever (no in-package-interface SCU wall).
 dependencies:
   - daml-prim
   - daml-stdlib
+# Canton Network Token Standard (CIP-0056) interface packages — the frozen 1.0.0 API
+# DARs from the Splice release bundle. Never recompiled locally: the package-ids must
+# match what live registries (cETH, CBTC, Canton Coin) implement against, and these
+# exact DARs are already vetted on every DevNet validator.
+data-dependencies:
+  - dars/splice-api-token-metadata-v1-1.0.0.dar
+  - dars/splice-api-token-holding-v1-1.0.0.dar
+  - dars/splice-api-token-allocation-v1-1.0.0.dar
+  - dars/splice-api-token-allocation-request-v1-1.0.0.dar

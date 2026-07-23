@@ -59,7 +59,7 @@ achievement — it is a `signatory`/`observer` declaration.
 - [x] Three-party web desk (buyer / dealers / regulator) over the JSON Ledger API
 - [x] Read-only MCP server + agent scripts
 - [ ] **CIP-56 settlement leg (cETH / CBTC)** — in progress, this hackathon's build
-- [ ] Deploy to Canton Devnet as `tirai-otc`
+- [ ] Deploy to Canton Devnet as `tirai-desk`
 - [ ] Hosted read-only desk
 
 ## Run locally

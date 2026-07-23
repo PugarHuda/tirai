@@ -5,27 +5,16 @@ module Tirai where
 
 import DA.Foldable (forA_)
 import DA.List (dedup, head, sortOn, tail)
+import DA.TextMap qualified as TextMap
 
--- CIP-0056-aligned token interface (directional). Lets generic tooling — a wallet,
--- an explorer, a settlement engine — treat any position as a standard transferable
--- token via its view + a Transfer choice, without knowing the concrete `Holding`
--- template. The full standard (TransferInstruction / Allocation registries) is the
--- stated next step; this is the interface it plugs into.
-data TokenView = TokenView with
-    issuer : Party
-    owner : Party
-    instrument : Text
-    amount : Decimal
-  deriving (Eq, Show)
-
-interface Token where
-  viewtype TokenView
-  transferImpl : Party -> Update (ContractId Token)
-
-  choice TransferToken : ContractId Token
-    with newOwner : Party
-    controller (view this).owner
-    do transferImpl this newOwner
+-- Canton Network Token Standard (CIP-0056) — the real Splice interface packages,
+-- so the cash leg can be ANY registry asset: cETH (onRails), CBTC (BitSafe),
+-- Canton Coin, USDCx. See TokenTrade below.
+import Splice.Api.Token.MetadataV1
+import Splice.Api.Token.HoldingV1 (InstrumentId(..))
+import Splice.Api.Token.HoldingV1 qualified as HoldingV1
+import Splice.Api.Token.AllocationV1
+import Splice.Api.Token.AllocationRequestV1
 
 -- A fungible position in one instrument. Used for both legs (asset and cash).
 template Holding
@@ -39,11 +28,15 @@ template Holding
     observer owner
     ensure amount > 0.0
 
-    -- Standard-token view + transfer, so generic tooling can handle a Holding
-    -- through the CIP-0056-aligned `Token` interface (see above).
-    interface instance Token for Holding where
-      view = TokenView with issuer; owner; instrument; amount
-      transferImpl newOwner = toInterfaceContractId @Token <$> create this with owner = newOwner
+    -- The REAL CIP-0056 Holding interface (Splice HoldingV1): any standard
+    -- wallet or explorer reads this position without knowing the template.
+    interface instance HoldingV1.Holding for Holding where
+      view = HoldingV1.HoldingView with
+        owner
+        instrumentId = InstrumentId with admin = issuer; id = instrument
+        amount
+        lock = None
+        meta = emptyMetadata
 
     choice Transfer : ContractId Holding
       with newOwner : Party
@@ -82,6 +75,20 @@ template EscrowedHolding
     signatory issuer, dealer
     observer buyer
     ensure amount > 0.0
+
+    -- Standard wallets see the escrow as a LOCKED position (CIP-0056 lock
+    -- semantics): still the dealer's, reserved for this settlement.
+    interface instance HoldingV1.Holding for EscrowedHolding where
+      view = HoldingV1.HoldingView with
+        owner = dealer
+        instrumentId = InstrumentId with admin = issuer; id = instrument
+        amount
+        lock = Some HoldingV1.Lock with
+          holders = [buyer]
+          expiresAt = None
+          expiresAfter = None
+          context = Some "tirai: escrowed while a sealed quote is live"
+        meta = emptyMetadata
 
     -- Release the escrow to a recipient, re-materialising a Holding.
     -- Requires BOTH dealer and buyer authority: the dealer cannot unilaterally
@@ -206,6 +213,39 @@ template RFQ
          forA_ (tail sorted) \(cid, _) -> exercise cid RejectQuote
          exercise winCid SettleQuotePartial with cashCid; clearingPrice = clearing; fillQuantity
 
+    -- Reverse-Vickrey award with the cash leg in a REAL token-standard asset
+    -- (cETH / CBTC / CC / USDCx). Same auction as Award — cheapest ask wins, pays
+    -- the second price, losers rejected unrevealed — but instead of moving mock
+    -- cash it converts the winning quote into a TokenTrade, which the buyer's
+    -- wallet then funds via a standard CIP-0056 Allocation. Settlement is
+    -- two-phase by design: the registry's allocation needs the buyer's wallet
+    -- and the registry's off-ledger choice context.
+    choice AwardWithAllocation : ContractId TokenTrade
+      with
+        quoteCids : [ContractId Quote]
+        cashInstrument : InstrumentId
+        allocateBefore : Time
+        settleBefore : Time
+      controller buyer
+      do assertMsg "no quotes submitted" (not (null quoteCids))
+         let uniqueCids = dedup quoteCids
+         assertMsg "duplicate quote ids" (length uniqueCids == length quoteCids)
+         quotes <- forA quoteCids \cid -> do
+           q <- fetch cid
+           assertMsg "quote belongs to a different RFQ" (q.rfqId == Some self)
+           pure (cid, q)
+         let dealers = map (\(_, q) -> q.dealer) quotes
+         assertMsg "a dealer may only have one quote in the auction"
+           (length (dedup dealers) == length dealers)
+         let sorted = sortOn (\(_, q) -> (q.price, q.dealer)) quotes
+         let (winCid, winQ) = head sorted
+         let clearing = case sorted of
+               _ :: (_, second) :: _ -> second.price
+               _ -> winQ.price
+         forA_ (tail sorted) \(cid, _) -> exercise cid RejectQuote
+         exercise winCid ConvertToTokenTrade with
+           cashInstrument; clearingPrice = clearing; allocateBefore; settleBefore
+
     choice CancelRFQ : ()
       controller buyer
       do pure ()
@@ -310,6 +350,29 @@ template Quote
          create TradeReport with
            buyer; dealer; regulator; instrument; quantity = fillQuantity; clearingPrice = fillPrice
 
+    -- Convert this sealed quote into a TokenTrade: the cash leg becomes a
+    -- CIP-0056 instrument the buyer will fund through its wallet. Used directly
+    -- (direct OTC at the dealer's ask) or by AwardWithAllocation (Vickrey, at the
+    -- second price). The escrow carries over; nothing is revealed to anyone new.
+    choice ConvertToTokenTrade : ContractId TokenTrade
+      with
+        cashInstrument : InstrumentId
+        clearingPrice : Decimal
+        allocateBefore : Time
+        settleBefore : Time
+      controller buyer
+      do assertMsg "clearing below dealer ask" (clearingPrice >= price)
+         assertMsg "cash instrument must match the quoted pay instrument"
+           (cashInstrument.id == payInstrument)
+         assertMsg "cash instrument admin must match the RFQ's pay issuer"
+           (optional True (== cashInstrument.admin) payIssuer)
+         now <- getTime
+         assertMsg "allocation window must be open" (now < allocateBefore)
+         create TokenTrade with
+           buyer; dealer; regulator; instrument; quantity; escrowCid
+           cashInstrument; clearingPrice; quoteCid = self
+           createdAt = now; allocateBefore; settleBefore
+
     -- Buyer declines (losing quotes in Award); escrow returns to the dealer.
     choice RejectQuote : ()
       controller buyer
@@ -379,6 +442,136 @@ template QuoteDisclosure
   where
     signatory discloser
     observer auditor
+
+-- ===========================================================================
+-- Canton Token Standard (CIP-0056) settlement. The cash leg in REAL registry
+-- assets — cETH (onRails), CBTC (BitSafe), Canton Coin, USDCx — via the
+-- standard's Allocation flow:
+--   1. Award/accept converts the winning sealed Quote into a TokenTrade, which
+--      implements the standard AllocationRequest interface — the buyer's WALLET
+--      (Canton Loop, Console, …) sees "allocate <clearingPrice> <cETH> to this
+--      settlement" without any Tirai-specific integration.
+--   2. The buyer allocates: the registry locks the cash into an Allocation
+--      bound to this trade's reference.
+--   3. TokenTrade_Settle executes Allocation_ExecuteTransfer (registry moves
+--      cash to the dealer) + EscrowedHolding.DeliverTo (bond to the buyer) +
+--      TradeReport — ONE atomic transaction, DvP or nothing.
+-- Privacy is unchanged: the registry only ever sees its own cash leg; rival
+-- dealers see nothing; the regulator sees post-trade only.
+-- ===========================================================================
+
+-- | The settlement spec this trade expects the buyer's allocation to match,
+-- reconstructed deterministically from the trade's own fields so a forged or
+-- repointed allocation can never settle it.
+expectedAllocation : TokenTrade -> AllocationSpecification
+expectedAllocation trade = AllocationSpecification with
+  settlement = tradeSettlementInfo trade
+  transferLegId = cashLegId
+  transferLeg = tradeCashLeg trade
+
+tradeSettlementInfo : TokenTrade -> SettlementInfo
+tradeSettlementInfo TokenTrade{..} = SettlementInfo with
+  executor = buyer
+  settlementRef = Reference with id = "tirai-quote"; cid = Some (coerceContractId quoteCid)
+  requestedAt = createdAt
+  allocateBefore
+  settleBefore
+  meta = emptyMetadata
+
+tradeCashLeg : TokenTrade -> TransferLeg
+tradeCashLeg TokenTrade{..} = TransferLeg with
+  sender = buyer
+  receiver = dealer
+  amount = clearingPrice
+  instrumentId = cashInstrument
+  meta = emptyMetadata
+
+cashLegId : Text
+cashLegId = "cash"
+
+-- | An awarded trade awaiting token-standard cash settlement. Created with both
+-- trading parties' authority (they sign the consumed Quote).
+template TokenTrade
+  with
+    buyer : Party
+    dealer : Party
+    regulator : Party
+    instrument : Text             -- the bond leg, held in native escrow
+    quantity : Decimal
+    escrowCid : ContractId EscrowedHolding
+    cashInstrument : InstrumentId -- ANY CIP-0056 instrument: cETH, CBTC, CC, USDCx…
+    clearingPrice : Decimal       -- in units of cashInstrument
+    quoteCid : ContractId Quote   -- the consumed quote; unique settlement reference
+    createdAt : Time
+    allocateBefore : Time
+    settleBefore : Time
+  where
+    signatory buyer, dealer
+    ensure quantity > 0.0 && clearingPrice > 0.0 && allocateBefore < settleBefore
+
+    -- Atomic DvP: the registry's cash transfer and the desk's bond delivery
+    -- either both happen or neither does. `extraArgs` carries the registry's
+    -- off-ledger choice context (fetched from its /registry/allocations API;
+    -- empty for registries that need none).
+    choice TokenTrade_Settle : (Allocation_ExecuteTransferResult, ContractId TradeReport)
+      with
+        allocCid : ContractId Allocation
+        extraArgs : ExtraArgs
+      controller buyer
+      do now <- getTime
+         assertMsg "settlement deadline has passed" (now < settleBefore)
+         alloc <- fetch allocCid
+         assertMsg "allocation does not match this trade"
+           ((view alloc).allocation == expectedAllocation this)
+         cash <- exercise allocCid Allocation_ExecuteTransfer with extraArgs
+         _ <- exercise escrowCid DeliverTo with recipient = buyer
+         report <- create TradeReport with
+           buyer; dealer; regulator; instrument; quantity; clearingPrice
+         pure (cash, report)
+
+    -- Buyer aborts: release the buyer's allocation (if any) and return the
+    -- dealer's escrowed bond.
+    choice TokenTrade_Cancel : ()
+      with
+        allocWithContext : Optional (ContractId Allocation, ExtraArgs)
+      controller buyer
+      do forA_ allocWithContext \(allocCid, extraArgs) -> do
+           alloc <- fetch allocCid
+           assertMsg "allocation does not match this trade"
+             ((view alloc).allocation == expectedAllocation this)
+           _ <- exercise allocCid Allocation_Cancel with extraArgs
+           pure ()
+         _ <- exercise escrowCid DeliverTo with recipient = dealer
+         pure ()
+
+    -- Dealer recovers its collateral once the buyer has run out the clock —
+    -- the escrow can never be stranded by a buyer who walks away.
+    choice TokenTrade_Expire : ()
+      controller dealer
+      do now <- getTime
+         assertMsg "trade has not expired yet" (now >= settleBefore)
+         _ <- exercise escrowCid DeliverTo with recipient = dealer
+         pure ()
+
+    -- The standard interface: this is what makes the trade show up in the
+    -- buyer's wallet as an allocation request for any CIP-0056 asset.
+    interface instance AllocationRequest for TokenTrade where
+      view = AllocationRequestView with
+        settlement = tradeSettlementInfo this
+        transferLegs = TextMap.fromList [(cashLegId, tradeCashLeg this)]
+        meta = emptyMetadata
+
+      -- The cash sender (the buyer) signals it will not allocate; the dealer's
+      -- collateral goes straight back.
+      allocationRequest_RejectImpl _self AllocationRequest_Reject{..} = do
+        assertMsg "only the cash sender may reject" (actor == buyer)
+        _ <- exercise escrowCid DeliverTo with recipient = dealer
+        pure ChoiceExecutionMetadata with meta = emptyMetadata
+
+      -- The executor (the buyer) withdraws the request; same release.
+      allocationRequest_WithdrawImpl _self _arg = do
+        _ <- exercise escrowCid DeliverTo with recipient = dealer
+        pure ChoiceExecutionMetadata with meta = emptyMetadata
 
 -- ===========================================================================
 -- Multi-instrument baskets. A buyer requests several instrument legs as ONE
