@@ -28,6 +28,10 @@ let ENV, TOKEN, TOKEN_AT = 0;
 const L = () => ENV.DEVNET_LEDGER_URL.replace(/\/$/, '');
 
 async function token() {
+  // A pre-issued bearer (e.g. grabbed from the wallet UI's browser session when
+  // the account is Google-SSO, or the Keycloak cert is expired) — used verbatim,
+  // never calling the token endpoint. Refresh it in the env file when it expires.
+  if (ENV.DEVNET_TOKEN) return ENV.DEVNET_TOKEN.trim();
   if (TOKEN && Date.now() - TOKEN_AT < 6 * 60 * 1000) return TOKEN; // reuse ~6min
   // Two auth shapes: fivenorth uses client_credentials (M2M secret); the
   // hackcanton-01 node uses a Keycloak password grant (public UI client, no
