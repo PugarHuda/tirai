@@ -12,7 +12,10 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');
 
 async function loadEnv() {
-  const txt = await readFile(join(HERE, '.env.devnet'), 'utf8');
+  // ENV_FILE picks the target: scripts/.env.devnet (fivenorth, client_credentials)
+  // or scripts/.env.hackcanton (hackcanton-01 node, Keycloak password grant).
+  const file = process.env.ENV_FILE ?? '.env.devnet';
+  const txt = await readFile(join(HERE, file), 'utf8');
   const e = {};
   for (const line of txt.split(/\r?\n/)) {
     const m = line.match(/^([A-Z_]+)=(.*)$/);
@@ -26,13 +29,24 @@ const L = () => ENV.DEVNET_LEDGER_URL.replace(/\/$/, '');
 
 async function token() {
   if (TOKEN && Date.now() - TOKEN_AT < 6 * 60 * 1000) return TOKEN; // reuse ~6min
-  const body = new URLSearchParams({
-    grant_type: 'client_credentials',
-    client_id: ENV.DEVNET_CLIENT_ID,
-    client_secret: ENV.DEVNET_CLIENT_SECRET,
-    audience: ENV.DEVNET_AUDIENCE,
-    scope: ENV.DEVNET_SCOPE,
-  });
+  // Two auth shapes: fivenorth uses client_credentials (M2M secret); the
+  // hackcanton-01 node uses a Keycloak password grant (public UI client, no
+  // secret) — selected by presence of DEVNET_USERNAME in the env file.
+  const body = ENV.DEVNET_USERNAME
+    ? new URLSearchParams({
+        grant_type: 'password',
+        client_id: ENV.DEVNET_CLIENT_ID,
+        username: ENV.DEVNET_USERNAME,
+        password: ENV.DEVNET_PASSWORD,
+        scope: ENV.DEVNET_SCOPE,
+      })
+    : new URLSearchParams({
+        grant_type: 'client_credentials',
+        client_id: ENV.DEVNET_CLIENT_ID,
+        client_secret: ENV.DEVNET_CLIENT_SECRET,
+        audience: ENV.DEVNET_AUDIENCE,
+        scope: ENV.DEVNET_SCOPE,
+      });
   let lastErr;
   for (let i = 0; i < 5; i++) {
     try {
@@ -83,10 +97,10 @@ async function probe() {
   console.log('parties:', parties.status, 'count=', list.length);
   for (const p of list.slice(0, 8)) console.log('   ', p.party);
   // who am I / rights
-  const me = await api('/v2/users/6');
-  console.log('user 6:', me.status, JSON.stringify(me.data).slice(0, 200));
-  const rights = await api('/v2/users/6/rights');
-  console.log('user 6 rights:', rights.status, JSON.stringify(rights.data).slice(0, 400));
+  const me = await api('/v2/users/' + USER);
+  console.log(`user ${USER}:`, me.status, JSON.stringify(me.data).slice(0, 200));
+  const rights = await api('/v2/users/' + USER + '/rights');
+  console.log(`user ${USER} rights:`, rights.status, JSON.stringify(rights.data).slice(0, 400));
 }
 
 async function upload(darPath) {
@@ -97,7 +111,10 @@ async function upload(darPath) {
   console.log('upload:', r.status, JSON.stringify(r.data).slice(0, 200));
 }
 
-const USER = '6';
+// Ledger user id for command submission + rights grants. On fivenorth the shared
+// M2M user is "6"; on hackcanton-01 (password grant) it's the Keycloak subject —
+// set LEDGER_USER_ID in that env file once `probe` reveals it.
+const USER = process.env.LEDGER_USER_ID ?? '6';
 // v2 party set — isolates this deployment's (new package) contracts from any
 // earlier ones on the shared validator, so party queries return only our data.
 const HINTS = {
