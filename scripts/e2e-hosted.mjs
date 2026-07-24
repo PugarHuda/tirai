@@ -6,7 +6,7 @@
 //   TIRAI_BASE=http://localhost:8080 node scripts/e2e-hosted.mjs chromium
 import { chromium, firefox, webkit } from 'playwright';
 
-const BASE = (process.env.TIRAI_BASE ?? 'https://tirai-eight.vercel.app').replace(/\/$/, '');
+const BASE = (process.env.TIRAI_BASE ?? 'https://tirai.vercel.app').replace(/\/$/, '');
 const ENGINES = { chromium, firefox, webkit };
 const want = process.argv.slice(2).filter((a) => ENGINES[a]);
 const RUN = want.length ? want : Object.keys(ENGINES);

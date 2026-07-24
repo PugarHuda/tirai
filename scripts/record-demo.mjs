@@ -23,7 +23,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');
 const MEDIA = join(ROOT, 'media');
 const BASE = process.env.TIRAI_URL ?? 'http://localhost:8080';
-const DECK_URL = process.env.DECK_URL ?? 'https://tirai-eight.vercel.app/deck';
+const DECK_URL = process.env.DECK_URL ?? 'https://tirai.vercel.app/deck';
 const SPEED = Number(process.env.SPEED ?? 1);
 const WPM = Number(process.env.WPM ?? 150);
 const W = 1600, H = 900;
