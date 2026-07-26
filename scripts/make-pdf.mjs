@@ -280,6 +280,264 @@ and a compliance function willing to accept an on-ledger post-trade record in pl
 its current spreadsheet.</p>
 ${FOOT}`,
   },
+  gtm: {
+    out: 'tirai-gtm.pdf',
+    body: `
+<h1>Tirai — go-to-market plan</h1>
+<p class="sub">How a confidential RFQ desk gets its first real trade, its first paying
+venue, and its first ten desks.</p>
+<div class="rule"></div>
+${META}
+
+<h2>Positioning</h2>
+<div class="facts">
+  <p><strong>For</strong> institutional trading desks that move blocks in tokenised
+  assets, <strong>Tirai</strong> is the confidential RFQ/OTC venue that lets them get a
+  competitive price without telling the market they are trading —
+  <strong>unlike</strong> public order books and AMMs, which leak size and direction
+  before the trade prints, and <strong>unlike</strong> voice/chat trading, which leaks
+  nothing but also settles nothing.</p>
+</div>
+<p><strong>The one sentence a trader remembers:</strong> "You whisper quotes; the market
+hears nothing — and the regulator still gets the whole record."</p>
+<p><strong>The three proof points</strong>, in the order they land: (1) dealer B's node
+never receives dealer A's quote — verifiable on-ledger, not a UI promise; (2) settlement
+is atomic DvP with a real cETH/CBTC cash leg, so nobody carries counterparty risk;
+(3) best execution is provable after the fact without ever having been public.</p>
+
+<h2>Business model</h2>
+<ul>
+  <li><strong>Per-trade venue fee</strong> in the settlement asset — basis points of
+  notional, taken atomically inside the settlement transaction. No invoicing, no
+  collection risk: if the trade settles, the fee is paid.</li>
+  <li><strong>Network rewards.</strong> Featured-app activity markers (CIP-0047) accrue
+  on every settlement, so a live desk earns from the volume it clears in addition to the
+  fee.</li>
+  <li><strong>Revenue share with the hosting venue</strong> — the venue brings the
+  client relationship and custody, Tirai brings the primitive; the fee splits.</li>
+  <li><strong>Not</strong> a per-seat licence. Institutional desks resent seat pricing,
+  and it decouples our revenue from the thing we actually improve: executed volume.</li>
+</ul>
+
+<h2>Channels, in priority order</h2>
+<table>
+  <tr><th>Channel</th><th>Why it works</th><th>First action</th></tr>
+  <tr>
+    <td><strong>Asset-issuer ecosystems</strong> — onRails (cETH), BitSafe (CBTC)</td>
+    <td>They need trading venues for their asset to be worth holding; we need their
+    registry and their holders. Mutual, not a favour</td>
+    <td>Settle live test-token trades, then ask to be listed as an app in their
+    ecosystem materials</td>
+  </tr>
+  <tr>
+    <td><strong>Hosting venues &amp; wallets</strong> — Temple, Bron, Console, Canton
+    Loop</td>
+    <td>They already hold the institutional relationship, the custody and the
+    onboarding; we are a feature they cannot build in a week</td>
+    <td>Ship as an embeddable app with the standard AllocationRequest flow — their
+    wallet already renders it, so integration is small</td>
+  </tr>
+  <tr>
+    <td><strong>Canton Network ecosystem</strong> — Canton Foundation, Digital Asset,
+    validator operators, CIP process</td>
+    <td>Distribution to exactly the institutions building on Canton; the privacy story
+    is the network's own pitch, demonstrated</td>
+    <td>Hackathon submission, then a written case study of the privacy verification with
+    reproducible numbers</td>
+  </tr>
+  <tr>
+    <td><strong>Direct desk outreach</strong> — crypto-native funds and prop shops
+    first</td>
+    <td>Short decision chains: a CIO can say yes to a pilot in one meeting</td>
+    <td>Warm intros from the ecosystems above; demo on live Devnet state, not slides</td>
+  </tr>
+  <tr>
+    <td><strong>Agent / MCP distribution</strong></td>
+    <td>The desk is already exposed as MCP tools, so an institutional agent stack can
+    read the market and post RFQs without a human UI — a channel nobody else in this
+    category has</td>
+    <td>Publish the MCP server and one worked agent example</td>
+  </tr>
+</table>
+
+<h2>90-day plan</h2>
+<h3>Days 0–30 — make it real</h3>
+<ul>
+  <li>Wire the onRails cETH registry end to end (off-ledger choice context, disclosed
+  contracts) and settle live test-token trades; repeat for BitSafe CBTC.</li>
+  <li>Publish the privacy verification as a reproducible artefact: anyone can run the
+  check against the live ledger and get the same answer.</li>
+  <li>Recruit <strong>one</strong> design-partner desk and a panel of 3–5 dealers it
+  already faces bilaterally.</li>
+</ul>
+<h3>Days 30–60 — one venue, one instrument class</h3>
+<ul>
+  <li>Land one hosting venue integration; agree the fee split and the activity markers.</li>
+  <li>Run the design partner on a single instrument class in shadow mode: real RFQs,
+  real quotes, settlement compared against their existing execution.</li>
+  <li>Instrument everything the desk cares about — fill quality vs. their current venue,
+  time-to-quote, panel response rate.</li>
+</ul>
+<h3>Days 60–90 — evidence, then repeat</h3>
+<ul>
+  <li>Turn on the venue fee for live trades at the pilot desk.</li>
+  <li>Publish the pilot's execution-quality numbers (with the desk's permission) — the
+  only marketing that moves institutions.</li>
+  <li>Use that reference to open the next three desks through the same venue.</li>
+</ul>
+
+<h2>Supporting materials (all live today)</h2>
+<ul>
+  <li><strong>Working product</strong> — hosted read-only desk at tirai.vercel.app over
+  real Canton Devnet state; a prospect can look at live contracts, not a mock-up.</li>
+  <li><strong>Public repository</strong> — github.com/PugarHuda/tirai: model, tests, CI,
+  deployment scripts, and a build journal that shows the work rather than claiming it.</li>
+  <li><strong>Reproducible privacy proof</strong> — an on-ledger check that fails the
+  build if a quote ever leaks; the strongest sales asset we have, because a prospect can
+  run it themselves.</li>
+  <li><strong>Value statement and ICP documents</strong>, this plan, and a demo video
+  walking through a real settlement.</li>
+  <li><strong>MCP server</strong> — six tools, so an evaluating team can point their own
+  agent at the desk during diligence.</li>
+</ul>
+
+<h2>Risks and how we handle them</h2>
+<ul>
+  <li><strong>Cold-start liquidity.</strong> An RFQ desk with one dealer is worthless.
+  Mitigation: launch inside a venue that already has the dealers, and start with panels
+  that already trade bilaterally — we digitise an existing relationship rather than
+  creating a new market.</li>
+  <li><strong>Long institutional sales cycles.</strong> Mitigation: beachhead with
+  crypto-native desks whose decision chain is one person, and use their numbers to open
+  the slower doors.</li>
+  <li><strong>Registry dependency.</strong> The cash leg needs a live registry.
+  Mitigation: the instrument is any {admin, id}, so cETH, CBTC, Canton Coin and USDCx
+  are one code path — no single issuer can strand us.</li>
+  <li><strong>Regulatory ambiguity around dark trading.</strong> Mitigation: the
+  regulator role is built in, not bolted on — post-trade visibility by default and
+  selective pre-trade disclosure on demand.</li>
+</ul>
+
+<h2>What we are asking for</h2>
+<p>cETH and CBTC Devnet test tokens to complete live settlement; an introduction to one
+hosting venue willing to pilot an embedded app; and one design-partner desk trading a
+tokenised instrument in size.</p>
+${FOOT}`,
+  },
+
+  metrics: {
+    out: 'tirai-metrics.pdf',
+    body: `
+<h1>Tirai — metrics &amp; validation evidence</h1>
+<p class="sub">What is measurably true today, how to verify each number yourself, and
+what is honestly not yet proven.</p>
+<div class="rule"></div>
+${META}
+
+<h2>Live on Canton Devnet — the ledger is the evidence</h2>
+<div class="facts">
+  <p><strong>41 settled trades + 5 atomic multi-leg baskets</strong> — real contracts on
+  the shared 5N Devnet validator, package <code>tirai-desk</code>
+  <code>4b1e408f…</code>, parties <code>tirai-v1-*</code>.</p>
+  <p><strong>16 best-execution attestations</strong> — each with both dealers' asks
+  disclosed to the regulator <em>before</em> settlement, so the clearing price is
+  provably at or below every competing ask.</p>
+  <p><strong>32 quote disclosures · 5 open RFQs, each with two sealed quotes</strong> —
+  a live book, not a single demo trade.</p>
+  <p><strong>Coverage:</strong> ~25 instruments across sovereigns (US, UK, Germany,
+  Japan, France, Australia, Netherlands, Switzerland, Korea, Singapore, India,
+  Indonesia), supranationals (IBRD, EIB, KfW) and corporates (Amazon, Nvidia, Goldman,
+  JPM), traded on all three rails — reverse-Vickrey (including 3-dealer auctions),
+  direct OTC, and partial fills.</p>
+</div>
+
+<h2>The privacy claim, verified on the network (not asserted)</h2>
+<p>The central claim of this project is falsifiable, and we falsify it on every run.
+<code>node scripts/devnet.mjs verify</code> queries the live active-contract set of each
+party and asserts:</p>
+<ul>
+  <li>each dealer sees <strong>only its own quotes</strong> — never a rival's;</li>
+  <li>the regulator sees <strong>zero pre-trade contracts</strong> — no RFQs, no quotes;</li>
+  <li>the regulator does see <strong>every settled trade</strong> — 46 settlements in
+  its audit view.</li>
+</ul>
+<p>It exits non-zero if a single quote ever leaks, so this is a test, not a dashboard.
+The same result is reproduced independently through the read-only MCP server
+(<code>party_view</code>) and through the hosted desk's "Verify privacy" view, which
+counts live contracts in the browser.</p>
+
+<h2>Engineering evidence</h2>
+<table>
+  <tr><th>Check</th><th>Result</th><th>How to run it</th></tr>
+  <tr><td>Daml model test suite</td><td><strong>36 / 36 scripts green</strong></td>
+      <td><code>cd test; daml test</code></td></tr>
+  <tr><td>Hosted QA across three browsers</td><td><strong>66 / 66 checks</strong>
+      (chromium, firefox, webkit)</td><td><code>node scripts/e2e-hosted.mjs</code></td></tr>
+  <tr><td>MCP server against live Devnet</td><td><strong>25 / 25 checks</strong></td>
+      <td><code>node scripts/e2e-mcp.mjs</code></td></tr>
+  <tr><td>Read-only proxy security self-test</td><td><strong>14 / 14</strong>, including a
+      party-enumeration bypass regression</td><td><code>node scripts/test-readonly-proxy.mjs</code></td></tr>
+  <tr><td>On-ledger privacy assertion</td><td><strong>green</strong> after every seeding
+      run</td><td><code>node scripts/devnet.mjs verify</code></td></tr>
+  <tr><td>Write protection in production</td><td>every <code>/v2/commands/*</code> call
+      <strong>403</strong></td><td>hosted proxy, verified in production</td></tr>
+</table>
+
+<h2>Hypotheses, and what the build actually validated</h2>
+<table>
+  <tr><th>Hypothesis</th><th>Status</th><th>Evidence</th></tr>
+  <tr><td>Canton's sub-transaction privacy alone is enough — no ZK, TEE or FHE needed
+      for a confidential RFQ desk</td><td><strong>Validated</strong></td>
+      <td>Zero cryptographic machinery in the codebase; privacy asserted on the live
+      network, where a rival dealer's participant node simply never receives the
+      contract</td></tr>
+  <tr><td>Confidential pre-trade and provable post-trade can coexist</td>
+      <td><strong>Validated</strong></td>
+      <td>16 attestations built from quotes disclosed to the regulator on demand, with
+      the quotes never public</td></tr>
+  <tr><td>One settlement integration can serve every asset (cETH, CBTC, CC, USDCx)</td>
+      <td><strong>Validated in test</strong></td>
+      <td>The cash instrument is any {admin, id}; a second, differently-administered mock
+      registry settles through the identical code path (<code>testCbtcDvp</code>)</td></tr>
+  <tr><td>The desk is usable by an institution's own automation, not just humans</td>
+      <td><strong>Validated</strong></td>
+      <td>Six MCP tools, 25/25 green against live Devnet, including a write path that
+      posts a real RFQ on-ledger</td></tr>
+  <tr><td>Desks will pay a per-trade fee for confidentiality</td>
+      <td><strong>Not yet validated</strong></td>
+      <td>No paying customer. This is the first thing a design-partner pilot must
+      test</td></tr>
+</table>
+
+<h2>Reproduce every number in this document</h2>
+<ul>
+  <li><strong>Live desk:</strong> tirai.vercel.app — the tiles, audit trail and
+  best-execution view read the live ledger; nothing is baked in.</li>
+  <li><strong>Ledger:</strong> package <code>tirai-desk</code>
+  <code>4b1e408f6eda27364a55da076d9251ee117f0641f03aaf20883995f1e507a7e3</code>, parties
+  <code>tirai-v1-buyer / dealerA / dealerB / regulator / cashissuer / bondissuer</code>.</li>
+  <li><strong>Code and history:</strong> github.com/PugarHuda/tirai — CI green, plus
+  <code>JOURNAL.md</code>, a dated build log of what was built and what broke.</li>
+</ul>
+
+<h2>What is not proven yet (stated plainly)</h2>
+<ul>
+  <li><strong>No live cETH or CBTC transaction.</strong> The settlement path is built
+  against the real Splice v1 interfaces and tested against a mock registry, but the
+  Devnet test-token grant has not landed, so no value has moved in the real asset yet.</li>
+  <li><strong>No paying users and no design partner signed.</strong> Every commercial
+  claim in the GTM document is a hypothesis, not a result.</li>
+  <li><strong>Not deployed on the HackCanton participant.</strong> The deploy is written
+  and proven on another Devnet validator; on <code>hackcanton-01</code> a wallet-issued
+  token authenticates for reads but DAR upload and party allocation return 403 — that
+  needs participant-admin rights. (Separately: the TLS certificate on the node's Keycloak
+  is expired, which blocks the documented auth path for every participant.)</li>
+  <li><strong>No load or latency benchmarks.</strong> Volumes so far are demonstrative,
+  not performance evidence.</li>
+</ul>
+${FOOT}`,
+  },
+
 };
 
 const render = async (key) => {
