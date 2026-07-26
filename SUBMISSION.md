@@ -110,7 +110,9 @@ BitSafe CBTC registry, a validator/hosting venue, and wallet support (Canton Loo
 - **Hosted desk live** at https://tirai.vercel.app — real Devnet contracts
   through a serverless proxy that holds the token server-side and 403s every
   write path (`/v2/commands/*` verified rejected in production).
-- Read-only MCP server (5 tools) for agent access; read-only proxy self-test
+- MCP server for agent access — 6 tools, 5 read-only plus `post_rfq`, which
+  posts a real RFQ on Devnet (25/25 MCP checks green against live state);
+  read-only proxy self-test
   14/14, including a `filtersForAnyParty` enumeration-bypass regression test.
 
 ## Which node, and one blocker worth reporting

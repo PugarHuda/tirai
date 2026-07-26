@@ -131,7 +131,7 @@ cd test; daml test  # 36 scripts
 | `web/` | three-column desk + Node proxy |
 | `api/` | read-only serverless proxy (hosted deployment) |
 | `scripts/` | Devnet deployer, local demo, e2e suites |
-| `mcp/` | read-only MCP server (5 tools) |
+| `mcp/` | MCP server — 6 tools: 5 read-only + `post_rfq`, which writes a real RFQ |
 | [`SUBMISSION.md`](SUBMISSION.md) | tracks, business brief, pilot plan |
 | [`JOURNAL.md`](JOURNAL.md) | daily build journal (what was built, what broke) |
 | [`DEMO-VO.md`](DEMO-VO.md) | demo video script (≤5 min, own voice) |

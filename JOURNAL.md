@@ -116,5 +116,25 @@ participant.
 Meanwhile the deployed-and-verified state on the 5N Devnet validator stands:
 package `4b1e408f…`, parties `tirai-v1-*`, hosted desk live.
 
-Test status this day: **`daml test` green**, read-only proxy self-test 14/14,
-hosted desk and MCP suites run against live Devnet state.
+Test status this day: **`daml test` 36/36 ok**, read-only proxy self-test 14/14,
+MCP suite **25/25** against live Devnet.
+
+Then filled the ledger with real trading activity rather than a single demo
+trade — `seed-cases` and `seed-bestexec` on the 5N validator. Live state now:
+
+- **41 `TradeReport` + 5 `BasketTradeReport`** settled on-ledger, across
+  reverse-Vickrey (incl. 3-dealer auctions), direct OTC and partial fills, over
+  sovereigns (US, UK, Germany, Japan, France, Australia, Netherlands,
+  Switzerland, Korea, Singapore, India, Indonesia), supranationals (IBRD, EIB,
+  KfW) and corporates (Amazon, Nvidia, Goldman, JPM).
+- **16 best-execution attestations** — for each, both dealers' asks were
+  disclosed to the regulator *before* settlement, so the clearing price is
+  provably ≤ every competing ask, across all three rails.
+- **32 `QuoteDisclosure`** contracts, 5 open RFQs each carrying two sealed
+  quotes, orphan RFQs tidied.
+- `verify` re-run afterwards: still green — each dealer sees only its own
+  quotes, the regulator still sees **zero** pre-trade contracts, with 46
+  settlements in its audit view.
+
+Also removed the `/deck` route: no slide deck ships (the pitch is the video), so
+the rewrite only ever produced 404s in the hosted QA run.
