@@ -39,109 +39,121 @@ We have built this same product four times before, on four different chains.
 Every time, most of the work was cryptography fighting the ledger. On Canton, that machinery disappears.
 
 11
-00:00:57,776 --> 00:01:02,240
-Let me show you the desk itself, running against a live Canton ledger.
+00:00:57,776 --> 00:01:02,192
+Let me drive the desk for real, against a Canton participant node.
 
 12
-00:01:02,560 --> 00:01:08,944
+00:01:02,512 --> 00:01:08,896
 These three columns are not three apps. They are one ledger, seen by three different parties:
 
 13
-00:01:09,264 --> 00:01:16,560
+00:01:09,216 --> 00:01:16,512
 the buyer, and two competing dealers. Each column shows only what that party's own node actually received.
 
 14
-00:01:16,880 --> 00:01:23,888
+00:01:16,832 --> 00:01:23,840
 The buyer opens a request for quote: a thirty-year treasury, one thousand units, paid in tokenised dollars.
 
 15
-00:01:24,208 --> 00:01:29,104
+00:01:24,160 --> 00:01:29,056
 The market never sees this. Only the invited dealers do.
 
 16
-00:01:29,424 --> 00:01:36,192
+00:01:29,376 --> 00:01:36,144
 Dealer A now sees the request, and answers with a sealed quote — four million, two hundred and ten thousand.
 
 17
-00:01:36,512 --> 00:01:38,816
+00:01:36,464 --> 00:01:38,768
 Watch what happens on the right.
 
 18
-00:01:39,136 --> 00:01:47,464
+00:01:39,088 --> 00:01:47,416
 Dealer B's column is empty. Not a masked row. Not a hidden-bid placeholder. Nothing at all.
 
 19
-00:01:47,784 --> 00:01:55,992
+00:01:47,736 --> 00:01:55,944
 Dealer A's quote was never transmitted to Dealer B's node. That is not the interface hiding it — it is the ledger never sending it.
 
 20
-00:01:56,312 --> 00:02:03,032
+00:01:56,264 --> 00:02:02,984
 Dealer B quotes too — four million, two hundred and fifty thousand — completely blind to its rival.
 
 21
-00:02:03,352 --> 00:02:08,800
+00:02:03,304 --> 00:02:08,752
 The buyer now holds both sealed quotes. Neither dealer can see the other.
 
 22
-00:02:09,120 --> 00:02:16,104
+00:02:09,072 --> 00:02:16,056
 Either side can reveal one sealed quote to a regulator on demand — without ever showing it to a rival, or to the public.
 
 23
-00:02:16,424 --> 00:02:19,376
+00:02:16,376 --> 00:02:19,328
 That is what makes the next part possible.
 
 24
-00:02:19,696 --> 00:02:27,760
+00:02:19,648 --> 00:02:27,712
 Now the buyer awards. The cheapest dealer wins — but is paid the second price, four million two hundred and fifty thousand.
 
 25
-00:02:28,080 --> 00:02:33,240
+00:02:28,032 --> 00:02:33,192
 Cash and bond move in a single atomic transaction: both legs, or neither.
 
 26
-00:02:33,560 --> 00:02:40,448
+00:02:33,512 --> 00:02:40,400
 You do not have to take the privacy on trust. This view queries what each party's node actually holds.
 
 27
-00:02:40,768 --> 00:02:47,296
+00:02:40,720 --> 00:02:47,248
 Each dealer sees only its own quote. The regulator sees nothing at all before the trade settles.
 
 28
-00:02:47,616 --> 00:02:53,976
+00:02:47,568 --> 00:02:53,928
 And here is what a transparent chain would have leaked at that exact moment — every live quote, every open order.
 
 29
-00:02:54,296 --> 00:02:57,152
+00:02:54,248 --> 00:02:57,104
 On Canton, the number is zero.
 
 30
-00:02:57,472 --> 00:03:05,200
+00:02:57,424 --> 00:03:05,152
 This is the part institutions actually need. A public exchange proves best execution against a visible order book.
 
 31
-00:03:05,520 --> 00:03:17,904
+00:03:05,472 --> 00:03:17,856
 Tirai has no order book — and still proves it. From the sealed asks disclosed to the regulator, every settled trade is checked: the winner quoted the lowest price, and the buyer paid no worse than any competitor.
 
 32
-00:03:18,224 --> 00:03:26,936
+00:03:18,176 --> 00:03:26,888
 The regulator's record shows executed trades, and only executed trades. Confidential before the trade, auditable after it.
 
 33
-00:03:27,256 --> 00:03:33,592
+00:03:27,208 --> 00:03:33,544
 And each party sees its own positions — the buyer now holds the bond, the winning dealer holds the cash.
 
 34
-00:03:33,912 --> 00:03:43,464
-Four previous builds of this same product needed four cryptography stacks: trusted hardware, zero-knowledge circuits, threshold encryption, fully homomorphic encryption.
+00:03:33,864 --> 00:03:42,840
+Everything so far ran on a participant node I control. This is the same package deployed on Canton Devnet, read-only, open to anyone.
 
 35
-00:03:43,784 --> 00:03:49,544
-On Canton: none of it. Sub-transaction privacy is simply the ledger model.
+00:03:43,160 --> 00:03:52,328
+Forty-one settled trades and five atomic baskets, across sovereigns, supranationals and corporates — real contracts on the network, not a mock-up.
 
 36
-00:03:49,864 --> 00:03:56,800
-Tirai: the confidential OTC desk that finally did not need a cryptography stack — because Canton already is one.
+00:03:52,648 --> 00:03:59,272
+Sixteen of them carry a best-execution attestation: the buyer provably paid no worse than any competing ask.
 
 37
-00:03:57,120 --> 00:04:01,152
+00:03:59,592 --> 00:04:09,144
+Four previous builds of this same product needed four cryptography stacks: trusted hardware, zero-knowledge circuits, threshold encryption, fully homomorphic encryption.
+
+38
+00:04:09,464 --> 00:04:15,224
+On Canton: none of it. Sub-transaction privacy is simply the ledger model.
+
+39
+00:04:15,544 --> 00:04:22,480
+Tirai: the confidential OTC desk that finally did not need a cryptography stack — because Canton already is one.
+
+40
+00:04:22,800 --> 00:04:26,832
 You whisper quotes. The market hears nothing.

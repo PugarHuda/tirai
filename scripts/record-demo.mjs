@@ -6,6 +6,10 @@
 //   npm run demo            # terminal 1: sandbox + seed + desk on :8080
 //   npm run record:demo     # terminal 2: this
 //
+// Restart `npm run demo` before every take. The ledger is stateful and a dealer
+// can only quote while it still holds the exact RFQ quantity, so a second take
+// against a used ledger dies on "waiting for button[data-quote=dealerA]".
+//
 // Outputs (media/):
 //   tirai-live-demo.webm    the video (1600×900, visible cursor, smooth motion)
 //   tirai-live-demo.srt     subtitles, burn in or load alongside
@@ -269,7 +273,7 @@ const srtTime = (ms) => {
   });
 
   await segment('Landing · into the desk', [
-    'Let me show you the desk itself, running against a live Canton ledger.',
+    'Let me drive the desk for real, against a Canton participant node.',
   ], async () => {
     await smoothScroll(0, 1200);
     await clickAt('a[href="app.html"]', { ms: 1000, settle: 900 });
@@ -398,7 +402,33 @@ const srtTime = (ms) => {
     await hold(2200);
   });
 
-  // ══════════════ CHAPTER 4 · Close on the landing page ══════════════
+  // ══════════════ CHAPTER 4 · The public Devnet deployment ══════════════
+  // Everything above drove a local participant. This chapter is the hosted desk
+  // over the real Devnet deployment, so the claim "deployed on Canton" is shown,
+  // not asserted. DEVNET_URL can point elsewhere if the deployment moves.
+  const DEVNET_URL = process.env.DEVNET_URL ?? 'https://tirai.vercel.app';
+
+  await segment('Devnet · the public deployment', [
+    'Everything so far ran on a participant node I control. This is the same package deployed on Canton Devnet, read-only, open to anyone.',
+  ], async () => {
+    await page.goto(`${DEVNET_URL}/app`, { waitUntil: 'load', timeout: 60000 });
+    await page.waitForTimeout(7000); // let the first ledger poll land
+    await hold(1800);
+  });
+
+  await segment('Devnet · the audit trail', [
+    'Forty-one settled trades and five atomic baskets, across sovereigns, supranationals and corporates — real contracts on the network, not a mock-up.',
+    'Sixteen of them carry a best-execution attestation: the buyer provably paid no worse than any competing ask.',
+  ], async () => {
+    await view('audit');
+    await hold(2600);
+    await smoothScroll(700, 1600);
+    await hold(2000);
+    await view('bestexec');
+    await hold(3000);
+  });
+
+  // ══════════════ CHAPTER 5 · Close on the landing page ══════════════
   // ponytail: no slide deck exists — close on the live landing page instead.
   await segment('Close · why Canton', [
     'Four previous builds of this same product needed four cryptography stacks: trusted hardware, zero-knowledge circuits, threshold encryption, fully homomorphic encryption.',
