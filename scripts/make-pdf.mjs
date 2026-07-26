@@ -538,6 +538,207 @@ counts live contracts in the browser.</p>
 ${FOOT}`,
   },
 
+  // The pitch deck: landscape slides, dark ground, one <section> per page —
+  // same visual language as the desk itself.
+  pitch: {
+    out: 'tirai-pitch-deck.pdf',
+    landscape: true,
+    css: `
+      @page { size: A4 landscape; margin: 0; }
+      *{box-sizing:border-box}
+      body{margin:0;font:12pt/1.5 "Segoe UI",Inter,system-ui,sans-serif;
+           color:#e6edf3;background:#0b0d10}
+      section{width:297mm;height:209mm;padding:16mm 18mm;background:#0b0d10;
+              break-after:page;position:relative;display:flex;flex-direction:column;
+              justify-content:center;border-top:3pt solid #6ee7b7}
+      section:last-child{break-after:auto}
+      .n{position:absolute;top:9mm;right:18mm;font-size:9pt;color:#5b6673;
+         letter-spacing:.12em;text-transform:uppercase}
+      .kicker{font-size:9.5pt;letter-spacing:.16em;text-transform:uppercase;
+              color:#6ee7b7;margin:0 0 5mm}
+      h1{font-size:40pt;line-height:1.05;margin:0 0 6mm;letter-spacing:-.02em;color:#fff}
+      h2{font-size:26pt;line-height:1.15;margin:0 0 6mm;letter-spacing:-.01em;color:#fff}
+      p{margin:0 0 4mm;font-size:13pt;color:#c5d0da;max-width:230mm}
+      .lede{font-size:15pt;color:#e6edf3}
+      strong{color:#6ee7b7;font-weight:600}
+      ul{margin:0 0 3mm;padding-left:6mm}
+      li{margin:0 0 3mm;font-size:12.5pt;color:#c5d0da}
+      .cols{display:grid;grid-template-columns:1fr 1fr;gap:8mm}
+      .card{border:1.5pt solid #2b3742;padding:6mm 7mm;background:#10151b}
+      .card h3{margin:0 0 2mm;font-size:12pt;color:#fff}
+      .card p{margin:0;font-size:11pt}
+      .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6mm;margin-top:4mm}
+      .stat{border:1.5pt solid #2b3742;background:#10151b;padding:6mm}
+      .stat b{display:block;font-size:30pt;color:#6ee7b7;line-height:1}
+      .stat span{font-size:10.5pt;color:#8b98a5}
+      table{width:100%;border-collapse:collapse;font-size:11.5pt;margin-top:2mm}
+      th{text-align:left;color:#6ee7b7;border-bottom:1.5pt solid #2b3742;padding:3mm 4mm;
+         font-size:10pt;letter-spacing:.08em;text-transform:uppercase}
+      td{padding:3mm 4mm;border-bottom:.75pt solid #1b2430;color:#c5d0da}
+      td.hi{color:#fff}
+      .flow{display:grid;grid-template-columns:repeat(5,1fr);gap:4mm;margin-top:4mm}
+      .step{border:1.5pt solid #2b3742;background:#10151b;padding:5mm}
+      .step b{display:block;color:#6ee7b7;font-size:10pt;margin-bottom:1.5mm}
+      .step span{font-size:10.5pt;color:#c5d0da}
+      .foot{position:absolute;bottom:9mm;left:18mm;font-size:9pt;color:#5b6673}
+    `,
+    body: `
+<section>
+  <p class="kicker">HackCanton Season #2 · Financial Applications</p>
+  <h1>Tirai</h1>
+  <p class="lede">The confidential multi-dealer RFQ / OTC desk, built native on Canton —
+  settling in real CIP-56 assets: cETH, CBTC, Canton Coin, USDCx.</p>
+  <p><strong>You whisper quotes. The market hears nothing.</strong></p>
+  <p class="foot">github.com/PugarHuda/tirai · tirai.vercel.app · Pugar Huda Mantoro (solo)</p>
+</section>
+
+<section>
+  <p class="n">01 · Problem</p>
+  <p class="kicker">The trade that moves the market before it happens</p>
+  <h2>Asking for a price <em>is</em> the information</h2>
+  <p>Request a quote on 50 million of a 30-year sovereign and you have told the market
+  your size and your direction — before a single unit changes hands.</p>
+  <div class="cols">
+    <div class="card"><h3>Trade in public</h3><p>Public books and mempools leak size and
+    direction. Front-running and adverse selection are structural, not incidental.</p></div>
+    <div class="card"><h3>Trade off-chain</h3><p>Phones and closed terminals leak nothing —
+    and settle nothing. Counterparty risk, T+2, manual reconciliation.</p></div>
+  </div>
+  <p style="margin-top:5mm"><strong>That is why institutional block trading has not moved
+  on-chain.</strong></p>
+</section>
+
+<section>
+  <p class="n">02 · Product</p>
+  <p class="kicker">The dealer terminal, on the ledger</p>
+  <h2>Sealed quotes, atomic settlement, post-trade audit</h2>
+  <div class="flow">
+    <div class="step"><b>1 · RFQ</b><span>Buyer asks a chosen dealer panel. The market
+    never sees it.</span></div>
+    <div class="step"><b>2 · Sealed quote</b><span>Each dealer's price is delivered to the
+    buyer alone — rivals never receive the contract.</span></div>
+    <div class="step"><b>3 · Escrow</b><span>Quoting locks the dealer's asset. A price is
+    a commitment, not a bluff.</span></div>
+    <div class="step"><b>4 · Atomic DvP</b><span>Bond and cETH move in one transaction —
+    or neither does.</span></div>
+    <div class="step"><b>5 · Report</b><span>The regulator sees executed trades only.
+    Zero pre-trade visibility.</span></div>
+  </div>
+  <p style="margin-top:6mm">Three rails: <strong>reverse-Vickrey</strong> (second price,
+  honest quoting is dominant), <strong>direct bilateral OTC</strong>, and
+  <strong>partial fills</strong> on both.</p>
+</section>
+
+<section>
+  <p class="n">03 · The core claim</p>
+  <p class="kicker">Not a UI promise — a ledger property</p>
+  <h2>Dealer B's node never receives dealer A's quote</h2>
+  <p>On Canton, privacy is <strong>sub-transaction</strong>: a contract is delivered only
+  to its signatories and observers. There is no filtering, no encryption, nothing to
+  misconfigure — the data simply never travels.</p>
+  <p>So the claim is falsifiable, and we falsify it on every run: an automated check
+  queries the live ledger and asserts each dealer sees <strong>only its own quotes</strong>
+  and the regulator sees <strong>zero pre-trade contracts</strong>. It exits non-zero if a
+  single quote ever leaks.</p>
+</section>
+
+<section>
+  <p class="n">04 · Settlement</p>
+  <p class="kicker">CIP-56 Canton Token Standard</p>
+  <h2>The cash leg is a real registry asset</h2>
+  <p>Award creates a <strong>TokenTrade</strong> implementing the standard's
+  <strong>AllocationRequest</strong> interface — so any standard wallet renders
+  <em>"allocate 1,240,000 cETH to this settlement"</em> with no Tirai-specific
+  integration. The registry locks the cash.</p>
+  <p>Settlement then runs in <strong>one atomic transaction</strong>: registry transfer of
+  cETH to the winning dealer + escrowed bond delivered to the buyer + trade report to the
+  regulator.</p>
+  <p>The cash instrument is any <em>{admin, id}</em> — <strong>cETH, CBTC, Canton Coin and
+  USDCx are one code path</strong>, proven by a second registry in the test suite.</p>
+</section>
+
+<section>
+  <p class="n">05 · Differentiator</p>
+  <p class="kicker">Confidential pre-trade, provable post-trade</p>
+  <h2>Best execution without a public order book</h2>
+  <p>A buyer — or a dealer defending its pricing — can disclose a single sealed quote to
+  the regulator on demand. From those disclosures the desk proves the clearing price was
+  at or below <strong>every competing ask</strong>.</p>
+  <p>Compliance gets better evidence than a public tape, because it includes the quotes
+  that were never executed. Competitors get nothing.</p>
+</section>
+
+<section>
+  <p class="n">06 · Traction</p>
+  <p class="kicker">Live on Canton Devnet — verifiable right now</p>
+  <h2>Not a mock-up</h2>
+  <div class="stats">
+    <div class="stat"><b>41</b><span>settled trades on-ledger<br>+ 5 atomic baskets</span></div>
+    <div class="stat"><b>16</b><span>best-execution attestations</span></div>
+    <div class="stat"><b>36</b><span>Daml test scripts green</span></div>
+    <div class="stat"><b>66</b><span>hosted QA checks, 3 browsers</span></div>
+  </div>
+  <p style="margin-top:6mm">~25 instruments across sovereigns, supranationals and
+  corporates, on all three rails. Hosted read-only desk over live ledger state, plus a
+  6-tool MCP server so an evaluator can point their own agent at the desk.</p>
+</section>
+
+<section>
+  <p class="n">07 · Why Canton</p>
+  <p class="kicker">The fifth implementation — and the first native one</p>
+  <h2>Four chains, four cryptography stacks, one ledger that needed none</h2>
+  <table>
+    <tr><th>Build</th><th>Chain</th><th>Privacy machinery required</th></tr>
+    <tr><td class="hi">Diam</td><td>Arbitrum (iExec)</td><td>TEE confidential compute, encrypted handles</td></tr>
+    <tr><td class="hi">Segel</td><td>Stellar (Soroban)</td><td>Two Groth16 circuits, hand-rolled Poseidon</td></tr>
+    <tr><td class="hi">Sealed Pair</td><td>Sui</td><td>Walrus commitments + Seal threshold encryption</td></tr>
+    <tr><td class="hi">Samar</td><td>Ethereum (Zama)</td><td>FHE, branchless encrypted settlement</td></tr>
+    <tr><td class="hi">Tirai</td><td>Canton</td><td><strong>None. Sub-transaction privacy is the ledger model.</strong></td></tr>
+  </table>
+</section>
+
+<section>
+  <p class="n">08 · Business</p>
+  <p class="kicker">How it makes money, and who buys</p>
+  <h2>A venue fee the contract collects itself</h2>
+  <div class="cols">
+    <div class="card"><h3>Revenue</h3><p>Basis points of notional in the settlement asset,
+    taken atomically inside the settlement transaction — no invoicing, no collection risk.
+    Plus CIP-0047 activity markers accruing network rewards on every trade.</p></div>
+    <div class="card"><h3>Customer</h3><p>Desks whose tickets are large enough to leak
+    ($1m–$100m), in an asset already tokenised, with an obligation to evidence best
+    execution. Beachhead: crypto-native desks trading cETH and CBTC.</p></div>
+  </div>
+  <p style="margin-top:5mm">Distribution through hosting venues (Temple, Bron, Console,
+  Canton Loop) that already hold the client relationship and custody — Tirai ships as an
+  embedded app and shares the fee.</p>
+</section>
+
+<section>
+  <p class="n">09 · Honest status</p>
+  <p class="kicker">What is done, what is not</p>
+  <h2>Built and verified · pending and stated</h2>
+  <div class="cols">
+    <div class="card"><h3>Done</h3><p>Model, three settlement rails, CIP-56 allocation
+    path against the real Splice interfaces, privacy asserted on the live network, hosted
+    desk, MCP server, 36 tests, full seeded audit trail.</p></div>
+    <div class="card"><h3>Not yet</h3><p>No live cETH/CBTC transaction — blocked on the
+    test-token grant. No paying customer, no design partner signed. Deployed on the shared
+    5N validator; hackcanton-01 needs participant-admin rights (DAR upload 403).</p></div>
+  </div>
+  <p style="margin-top:5mm"><strong>The ask:</strong> cETH and CBTC Devnet test tokens, an
+  introduction to one hosting venue, and one design-partner desk.</p>
+</section>
+
+<section>
+  <p class="kicker">Tirai — Indonesian for "curtain"</p>
+  <h1>Price discovery<br>happens behind it.</h1>
+  <p class="lede">You whisper quotes. The market hears nothing —<br>and the regulator still
+  gets the whole record.</p>
+  <p class="foot">github.com/PugarHuda/tirai · tirai.vercel.app · hudapugar@gmail.com</p>
+</section>`,
+  },
+
 };
 
 const render = async (key) => {
@@ -545,10 +746,10 @@ const render = async (key) => {
   if (!doc) throw new Error(`unknown document "${key}" — have: ${Object.keys(DOCS).join(', ')}`);
   const browser = await chromium.launch();
   const page = await browser.newPage();
-  await page.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>${CSS}</style></head><body>${doc.body}</body></html>`, { waitUntil: 'load' });
+  await page.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>${doc.css ?? CSS}</style></head><body>${doc.body}</body></html>`, { waitUntil: 'load' });
   await mkdir(MEDIA, { recursive: true });
   const out = join(MEDIA, doc.out);
-  await page.pdf({ path: out, format: 'A4', printBackground: true });
+  await page.pdf({ path: out, format: 'A4', landscape: !!doc.landscape, printBackground: true });
   await browser.close();
   console.log('wrote', out);
 };
