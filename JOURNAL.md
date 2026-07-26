@@ -83,12 +83,13 @@ dealer sees only its own quote, the regulator sees zero pre-trade contracts.
 - `scripts/devnet.mjs` made node-agnostic: `ENV_FILE` selects the target, the
   ledger user id is env-driven, and `token()` branches to a Keycloak **password
   grant**. Backwards-compatibility with the 5N node re-verified.
-- Then hit two real blockers: the TLS certificate on
-  `keycloak.naas.noders.services` is **expired**, and the password grant returns
+- Then hit two blockers: the TLS certificate on `keycloak.naas.noders.services`
+  was rejected as expired from this machine, and the password grant returns
   `invalid_grant` because the AppsFactory account is Google SSO (no local
   password to grant against). Worked around both by teaching `token()` to accept
   a **pre-issued bearer** from the wallet UI session (`DEVNET_TOKEN`), skipping
   Keycloak entirely — the ledger host's own certificate is valid.
+  *(Corrected 26 Jul — see below: the certificate is fine now.)*
 
 ## 2026-07-26 — hackcanton-01: authenticated, but not authorised
 
@@ -109,9 +110,25 @@ needs **participant-admin rights**, which a wallet-UI user does not have. Either
 a participant-admin / M2M credential from Noders, or Noders uploading the DAR
 and allocating the six parties, unblocks it in minutes; the deployer command
 chain (`upload → allocate → seed → verify`) is already written and tested
-against the other node. Reported to the organisers, including the expired
-Keycloak certificate, which blocks the documented auth path for every
-participant.
+against the other node. Reported to the organisers.
+
+**Correction, same day.** Another team checked the Keycloak certificate and
+found it valid; re-verified from here: `keycloak.naas.noders.services` presents
+a Let's Encrypt certificate issued **24 Jul, valid to 22 Oct**, and Node's
+`fetch` now completes against it. The 24 Jul failure was real but is not a
+standing outage — it was either the renewal window itself or a missing
+intermediate locally, so the earlier "expired for everyone" claim is withdrawn.
+The password grant still returns `invalid_grant` for this account, which is the
+Google-SSO problem, not a TLS one — so the wallet bearer remains the right path.
+
+Two things learned from that same exchange, both recorded here because they will
+save the next person hours: DAR upload and party allocation on `hackcanton-01`
+are done on request by the node operators, and **a DAR whose package name
+collides with one already on the node uploads successfully and then sits
+permanently unvetted** — Daml upgrade validation runs at vetting, not at upload,
+so it surfaces later as `NO_SYNCHRONIZER_FOR_SUBMISSION … has not vetted`, which
+reads like a queue rather than the rejection it actually is. Tirai's package
+name (`tirai-desk`) is distinct, but the deploy request now says so explicitly.
 
 Meanwhile the deployed-and-verified state on the 5N Devnet validator stands:
 package `4b1e408f…`, parties `tirai-v1-*`, hosted desk live.

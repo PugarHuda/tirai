@@ -123,10 +123,10 @@ own participant, `hackcanton-01`; deploying there is written and ready
 but needs rights we do not have: a wallet-UI bearer authenticates fine — ledger
 end and version return 200, the user has `CanActAs` its own party — while
 `POST /v2/packages` and `POST /v2/parties` return **403**. Uploading a DAR and
-allocating parties needs participant-admin credentials. Separately, the TLS
-certificate on `keycloak.naas.noders.services` is **expired**, so the documented
-password-grant path is unusable for every participant. Both are reported; with a
-credential the deploy is a few minutes' work.
+allocating parties is participant-admin only, and the node operators do it on
+request — that request is in. With it, the deploy is a few minutes' work.
+(The Keycloak password grant is separately unusable for this account because it
+is Google SSO, which is why the deployer accepts a wallet-session bearer.)
 
 ## What's pending (honest)
 

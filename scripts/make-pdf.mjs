@@ -529,9 +529,8 @@ counts live contracts in the browser.</p>
   claim in the GTM document is a hypothesis, not a result.</li>
   <li><strong>Not deployed on the HackCanton participant.</strong> The deploy is written
   and proven on another Devnet validator; on <code>hackcanton-01</code> a wallet-issued
-  token authenticates for reads but DAR upload and party allocation return 403 — that
-  needs participant-admin rights. (Separately: the TLS certificate on the node's Keycloak
-  is expired, which blocks the documented auth path for every participant.)</li>
+  token authenticates for reads but DAR upload and party allocation return 403 — that is
+  participant-admin only, and the request to the node operators is in.</li>
   <li><strong>No load or latency benchmarks.</strong> Volumes so far are demonstrative,
   not performance evidence.</li>
 </ul>
