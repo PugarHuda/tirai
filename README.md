@@ -103,8 +103,9 @@ To reproduce the frozen DARs: download `dars/` from the Splice release bundle
 - [x] Deployed to Canton Devnet as `tirai-desk` (privacy verified on-ledger)
 - [x] Three-party web desk (buyer / dealers / regulator) over the JSON Ledger API
 - [x] Read-only MCP server + agent scripts
+- [x] **Hosted read-only desk — https://tirai.vercel.app** (live Devnet state)
 - [ ] Live cETH transactions on Devnet — pending the onRails test-token grant
-- [ ] Hosted read-only desk + 3-minute demo video
+- [ ] Demo video (≤5 min, own voice) — script in [`DEMO-VO.md`](DEMO-VO.md)
 
 **Live on Devnet** — package `tirai-desk` `4b1e408f…`, parties `tirai-v1-*` on the
 shared 5N hackathon validator (Canton 3.5.x). `node scripts/devnet.mjs verify`
@@ -132,6 +133,8 @@ cd test; daml test  # 36 scripts
 | `scripts/` | Devnet deployer, local demo, e2e suites |
 | `mcp/` | read-only MCP server (5 tools) |
 | [`SUBMISSION.md`](SUBMISSION.md) | tracks, business brief, pilot plan |
+| [`JOURNAL.md`](JOURNAL.md) | daily build journal (what was built, what broke) |
+| [`DEMO-VO.md`](DEMO-VO.md) | demo video script (≤5 min, own voice) |
 
 ## License
 

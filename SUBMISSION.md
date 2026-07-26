@@ -4,10 +4,12 @@
 CIP-0056 assets (cETH, CBTC, Canton Coin, USDCx).**
 
 - **Repo:** https://github.com/PugarHuda/tirai (public)
+- **Live desk:** https://tirai.vercel.app — read-only, over real Devnet state
 - **Live on Devnet:** package `tirai-desk` `4b1e408f…`, parties `tirai-v1-*`,
-  shared 5N hackathon validator
+  shared 5N hackathon validator (Canton 3.5.x)
+- **Build journal:** [JOURNAL.md](JOURNAL.md) — daily entries, 22–26 Jul
 - **Team:** solo (Pugar Huda Mantoro)
-- **Demo video:** _(≤3 min — link on submission)_
+- **Demo video:** _(≤5 min, own voice — script in [DEMO-VO.md](DEMO-VO.md))_
 - **Lineage, disclosed:** continues the codebase of
   [Bisik](https://github.com/PugarHuda/bisik) (Encode Build on Canton). The
   HackCanton build is the CIP-0056 settlement leg — cETH/CBTC as real cash —
@@ -105,12 +107,29 @@ BitSafe CBTC registry, a validator/hosting venue, and wallet support (Canton Loo
 - **Deployed & privacy-verified on Devnet** — `node scripts/devnet.mjs verify`
   asserts on the live network that dealers see only their own quotes and the
   regulator sees zero pre-trade.
-- Three-column web desk, read-only MCP server (5 tools), read-only hosted proxy.
+- **Hosted desk live** at https://tirai.vercel.app — real Devnet contracts
+  through a serverless proxy that holds the token server-side and 403s every
+  write path (`/v2/commands/*` verified rejected in production).
+- Read-only MCP server (5 tools) for agent access; read-only proxy self-test
+  14/14, including a `filtersForAnyParty` enumeration-bypass regression test.
+
+## Which node, and one blocker worth reporting
+
+Tirai is deployed on the **shared 5N Devnet validator**. HackCanton also runs its
+own participant, `hackcanton-01`; deploying there is written and ready
+(`ENV_FILE=.env.hackcanton node scripts/devnet.mjs upload|allocate|seed|verify`)
+but needs rights we do not have: a wallet-UI bearer authenticates fine — ledger
+end and version return 200, the user has `CanActAs` its own party — while
+`POST /v2/packages` and `POST /v2/parties` return **403**. Uploading a DAR and
+allocating parties needs participant-admin credentials. Separately, the TLS
+certificate on `keycloak.naas.noders.services` is **expired**, so the documented
+password-grant path is unusable for every participant. Both are reported; with a
+credential the deploy is a few minutes' work.
 
 ## What's pending (honest)
 
 - Live cETH/CBTC transactions on Devnet — blocked on the onRails/BitSafe
   test-token grant (contract path built & tested against a mock of the real
   interfaces).
-- 3-minute demo video (own voice), hosted desk redeploy, cETH builder feedback
-  form.
+- Deploy to `hackcanton-01` — blocked on participant-admin rights (above).
+- Demo video (≤5 min, own voice) and the cETH builder feedback form.

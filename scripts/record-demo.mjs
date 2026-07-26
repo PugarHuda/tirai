@@ -1,7 +1,7 @@
 // Record the full Tirai live-demo video: landing page → the desk (every feature,
-// driven for real) → the pitch deck. Silent by design — you lay YOUR OWN voice over
-// it (Encode requires a real human voice). Subtitles are generated from the actual
-// measured timeline, so they line up with the finished video exactly.
+// driven for real) → close back on the landing page. Silent by design — you lay
+// YOUR OWN voice over it (a real human voice is required). Subtitles are generated
+// from the actual measured timeline, so they line up with the finished video exactly.
 //
 //   npm run demo            # terminal 1: sandbox + seed + desk on :8080
 //   npm run record:demo     # terminal 2: this
@@ -13,7 +13,6 @@
 //   DEMO-LIVE-SCRIPT.md     the narration with real timecodes to read against
 //
 // Env: SPEED=1.2 stretch every hold (default 1) · WPM=150 assumed reading pace
-//      DECK_URL to point the deck chapter somewhere else.
 import { chromium } from 'playwright';
 import { mkdir, writeFile, readdir, rename, unlink } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
@@ -23,7 +22,6 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');
 const MEDIA = join(ROOT, 'media');
 const BASE = process.env.TIRAI_URL ?? 'http://localhost:8080';
-const DECK_URL = process.env.DECK_URL ?? 'https://tirai.vercel.app/deck';
 const SPEED = Number(process.env.SPEED ?? 1);
 const WPM = Number(process.env.WPM ?? 150);
 const W = 1600, H = 900;
@@ -226,18 +224,6 @@ const srtTime = (ms) => {
     await clickAt(`.side-nav a[data-view="${name}"]`, { ms, settle: 1400 });
   };
 
-  // Deck slides are selected on load from location.hash — a hash-only goto would be
-  // a same-document navigation and would NOT move the slide. Force a real load.
-  let deckNav = 0;
-  const deckGo = async (n) => {
-    await page.goto(`${DECK_URL}?r=${++deckNav}#${n}`, { waitUntil: 'load', timeout: 60000 });
-    await page.waitForFunction((k) => {
-      const on = document.querySelector('.slide.on');
-      return on && Array.prototype.indexOf.call(document.querySelectorAll('.slide'), on) === k - 1;
-    }, n, { timeout: 15000 }).catch(() => {});
-    await page.waitForTimeout(900);
-  };
-
   console.log('\nrecording — chapters:\n');
   await page.goto(BASE + '/', { waitUntil: 'load', timeout: 60000 });
   await hold(1200);
@@ -412,43 +398,17 @@ const srtTime = (ms) => {
     await hold(2200);
   });
 
-  // ══════════════ CHAPTER 4 · The deck ══════════════
-  await segment('Deck · why Canton', [
-    'To close, the argument in one slide.',
-  ], async () => {
-    await deckGo(3);
-    await page.waitForTimeout(1200);
-  });
-
-  await segment('Deck · the lineage table', [
-    'Four previous builds, four cryptography stacks: trusted hardware, zero-knowledge circuits, threshold encryption, fully homomorphic encryption.',
+  // ══════════════ CHAPTER 4 · Close on the landing page ══════════════
+  // ponytail: no slide deck exists — close on the live landing page instead.
+  await segment('Close · why Canton', [
+    'Four previous builds of this same product needed four cryptography stacks: trusted hardware, zero-knowledge circuits, threshold encryption, fully homomorphic encryption.',
     'On Canton: none of it. Sub-transaction privacy is simply the ledger model.',
-  ], async () => {
-    await point('table', { ms: 1200 });
-    await hold(3200);
-  });
-
-  await segment('Deck · agentic settlement', [
-    'The same desk runs autonomously: two market-maker agents quote blind to each other, a buyer agent awards, and a real trade settles on Devnet at the second price — with no human in the pricing loop.',
-  ], async () => {
-    await deckGo(8);
-    await point('.slide.on .flow', { ms: 1100 });
-    await hold(3000);
-  });
-
-  await segment('Deck · live on Devnet', [
-    'None of this is a mock-up. Forty-one settled trades, five atomic baskets and sixteen best-execution attestations are live on Canton Devnet right now.',
-  ], async () => {
-    await deckGo(10);
-    await point('.slide.on .grid3', { ms: 1100 });
-    await hold(3000);
-  });
-
-  await segment('Close', [
     'Tirai: the confidential OTC desk that finally did not need a cryptography stack — because Canton already is one.',
     'You whisper quotes. The market hears nothing.',
   ], async () => {
-    await deckGo(13);
+    await page.goto(BASE, { waitUntil: 'load', timeout: 60000 });
+    await hold(2400);
+    await smoothScroll(0, 900);
     await hold(3200);
   });
 

@@ -1,0 +1,120 @@
+# Build journal — Tirai (HackCanton Season #2)
+
+Daily log of what was built, what broke, and what was decided. Commits are
+linked so every entry is checkable against the repo history.
+
+---
+
+## 2026-07-22 — repo, rebrand, and the honest lineage
+
+Started Tirai as its own public repo (`bde6014`, `5d72613`). The codebase
+continues [Bisik](https://github.com/PugarHuda/bisik), my Encode "Build on
+Canton" entry — that is stated in the README, in `SUBMISSION.md`, and here,
+because a judge who recognises the model should hear it from me first.
+
+Work done:
+
+- Full rename `bisik` → `tirai`: Daml module `Tirai`, package `tirai-otc`,
+  test package `tirai-test`, target parties `tirai-v1-*`.
+- Deleted every Bisik-era submission artefact (deck, demo script, QA notes) —
+  they described a different submission and would have been stale on day one.
+- Stale hard-coded package id (`b0058535…`, the Bisik Devnet package) replaced
+  with `SET_AFTER_DEPLOY` in `mcp/server.mjs` and `scripts/devnet.mjs`, so
+  nothing silently points at the old ledger state.
+- 27/27 existing Daml scripts green after the rename.
+
+Decision: the HackCanton build is **not** "the same app with a new name". The
+new work is the settlement leg — real CIP-0056 assets instead of desk-minted
+mock cash.
+
+## 2026-07-23 — the cash leg becomes real (CIP-0056)
+
+The core build day (`81eba24`, `cdfba6c`, `d540bbb`, `6ba3719`).
+
+Research first: the inherited `token-standard/` directory was a *native
+re-implementation shaped like* CIP-0056 — useless for a real registry, because a
+live cETH/CBTC registry implements against the **Splice** interface package-ids,
+not mine. So:
+
+- Pulled the frozen Splice v1 interface DARs from the release bundle
+  (`0.6.13_splice-node.tar.gz`) into `dars/` and wired them as
+  data-dependencies. They are never recompiled locally — recompiling would
+  change the package-id and break the match with live registries.
+- Added `TokenTrade` to `daml/Tirai.daml`, implementing the standard
+  **`AllocationRequest`** interface, plus `RFQ.AwardWithAllocation` (Vickrey,
+  second price) and `Quote.ConvertToTokenTrade` (direct OTC).
+- `TokenTrade_Settle` performs, in **one atomic transaction**:
+  `Allocation_ExecuteTransfer` (registry moves cash to the winning dealer) +
+  `EscrowedHolding.DeliverTo` (bond to the buyer) + `TradeReport` (regulator's
+  post-trade view). DvP or nothing.
+- `cashInstrument : InstrumentId` is any `{admin, id}` — cETH, CBTC, Canton
+  Coin and USDCx are one code path, not four.
+- Dropped the old in-package `Token` interface; `Holding` / `EscrowedHolding`
+  now implement the **real** `HoldingV1`, so escrowed collateral shows as a
+  *locked* position in any standard wallet. That also removed the smart-contract
+  upgrade wall, so the package could be renamed `tirai-otc` → `tirai-desk`.
+- Deleted `token-standard/` entirely. Keeping a fake alongside the real thing
+  is how a reviewer ends up reading the wrong one.
+
+Tests: `test/daml/MockRegistry.daml` implements the real Holding + Allocation
+interfaces so the DvP path is exercised without a live registry;
+`TokenSettlementTest.daml` adds 9 scripts — Vickrey DvP, direct DvP, cancel,
+expiry, **forged-allocation rejection**, instrument binding, the wallet-facing
+`AllocationRequest_Reject`, and `testCbtcDvp` (a second, differently-administered
+registry) to prove the path is asset-agnostic rather than cETH-shaped.
+
+Deployed to Canton Devnet: package `tirai-desk`
+`4b1e408f6eda27364a55da076d9251ee117f0641f03aaf20883995f1e507a7e3`, parties
+`tirai-v1-*`. The network was mid-upgrade (`TOPOLOGY_LSU` freeze) so the upload
+needed a retry loop. `seed` + `verify` then passed **on the live network**: each
+dealer sees only its own quote, the regulator sees zero pre-trade contracts.
+
+## 2026-07-24 — hosted desk live, and the hackcanton-01 node
+
+`8bedf96`, `20b0da8`, `6bd733c`.
+
+- Hosted read-only desk live at **https://tirai.vercel.app**, reading real
+  Devnet state through a serverless proxy that holds the token server-side and
+  **403s every write path** (`/v2/commands/*` verified rejected in production).
+- Read the node materials properly and found the correction that mattered:
+  HackCanton has **its own DevNet participant, `hackcanton-01`** (Noders NaaS).
+  Tirai was deployed to the *5N* validator from the earlier hackathon, so the
+  deployer needed to target a second, differently-authenticated node.
+- `scripts/devnet.mjs` made node-agnostic: `ENV_FILE` selects the target, the
+  ledger user id is env-driven, and `token()` branches to a Keycloak **password
+  grant**. Backwards-compatibility with the 5N node re-verified.
+- Then hit two real blockers: the TLS certificate on
+  `keycloak.naas.noders.services` is **expired**, and the password grant returns
+  `invalid_grant` because the AppsFactory account is Google SSO (no local
+  password to grant against). Worked around both by teaching `token()` to accept
+  a **pre-issued bearer** from the wallet UI session (`DEVNET_TOKEN`), skipping
+  Keycloak entirely — the ledger host's own certificate is valid.
+
+## 2026-07-26 — hackcanton-01: authenticated, but not authorised
+
+Took the browser bearer from the wallet UI session and pointed the deployer at
+`hackcanton-01`. The token is accepted by the ledger — but only as an end user:
+
+| Call | Result |
+|---|---|
+| `GET /v2/state/ledger-end` | **200** (offset 433,669) |
+| `GET /v2/version` | **200** — Canton 3.5.9 |
+| `GET /v2/users/<sub>` | **200** — one right: `CanActAs` its own wallet party |
+| `POST /v2/packages` (upload DAR) | **403** |
+| `POST /v2/parties` (allocate) | **403** |
+| `GET /v2/users`, `GET /v2/parties` | **403** |
+
+So deploying to `hackcanton-01` is not blocked by a token or a certificate — it
+needs **participant-admin rights**, which a wallet-UI user does not have. Either
+a participant-admin / M2M credential from Noders, or Noders uploading the DAR
+and allocating the six parties, unblocks it in minutes; the deployer command
+chain (`upload → allocate → seed → verify`) is already written and tested
+against the other node. Reported to the organisers, including the expired
+Keycloak certificate, which blocks the documented auth path for every
+participant.
+
+Meanwhile the deployed-and-verified state on the 5N Devnet validator stands:
+package `4b1e408f…`, parties `tirai-v1-*`, hosted desk live.
+
+Test status this day: **`daml test` green**, read-only proxy self-test 14/14,
+hosted desk and MCP suites run against live Devnet state.
