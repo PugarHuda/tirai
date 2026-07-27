@@ -38,7 +38,7 @@ const CSS = `
 
 const META = `<p class="meta"><b>HackCanton Season #2</b> · Financial Applications · solo
 builder: Pugar Huda Mantoro · repo <b>github.com/PugarHuda/tirai</b> · live desk
-<b>tirai.vercel.app</b></p>`;
+<b>tirai.vercel.app</b> · demo <b>youtu.be/_iHMouFdNA4</b></p>`;
 
 const FOOT = `<p class="foot">Tirai — Indonesian for "curtain". Price discovery happens
 behind it. You whisper quotes; the market hears nothing.</p>`;
@@ -125,8 +125,12 @@ and atomic cross-registry settlement together.</p>
   <p><strong>36 Daml test scripts green</strong>; an automated on-ledger check asserts
   that each dealer sees only its own quotes and the regulator sees zero pre-trade
   contracts — and fails the build if a single quote ever leaks.</p>
+  <p><strong>Deployed on HackCanton's own participant too</strong> (<code>hackcanton-01</code>,
+  same package id): 20 settled trades + 1 atomic basket and 16 attestations there, privacy
+  verified on that node as well.</p>
   <p><strong>Hosted read-only desk</strong> at tirai.vercel.app over live Devnet state,
-  plus a 6-tool MCP server so agents can read the desk and post RFQs.</p>
+  plus a 6-tool MCP server so agents can read the desk and post RFQs — and a 4-minute
+  walkthrough at youtu.be/_iHMouFdNA4.</p>
 </div>
 
 <h2>Who pays, and the path to production</h2>
@@ -515,6 +519,8 @@ counts live contracts in the browser.</p>
 
 <h2>Reproduce every number in this document</h2>
 <ul>
+  <li><strong>Demo video:</strong> youtu.be/_iHMouFdNA4 — the same desk, driven end to
+  end, closing on the public Devnet deployment.</li>
   <li><strong>Live desk:</strong> tirai.vercel.app — the tiles, audit trail and
   best-execution view read the live ledger; nothing is baked in.</li>
   <li><strong>Ledger:</strong> package <code>tirai-desk</code>
@@ -592,7 +598,7 @@ ${FOOT}`,
   <p class="lede">The confidential multi-dealer RFQ / OTC desk, built native on Canton —
   settling in real CIP-56 assets: cETH, CBTC, Canton Coin, USDCx.</p>
   <p><strong>You whisper quotes. The market hears nothing.</strong></p>
-  <p class="foot">github.com/PugarHuda/tirai · tirai.vercel.app · Pugar Huda Mantoro (solo)</p>
+  <p class="foot">github.com/PugarHuda/tirai · tirai.vercel.app · youtu.be/_iHMouFdNA4 · Pugar Huda Mantoro (solo)</p>
 </section>
 
 <section>
@@ -738,7 +744,7 @@ ${FOOT}`,
   <h1>Price discovery<br>happens behind it.</h1>
   <p class="lede">You whisper quotes. The market hears nothing —<br>and the regulator still
   gets the whole record.</p>
-  <p class="foot">github.com/PugarHuda/tirai · tirai.vercel.app · hudapugar@gmail.com</p>
+  <p class="foot">github.com/PugarHuda/tirai · tirai.vercel.app · youtu.be/_iHMouFdNA4 · hudapugar@gmail.com</p>
 </section>`,
   },
 

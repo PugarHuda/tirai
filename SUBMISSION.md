@@ -9,7 +9,8 @@ CIP-0056 assets (cETH, CBTC, Canton Coin, USDCx).**
   **HackCanton's own `hackcanton-01` participant** *and* the shared 5N validator
 - **Build journal:** [JOURNAL.md](JOURNAL.md) — daily entries, 22–26 Jul
 - **Team:** solo (Pugar Huda Mantoro)
-- **Demo video:** _(≤5 min, own voice — script in [DEMO-VO.md](DEMO-VO.md))_
+- **Demo video:** **https://youtu.be/_iHMouFdNA4** (4:27 — the desk driven for
+  real on a Canton participant, closing on the public Devnet deployment)
 - **Lineage, disclosed:** continues the codebase of
   [Bisik](https://github.com/PugarHuda/bisik) (Encode Build on Canton). The
   HackCanton build is the CIP-0056 settlement leg — cETH/CBTC as real cash —

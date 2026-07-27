@@ -145,6 +145,14 @@ The hosted desk still reads the 5N deployment, and deliberately so: the proxy
 needs a credential it can hold, and `hackcanton-01` issues only 3-hour user
 tokens because the account is Google SSO. Two deployments, one package id.
 
+**Demo video published:** https://youtu.be/_iHMouFdNA4 — 4:27, the desk driven
+end to end against a Canton participant (RFQ → sealed quotes with the rival
+column visibly empty → selective disclosure → Vickrey award → atomic
+settlement), then the privacy verification, best execution, and a closing
+chapter on the public Devnet deployment. Recorded with `npm run record:demo`,
+which drives the real ledger rather than a scripted mock-up, and narrated over
+the measured timeline.
+
 Two things learned from that same exchange, both recorded here because they will
 save the next person hours: DAR upload and party allocation on `hackcanton-01`
 are done on request by the node operators, and **a DAR whose package name

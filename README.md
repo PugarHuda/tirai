@@ -13,6 +13,8 @@ trades.
 
 Built for **HackCanton Season #2** (Noders / AppsFactory, Jul 2026).
 
+**[▶ Watch the 4-minute demo](https://youtu.be/_iHMouFdNA4)** · **[Live desk](https://tirai.vercel.app)**
+
 > **Lineage, disclosed up front:** Tirai continues the codebase of
 > [Bisik](https://github.com/PugarHuda/bisik), our entry to Encode's Build on
 > Canton hackathon (deployed and verified live on Canton Devnet). Tirai is the
@@ -104,7 +106,7 @@ To reproduce the frozen DARs: download `dars/` from the Splice release bundle
 - [x] Three-party web desk (buyer / dealers / regulator) over the JSON Ledger API
 - [x] MCP server + agent scripts
 - [x] **Hosted read-only desk — https://tirai.vercel.app** (live Devnet state)
-- [x] Demo video — `media/tirai-demo-narrated.mp4` (4:27, driven for real)
+- [x] **Demo video — https://youtu.be/_iHMouFdNA4** (4:27, the desk driven for real)
 - [ ] Live cETH transactions on Devnet — pending the onRails test-token grant
 
 ### Live on Devnet

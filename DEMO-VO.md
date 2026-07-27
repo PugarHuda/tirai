@@ -10,6 +10,11 @@ state, read-only), plus one local run of `npm run demo` for the write actions
 
 Timings assume a normal speaking pace (~150 wpm). Total ≈ 4:40, leaving slack.
 
+> **Published:** https://youtu.be/_iHMouFdNA4 (4:27). That cut was recorded with
+> `npm run record:demo` — the desk driven for real, closing on the public Devnet
+> deployment. This script stays here for a human re-record of the same
+> walkthrough.
+
 ---
 
 ## 0:00 – 0:35 · The problem (landing page)
