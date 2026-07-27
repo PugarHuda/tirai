@@ -1,4 +1,7 @@
 // Re-time the demo footage so each shot is on screen while it is being talked about.
+// Used as the last step of the narration pipeline: record silently
+// (`npm run record:demo`), synthesise or record the voice, then warp the video onto
+// the voice track's timings with this — see the "Demo video" note in DEMO-VO.md.
 //
 // The recorder paced the visuals to a scripted reading. A real narrator never matches
 // that exactly, so we warp the footage: every cue is a control point — the shot that

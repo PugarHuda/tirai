@@ -132,3 +132,8 @@ the “Provable best execution” view.*
 - [ ] Keep under 5:00. Cut §3:15–4:05 first if you run long.
 - [ ] Silent screen capture is available via `npm run record:demo` (writes
       `media/tirai-live-demo.webm` + `.srt`) — lay your voice over it.
+- [ ] If your read runs longer or shorter than the capture, warp the footage onto
+      your voice instead of re-recording:
+      `node scripts/video-fit-voice.mjs <body.webm> <orig.srt> <yourtiming.srt> <bodyEndSec> 0 <out.mp4>`
+      — every cue becomes a control point, so each shot stays on screen for exactly
+      as long as you spend talking about it.
