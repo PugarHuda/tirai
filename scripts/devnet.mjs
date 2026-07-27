@@ -143,7 +143,13 @@ async function allocateOne(hint) {
   // On a node where party allocation is admin-only (hackcanton-01), the operator
   // allocates the parties for us and we simply address them: same participant
   // namespace, same hints. Assume that rather than failing the whole run.
-  if (r.status === 403) return `${hint}::${await namespace()}`;
+  if (r.status === 403) {
+    // Say so: if the operator has NOT allocated this hint, the party id below is
+    // fiction and the first submit fails with UNKNOWN_INFORMEES, which blames the
+    // synchronizer rather than the missing party.
+    console.log(`  ${hint}: allocation is admin-only here — assuming the operator allocated it`);
+    return `${hint}::${await namespace()}`;
+  }
   console.log('  allocate failed for', hint, r.status, cause.slice(0, 160));
   return null;
 }
@@ -265,10 +271,12 @@ async function acsAs(party) {
 }
 
 async function verify() {
-  // Resolve parties the same way seed does, per node — reading the committed
-  // party file would ask one node about another node's parties whenever the two
-  // deployments' namespaces differ.
-  const p = await parties();
+  // Resolve per node, read-only: the committed party file would ask one node
+  // about another node's parties whenever the two deployments' namespaces
+  // differ, and going through parties() would make a *check* allocate parties
+  // and grant rights as a side effect.
+  const ns = await namespace();
+  const p = Object.fromEntries(Object.entries(HINTS).map(([role, hint]) => [role, `${hint}::${ns}`]));
   const acs = {};
   for (const role of ['buyer', 'dealerA', 'dealerB', 'regulator']) acs[role] = await acsAs(p[role]);
   const quotesOf = (role) => acs[role].filter((e) => e.templateId.endsWith(':Tirai:Quote'));
