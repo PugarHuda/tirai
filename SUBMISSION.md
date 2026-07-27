@@ -18,11 +18,19 @@ CIP-0056 assets (cETH, CBTC, Canton Coin, USDCx).**
 
 ## Tracks & bounties
 
-Submitting to **Track 2 — Financial Applications** (primary) and **Track 1 — RWA
-& Business Workflows** (tokenised bonds: issue → quote → settle → audit). Targets
-the **cETH (onRails)** and **CBTC (BitSafe)** ecosystem bounties — both bounty
-briefs explicitly name "private RFQ / OTC" and "confidential RFQ, atomic DvP" as
-wanted primitives; that is exactly what Tirai is.
+Primary fit: **financial applications — DeFi, exchanges and trading venues**.
+Tirai is a trading venue with real price discovery, real settlement and a real
+fee model. Secondary fit: **real-world assets / business workflows** — the full
+tokenised-bond lifecycle, issue → quote → settle → audit, is what the demo
+drives end to end.
+
+It also lands squarely on the **privacy & compliance** wishlist: selective
+disclosure and a regulator portal are not add-ons here, they are two of the four
+views in the product.
+
+Ecosystem bounties targeted: **cETH (onRails)** and **CBTC (BitSafe)** — both
+briefs name "private RFQ / OTC" and "confidential RFQ, atomic DvP" as wanted
+primitives, and that is precisely what the settlement leg implements.
 
 ## 1-page business brief
 

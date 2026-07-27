@@ -21,7 +21,9 @@
     "e2e:actions": "node scripts/e2e-actions.mjs",
     "e2e:bestexec": "node scripts/e2e-bestexec.mjs",
     "e2e:hosted": "node scripts/e2e-hosted.mjs",
-    "e2e:mcp": "node scripts/e2e-mcp.mjs"
+    "e2e:mcp": "node scripts/e2e-mcp.mjs",
+    "pdf": "node scripts/make-pdf.mjs",
+    "logo": "node scripts/make-logo.mjs"
   },
   "devDependencies": {
     "playwright": "^1.48.0"

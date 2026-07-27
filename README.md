@@ -171,8 +171,10 @@ cd test; daml test  # 36 scripts
 | [`DEMO-VO.md`](DEMO-VO.md) | demo video script, for a human read of the same walkthrough |
 
 Submission documents are generated, not hand-maintained binaries:
-`node scripts/make-pdf.mjs [value|icp|gtm|metrics|pitch]` renders each to
-`media/`, and `node scripts/make-logo.mjs` renders the logo variants.
+`npm run pdf` (or `node scripts/make-pdf.mjs value|icp|gtm|metrics|pitch` for
+one) renders them to `media/`, and `npm run logo` renders the logo variants.
+The raw silent screen capture is gitignored — the narrated `.mp4` is the
+artefact that ships.
 
 ## License
 
