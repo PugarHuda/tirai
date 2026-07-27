@@ -416,6 +416,8 @@ const srtTime = (ms) => {
     await hold(1800);
   });
 
+  // The counts below are spoken aloud, so re-check them against the live desk
+  // (or `devnet.mjs verify`) before re-recording — a reseed moves them.
   await segment('Devnet · the audit trail', [
     'Forty-one settled trades and five atomic baskets, across sovereigns, supranationals and corporates — real contracts on the network, not a mock-up.',
     'Sixteen of them carry a best-execution attestation: the buyer provably paid no worse than any competing ask.',
