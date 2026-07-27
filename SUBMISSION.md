@@ -5,8 +5,8 @@ CIP-0056 assets (cETH, CBTC, Canton Coin, USDCx).**
 
 - **Repo:** https://github.com/PugarHuda/tirai (public)
 - **Live desk:** https://tirai.vercel.app — read-only, over real Devnet state
-- **Live on Devnet:** package `tirai-desk` `4b1e408f…`, parties `tirai-v1-*`,
-  shared 5N hackathon validator (Canton 3.5.x)
+- **Live on Devnet:** package `tirai-desk` `4b1e408f…`, parties `tirai-v1-*`, on
+  **HackCanton's own `hackcanton-01` participant** *and* the shared 5N validator
 - **Build journal:** [JOURNAL.md](JOURNAL.md) — daily entries, 22–26 Jul
 - **Team:** solo (Pugar Huda Mantoro)
 - **Demo video:** _(≤5 min, own voice — script in [DEMO-VO.md](DEMO-VO.md))_
@@ -115,23 +115,33 @@ BitSafe CBTC registry, a validator/hosting venue, and wallet support (Canton Loo
   read-only proxy self-test
   14/14, including a `filtersForAnyParty` enumeration-bypass regression test.
 
-## Which node, and one blocker worth reporting
+## Deployed on both Devnet participants
 
-Tirai is deployed on the **shared 5N Devnet validator**. HackCanton also runs its
-own participant, `hackcanton-01`; deploying there is written and ready
-(`ENV_FILE=.env.hackcanton node scripts/devnet.mjs upload|allocate|seed|verify`)
-but needs rights we do not have: a wallet-UI bearer authenticates fine — ledger
-end and version return 200, the user has `CanActAs` its own party — while
-`POST /v2/packages` and `POST /v2/parties` return **403**. Uploading a DAR and
-allocating parties is participant-admin only, and the node operators do it on
-request — that request is in. With it, the deploy is a few minutes' work.
-(The Keycloak password grant is separately unusable for this account because it
-is Google SSO, which is why the deployer accepts a wallet-session bearer.)
+**HackCanton's own node, `hackcanton-01`** — package `tirai-desk`
+`4b1e408f…` vetted by the node operators, parties `tirai-v1-*` under namespace
+`122003aa7c49…`. Seeded and settled live on that node: **20 settled trades + 1
+atomic basket, 16 best-execution attestations, 32 quote disclosures** and 3 open
+RFQs, across reverse-Vickrey, direct-OTC and partial-fill rails. `devnet.mjs
+verify` asserts there that **each dealer sees only its own quotes and the
+regulator sees zero pre-trade contracts**.
+
+**The shared 5N validator** — same package id, parties `tirai-v1-*`, carrying
+the richer history: 41 settled trades, 5 atomic baskets, 16 best-execution
+attestations. The hosted desk at https://tirai.vercel.app reads this deployment,
+because its proxy holds a long-lived machine credential; `hackcanton-01` issues
+only 3-hour user tokens (the account is Google SSO, so there is no machine
+credential to hold), which a public read-only site cannot keep alive.
+
+Worth recording for other teams: on `hackcanton-01`, DAR upload and party
+allocation are participant-admin only — a wallet-session bearer authenticates
+for reads and command submission but gets **403** on `POST /v2/packages` and
+`POST /v2/parties`. The node operators do both on request, quickly. The deployer
+treats that 403 as "already done for us" and addresses the operator-allocated
+parties directly.
 
 ## What's pending (honest)
 
 - Live cETH/CBTC transactions on Devnet — blocked on the onRails/BitSafe
   test-token grant (contract path built & tested against a mock of the real
   interfaces).
-- Deploy to `hackcanton-01` — blocked on participant-admin rights (above).
 - Demo video (≤5 min, own voice) and the cETH builder feedback form.

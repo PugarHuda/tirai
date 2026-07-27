@@ -121,6 +121,30 @@ intermediate locally, so the earlier "expired for everyone" claim is withdrawn.
 The password grant still returns `invalid_grant` for this account, which is the
 Google-SSO problem, not a TLS one — so the wallet bearer remains the right path.
 
+**Deployed on `hackcanton-01` — same day.** The node operators (Noders) vetted
+the DAR and allocated the six parties within hours of the request: package
+`tirai-desk` `4b1e408f…` (identical package id to the 5N deployment), parties
+`tirai-v1-*` under namespace `122003aa7c49…`, with `CanActAs` + `CanReadAs`
+granted to this ledger user. Seeded and settled from here against a fresh
+wallet-session bearer:
+
+- first trade on the node: **GILT10 @ 195,000**, reverse-Vickrey, two sealed
+  quotes → atomic DvP;
+- then the wider set: **20 settled trades + 1 atomic basket, 16 best-execution
+  attestations, 32 quote disclosures**, 3 open RFQs, across all three rails;
+- `verify` on `hackcanton-01`: **green** — each dealer sees only its own quotes,
+  the regulator sees zero pre-trade contracts.
+
+One rejection worth writing down: the richer `seed-cases` set includes 3-dealer
+auctions, and those failed with `UNKNOWN_INFORMEES` ("the participant is not
+connected to any synchronizer where the given informees are known") because the
+request had only asked for six parties — `tirai-v1-dealerC` was never allocated.
+The error names a synchronizer problem but the cause is an unallocated party.
+
+The hosted desk still reads the 5N deployment, and deliberately so: the proxy
+needs a credential it can hold, and `hackcanton-01` issues only 3-hour user
+tokens because the account is Google SSO. Two deployments, one package id.
+
 Two things learned from that same exchange, both recorded here because they will
 save the next person hours: DAR upload and party allocation on `hackcanton-01`
 are done on request by the node operators, and **a DAR whose package name

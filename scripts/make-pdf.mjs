@@ -436,9 +436,13 @@ ${META}
 
 <h2>Live on Canton Devnet — the ledger is the evidence</h2>
 <div class="facts">
+  <p><strong>Deployed on two Devnet participants under one package id</strong>
+  (<code>tirai-desk</code> <code>4b1e408f…</code>, parties <code>tirai-v1-*</code>):
+  HackCanton's own <code>hackcanton-01</code> — <strong>20 settled trades + 1 atomic
+  basket, 16 best-execution attestations, 32 quote disclosures</strong>, privacy verified
+  on that node — and the shared 5N validator, which carries the longer history below.</p>
   <p><strong>41 settled trades + 5 atomic multi-leg baskets</strong> — real contracts on
-  the shared 5N Devnet validator, package <code>tirai-desk</code>
-  <code>4b1e408f…</code>, parties <code>tirai-v1-*</code>.</p>
+  the shared 5N Devnet validator.</p>
   <p><strong>16 best-execution attestations</strong> — each with both dealers' asks
   disclosed to the regulator <em>before</em> settlement, so the clearing price is
   provably at or below every competing ask.</p>
@@ -527,10 +531,10 @@ counts live contracts in the browser.</p>
   Devnet test-token grant has not landed, so no value has moved in the real asset yet.</li>
   <li><strong>No paying users and no design partner signed.</strong> Every commercial
   claim in the GTM document is a hypothesis, not a result.</li>
-  <li><strong>Not deployed on the HackCanton participant.</strong> The deploy is written
-  and proven on another Devnet validator; on <code>hackcanton-01</code> a wallet-issued
-  token authenticates for reads but DAR upload and party allocation return 403 — that is
-  participant-admin only, and the request to the node operators is in.</li>
+  <li><strong>The hosted desk reads the 5N deployment, not hackcanton-01.</strong> That
+  node issues only 3-hour user tokens (Google-SSO account, no machine credential), which a
+  public read-only site cannot keep alive — so the HackCanton deployment is verified by
+  script rather than continuously browsable.</li>
   <li><strong>No load or latency benchmarks.</strong> Volumes so far are demonstrative,
   not performance evidence.</li>
 </ul>
