@@ -137,7 +137,7 @@ and addresses the operator-allocated parties directly.
 |---|---|---|
 | Daml model | `cd test; daml test` | 36 / 36 |
 | Hosted QA, 3 browsers | `node scripts/e2e-hosted.mjs` | 66 / 66 |
-| MCP against live Devnet | `node scripts/e2e-mcp.mjs` | 25 / 25 |
+| MCP against live Devnet | `node scripts/e2e-mcp.mjs` | 25 / 25 — leaves one real RFQ on the ledger (it exercises the write tool); `devnet.mjs tidy` clears it |
 | Read-only proxy security | `node scripts/test-readonly-proxy.mjs` | 14 / 14 |
 | Local write-path UI | `npm run e2e` · `e2e:bestexec` · `e2e:actions` | 22 / 22 · 8 / 8 · 16 / 16 |
 

@@ -133,6 +133,16 @@ async function namespace() {
   return NS.value;
 }
 
+// The parties for whichever node ENV_FILE selects, derived rather than read:
+// scripts/devnet.parties.json describes whichever deployment was seeded last, and
+// the two Devnet participants have different namespaces — reading it means asking
+// one node about another node's parties, which comes back as an opaque
+// "security-sensitive error" rather than anything that names the cause.
+const partyMap = async () => {
+  const ns = await namespace();
+  return Object.fromEntries(Object.entries(HINTS).map(([role, hint]) => [role, `${hint}::${ns}`]));
+};
+
 async function allocateOne(hint) {
   const r = await api('/v2/parties', { method: 'POST', retry: true, json: { partyIdHint: hint, identityProviderId: '' } });
   if (r.status === 200) return r.data?.partyDetails?.party;
@@ -271,12 +281,9 @@ async function acsAs(party) {
 }
 
 async function verify() {
-  // Resolve per node, read-only: the committed party file would ask one node
-  // about another node's parties whenever the two deployments' namespaces
-  // differ, and going through parties() would make a *check* allocate parties
-  // and grant rights as a side effect.
-  const ns = await namespace();
-  const p = Object.fromEntries(Object.entries(HINTS).map(([role, hint]) => [role, `${hint}::${ns}`]));
+  // Read-only on purpose: going through parties() would make a *check* allocate
+  // parties and grant rights as a side effect.
+  const p = await partyMap();
   const acs = {};
   for (const role of ['buyer', 'dealerA', 'dealerB', 'regulator']) acs[role] = await acsAs(p[role]);
   const quotesOf = (role) => acs[role].filter((e) => e.templateId.endsWith(':Tirai:Quote'));
@@ -305,7 +312,7 @@ async function verify() {
 // observes executed trades, and only executed trades" half of the story on Devnet.
 // Idempotent: skips if the regulator already sees a TradeReport.
 async function settleDemo() {
-  const p = JSON.parse(await readFile(join(HERE, 'devnet.parties.json'), 'utf8'));
+  const p = await partyMap();
   const regEv = await acsAs(p.regulator);
   if (regEv.some((e) => e.templateId.endsWith(':Tirai:TradeReport'))) {
     console.log('regulator already has a settled trade — nothing to do.');
@@ -332,7 +339,7 @@ async function settleDemo() {
 
 // Archive duplicate buyer USDC holdings left by 503-retries; keep exactly one.
 async function cleanup() {
-  const p = JSON.parse(await readFile(join(HERE, 'devnet.parties.json'), 'utf8'));
+  const p = await partyMap();
   const ev = await acsAs(p.buyer);
   const cash = ev.filter((e) => e.templateId.endsWith(':Tirai:Holding')
     && e.createArgument.owner === p.buyer && e.createArgument.instrument === 'USDC');
@@ -350,7 +357,7 @@ async function cleanup() {
 // Mints fresh legs (the dealers' original bonds are escrowed in the single RFQ).
 // Idempotent: skips if the buyer already sees a BasketRFQ.
 async function seedBasket() {
-  const p = JSON.parse(await readFile(join(HERE, 'devnet.parties.json'), 'utf8'));
+  const p = await partyMap();
   if ((await acsAs(p.buyer)).some((e) => e.templateId.endsWith(':Tirai:BasketRFQ'))) {
     console.log('basket already seeded — nothing to do.');
     return;
@@ -380,7 +387,7 @@ async function seedBasket() {
 // audit trail on the hosted desk looks like a real desk's post-trade record.
 // Idempotent per instrument. Institutional tickers, block-size notionals in USD.
 async function seedCases() {
-  const p = JSON.parse(await readFile(join(HERE, 'devnet.parties.json'), 'utf8'));
+  const p = await partyMap();
   const reg = await acsAs(p.regulator);
   const doneInst = new Set(reg.filter((e) => e.templateId.endsWith(':Tirai:TradeReport')).map((e) => e.createArgument.instrument));
   const doneBasket = reg.filter((e) => e.templateId.endsWith(':Tirai:BasketTradeReport')).length >= 1;
@@ -586,7 +593,7 @@ async function seedCases() {
 // MCP best_execution tool show real, green attestations on live Devnet data. One per
 // fresh institutional instrument; idempotent (skips any already settled).
 async function seedBestExec() {
-  const p = JSON.parse(await readFile(join(HERE, 'devnet.parties.json'), 'utf8'));
+  const p = await partyMap();
   const reg = await acsAs(p.regulator);
   const done = new Set(reg.filter((e) => e.templateId.endsWith(':Tirai:TradeReport')).map((e) => e.createArgument.instrument));
   const disclose = (qc) => submit(p.buyer, { ExerciseCommand: { templateId: `${PKG}:Tirai:Quote`, contractId: qc,
@@ -675,13 +682,27 @@ async function seedBestExec() {
 // Cancel any quote-less open RFQ the buyer holds — e.g. an orphan left when a
 // direct-OTC / partial settle consumed the quotes but not the RFQ. Idempotent.
 async function tidy() {
-  const p = JSON.parse(await readFile(join(HERE, 'devnet.parties.json'), 'utf8'));
+  const p = await partyMap();
   const ev = await acsAs(p.buyer);
   const rfqs = ev.filter((e) => e.templateId.endsWith(':Tirai:RFQ'));
   const quotedRfqIds = new Set(ev.filter((e) => e.templateId.endsWith(':Tirai:Quote'))
     .map((q) => q.createArgument.rfqId).filter(Boolean));
   const orphans = rfqs.filter((r) => !quotedRfqIds.has(r.contractId));
-  if (!orphans.length) { console.log('tidy: no orphan RFQs.'); return; }
+  // Basket RFQs have no cancel choice, but the buyer is their sole signatory, so
+  // the built-in Archive clears the shells a settled basket leaves behind
+  // (SettleBasket archives the quote, not the request).
+  const baskets = ev.filter((e) => e.templateId.endsWith(':Tirai:BasketRFQ'));
+  const quotedBasketIds = new Set(ev.filter((e) => e.templateId.endsWith(':Tirai:BasketQuote'))
+    .map((q) => q.createArgument.rfqId).filter(Boolean));
+  const basketOrphans = baskets.filter((b) => !quotedBasketIds.has(b.contractId));
+  for (const b of basketOrphans) {
+    await submit(p.buyer, { ExerciseCommand: { templateId: `${PKG}:Tirai:BasketRFQ`, contractId: b.contractId, choice: 'Archive', choiceArgument: {} } });
+    console.log(`· archived orphan BasketRFQ (${(b.createArgument.legs ?? []).length} legs)`);
+  }
+  if (!orphans.length) {
+    console.log(basketOrphans.length ? `tidy: archived ${basketOrphans.length} orphan BasketRFQ(s); no orphan single RFQs.` : 'tidy: no orphan RFQs.');
+    return;
+  }
   // NB: this cancels EVERY quote-less RFQ — including one that's genuinely open and
   // still waiting for its first quote. Only run tidy when no live RFQ is intended.
   console.log(`tidy: cancelling ${orphans.length} quote-less RFQ(s) — this also cancels any RFQ still awaiting its first quote.`);
