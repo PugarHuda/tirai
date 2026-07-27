@@ -210,6 +210,13 @@ async function submit(actAs, command) {
     // with a clear message; the idempotent seeders skip the completed work on rerun.
     if (/DUPLICATE_COMMAND/i.test(last))
       throw new Error('command already committed (response lost) — rerun the idempotent seed to continue. ' + last);
+    // Same situation seen from the other side: we are RETRYING, and the contract we
+    // meant to exercise is already archived — so the lost-response attempt did land.
+    // The intended effect happened; treat it as done instead of failing the run.
+    if (i > 0 && /UNKNOWN_CONTRACT|been archived|CONTRACT_NOT_FOUND/i.test(last)) {
+      process.stdout.write(' (already applied)');
+      return null;
+    }
     // 409 SEQUENCER_BACKPRESSURE = transient overload on the shared validator.
     if (![409, 503, 429, 500, 502, 504].includes(r.status)) throw new Error(last);
     process.stdout.write(` (retry ${r.status})`);
