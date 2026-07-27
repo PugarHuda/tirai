@@ -265,7 +265,10 @@ async function acsAs(party) {
 }
 
 async function verify() {
-  const p = JSON.parse(await readFile(join(HERE, 'devnet.parties.json'), 'utf8'));
+  // Resolve parties the same way seed does, per node — reading the committed
+  // party file would ask one node about another node's parties whenever the two
+  // deployments' namespaces differ.
+  const p = await parties();
   const acs = {};
   for (const role of ['buyer', 'dealerA', 'dealerB', 'regulator']) acs[role] = await acsAs(p[role]);
   const quotesOf = (role) => acs[role].filter((e) => e.templateId.endsWith(':Tirai:Quote'));
