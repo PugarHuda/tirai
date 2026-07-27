@@ -100,17 +100,44 @@ To reproduce the frozen DARs: download `dars/` from the Splice release bundle
 
 - [x] Ledger model + **36 Daml test scripts green** (`test/`)
 - [x] **CIP-0056 cETH / CBTC settlement leg** (Splice v1 interfaces, DvP tested)
-- [x] Deployed to Canton Devnet as `tirai-desk` (privacy verified on-ledger)
+- [x] **Deployed on two Canton Devnet participants** (privacy verified on both)
 - [x] Three-party web desk (buyer / dealers / regulator) over the JSON Ledger API
-- [x] Read-only MCP server + agent scripts
+- [x] MCP server + agent scripts
 - [x] **Hosted read-only desk — https://tirai.vercel.app** (live Devnet state)
+- [x] Demo video — `media/tirai-demo-narrated.mp4` (4:27, driven for real)
 - [ ] Live cETH transactions on Devnet — pending the onRails test-token grant
-- [ ] Demo video (≤5 min, own voice) — script in [`DEMO-VO.md`](DEMO-VO.md)
 
-**Live on Devnet** — package `tirai-desk` `4b1e408f…`, parties `tirai-v1-*` on the
-shared 5N hackathon validator (Canton 3.5.x). `node scripts/devnet.mjs verify`
-asserts, on the real network, that each dealer sees only its own quotes and the
-regulator sees zero pre-trade.
+### Live on Devnet
+
+Same package id on both participants: `tirai-desk`
+`4b1e408f6eda27364a55da076d9251ee117f0641f03aaf20883995f1e507a7e3`, parties
+`tirai-v1-*` (Canton 3.5.x).
+
+| Participant | Namespace | Live state |
+|---|---|---|
+| **`hackcanton-01`** (HackCanton's own node) | `122003aa7c49…` | 20 settled trades + 1 atomic basket, 16 best-execution attestations, 32 quote disclosures, 3 open RFQs |
+| **Shared 5N validator** | `1220a14ca128…` | 41 settled trades + 5 atomic baskets, 16 attestations — this is what the hosted desk reads |
+
+`node scripts/devnet.mjs verify` (add `ENV_FILE=.env.hackcanton` for the
+HackCanton node) asserts **on the real network** that each dealer sees only its
+own quotes and the regulator sees zero pre-trade contracts — and exits non-zero
+if a single quote ever leaks.
+
+The hosted desk reads the 5N deployment because its proxy can hold a machine
+credential; `hackcanton-01` issues only 3-hour user tokens. On that node the DAR
+upload and party allocation are participant-admin only and were done by the node
+operators on request — the deployer treats the resulting `403` as "already done"
+and addresses the operator-allocated parties directly.
+
+### Test suites
+
+| Suite | Command | Result |
+|---|---|---|
+| Daml model | `cd test; daml test` | 36 / 36 |
+| Hosted QA, 3 browsers | `node scripts/e2e-hosted.mjs` | 66 / 66 |
+| MCP against live Devnet | `node scripts/e2e-mcp.mjs` | 25 / 25 |
+| Read-only proxy security | `node scripts/test-readonly-proxy.mjs` | 14 / 14 |
+| Local write-path UI | `npm run e2e` · `e2e:actions` · `e2e:bestexec` | requires `npm run demo` |
 
 ## Run locally
 
@@ -130,11 +157,16 @@ cd test; daml test  # 36 scripts
 | `test/` | 36 Daml test scripts (incl. `MockRegistry` implementing the real interfaces) |
 | `web/` | three-column desk + Node proxy |
 | `api/` | read-only serverless proxy (hosted deployment) |
-| `scripts/` | Devnet deployer, local demo, e2e suites |
+| `scripts/` | Devnet deployer, local demo, e2e suites, recorder, PDF/logo generators |
 | `mcp/` | MCP server — 6 tools: 5 read-only + `post_rfq`, which writes a real RFQ |
+| `media/` | demo video + subtitles, logo variants, submission PDFs |
 | [`SUBMISSION.md`](SUBMISSION.md) | tracks, business brief, pilot plan |
 | [`JOURNAL.md`](JOURNAL.md) | daily build journal (what was built, what broke) |
-| [`DEMO-VO.md`](DEMO-VO.md) | demo video script (≤5 min, own voice) |
+| [`DEMO-VO.md`](DEMO-VO.md) | demo video script, for a human read of the same walkthrough |
+
+Submission documents are generated, not hand-maintained binaries:
+`node scripts/make-pdf.mjs [value|icp|gtm|metrics|pitch]` renders each to
+`media/`, and `node scripts/make-logo.mjs` renders the logo variants.
 
 ## License
 
