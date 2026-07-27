@@ -137,7 +137,11 @@ and addresses the operator-allocated parties directly.
 | Hosted QA, 3 browsers | `node scripts/e2e-hosted.mjs` | 66 / 66 |
 | MCP against live Devnet | `node scripts/e2e-mcp.mjs` | 25 / 25 |
 | Read-only proxy security | `node scripts/test-readonly-proxy.mjs` | 14 / 14 |
-| Local write-path UI | `npm run e2e` · `e2e:actions` · `e2e:bestexec` | requires `npm run demo` |
+| Local write-path UI | `npm run e2e` · `e2e:bestexec` · `e2e:actions` | 22 / 22 · 8 / 8 · 16 / 16 |
+
+The three local suites drive the real ledger, so **restart `npm run demo` before
+each one**: a dealer can only quote while it still holds the exact RFQ quantity,
+and a suite run against a used ledger dies waiting for the quote button.
 
 ## Run locally
 
