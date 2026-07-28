@@ -47,3 +47,6 @@ jobs:
           done
       - name: Read-only proxy security self-check
         run: node scripts/test-readonly-proxy.mjs
+
+      - name: Deployer logic self-check (what tidy cancels or archives)
+        run: node scripts/test-devnet-logic.mjs

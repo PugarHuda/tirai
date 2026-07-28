@@ -688,20 +688,26 @@ async function seedBestExec() {
 
 // Cancel any quote-less open RFQ the buyer holds — e.g. an orphan left when a
 // direct-OTC / partial settle consumed the quotes but not the RFQ. Idempotent.
+// Requests of `reqTpl` that no `quoteTpl` in the same ACS points back at. Quotes
+// carry rfqId = Some self when created through the request's choice, so a missing
+// or unmatched link means the request is a leftover shell. Exported and pure, so
+// scripts/test-devnet-logic.mjs can hold it to that: this predicate decides what
+// gets cancelled or archived on a live ledger.
+export const orphansOf = (acs, reqTpl, quoteTpl) => {
+  const reqs = acs.filter((e) => e.templateId.endsWith(`:Tirai:${reqTpl}`));
+  const linked = new Set(acs.filter((e) => e.templateId.endsWith(`:Tirai:${quoteTpl}`))
+    .map((q) => q.createArgument?.rfqId).filter(Boolean));
+  return reqs.filter((r) => !linked.has(r.contractId));
+};
+
 async function tidy() {
   const p = await partyMap();
   const ev = await acsAs(p.buyer);
-  const rfqs = ev.filter((e) => e.templateId.endsWith(':Tirai:RFQ'));
-  const quotedRfqIds = new Set(ev.filter((e) => e.templateId.endsWith(':Tirai:Quote'))
-    .map((q) => q.createArgument.rfqId).filter(Boolean));
-  const orphans = rfqs.filter((r) => !quotedRfqIds.has(r.contractId));
+  const orphans = orphansOf(ev, 'RFQ', 'Quote');
   // Basket RFQs have no cancel choice, but the buyer is their sole signatory, so
   // the built-in Archive clears the shells a settled basket leaves behind
   // (SettleBasket archives the quote, not the request).
-  const baskets = ev.filter((e) => e.templateId.endsWith(':Tirai:BasketRFQ'));
-  const quotedBasketIds = new Set(ev.filter((e) => e.templateId.endsWith(':Tirai:BasketQuote'))
-    .map((q) => q.createArgument.rfqId).filter(Boolean));
-  const basketOrphans = baskets.filter((b) => !quotedBasketIds.has(b.contractId));
+  const basketOrphans = orphansOf(ev, 'BasketRFQ', 'BasketQuote');
   for (const b of basketOrphans) {
     await submit(p.buyer, { ExerciseCommand: { templateId: `${PKG}:Tirai:BasketRFQ`, contractId: b.contractId, choice: 'Archive', choiceArgument: {} } });
     console.log(`· archived orphan BasketRFQ (${(b.createArgument.legs ?? []).length} legs)`);
@@ -720,8 +726,9 @@ async function tidy() {
   console.log(`tidy: cancelled ${orphans.length} orphan RFQ(s).`);
 }
 
-const cmd = process.argv[2];
-(async () => {
+// Importing this file (the logic test does) must not run a command.
+const cmd = process.argv[1]?.endsWith('devnet.mjs') ? process.argv[2] : null;
+if (cmd !== null) (async () => {
   ENV = await loadEnv();
   if (cmd === 'probe') await probe();
   else if (cmd === 'cleanup') await cleanup();

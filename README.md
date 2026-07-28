@@ -139,6 +139,7 @@ and addresses the operator-allocated parties directly.
 | Hosted QA, 3 browsers | `node scripts/e2e-hosted.mjs` | 66 / 66 |
 | MCP against live Devnet | `node scripts/e2e-mcp.mjs` | 25 / 25 — leaves one real RFQ on the ledger (it exercises the write tool); `devnet.mjs tidy` clears it |
 | Read-only proxy security | `node scripts/test-readonly-proxy.mjs` | 14 / 14 |
+| Deployer decision logic | `node scripts/test-devnet-logic.mjs` | 6 / 6 |
 | Local write-path UI | `npm run e2e` · `e2e:bestexec` · `e2e:actions` | 22 / 22 · 8 / 8 · 16 / 16 |
 
 The three local suites drive the real ledger, so **restart `npm run demo` before
