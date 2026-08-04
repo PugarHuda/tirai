@@ -130,13 +130,21 @@ To reproduce the frozen DARs: download `dars/` from the Splice release bundle
 - [x] Ledger model + **36 Daml test scripts green** (`test/`)
 - [x] **CIP-0056 cETH / CBTC settlement leg** (Splice v1 interfaces, DvP tested)
 - [x] **Deployed on two Canton Devnet participants** (privacy verified on both)
-- [x] Three-party web desk (buyer / dealers / regulator) over the JSON Ledger API
+- [x] Web desk over the JSON Ledger API — one signed-in identity per session
+      (buyer / either dealer / regulator)
 - [x] MCP server + agent scripts
-- [x] **Hosted read-only desk — https://tirai.vercel.app** (live Devnet state) —
-      the three-column desk plus five read views: **Active RFQs** (the whole book,
-      filterable; picking a row re-scopes the desk), **Portfolio** (holdings, including
-      balances issued by an external registry), **Verify privacy**, **Audit trail**,
-      **Best execution**
+- [x] **Hosted read-only desk — https://tirai.vercel.app** (live Devnet state) — you are
+      **signed in as one identity** (buyer, either dealer, or the regulator) and the whole
+      desk shows only what that party's participant node holds; switching identity is not a
+      filter, it changes whose node is read. Home is **Active RFQs**, the book: every request
+      that identity can see — instrument, quantity, mode, maker, cash leg, cleared price,
+      sealed-quote count, status — with All / Mine / For me filters and one action per row.
+      Sealing a quote, cancelling a request and reading a settlement receipt open as dialogs;
+      **Create RFQ** is its own page with two execution modes (RFQ auction, direct OTC).
+      Alongside: **My activity**, **Portfolio** (holdings, including balances issued by an
+      external registry), **Verify privacy**, **Audit trail**, **Best execution**, and
+      **Side-by-side proof** — every party's own view at once, which no deployed venue would
+      show you
 - [x] **Demo video — https://youtu.be/_iHMouFdNA4** (4:27, the desk driven for real)
 - [x] **Live settlement against an external Token Standard registry** — six trades
       settled in real **Canton Coin** through the DSO-run registry on the 5N Devnet
@@ -197,7 +205,7 @@ cd test; daml test  # 36 scripts
 | `daml/Tirai.daml` | ledger model — RFQ, sealed quotes, escrow, DvP rails, `TokenTrade` |
 | `dars/` | frozen Splice CIP-0056 interface DARs (data-dependencies) |
 | `test/` | 36 Daml test scripts (incl. `MockRegistry` implementing the real interfaces) |
-| `web/` | three-column desk + Node proxy |
+| `web/` | the desk — one signed-in identity, plus the side-by-side proof view — + Node proxy |
 | `api/` | read-only serverless proxy (hosted deployment) |
 | `scripts/` | Devnet deployer, local demo, e2e suites, recorder, PDF/logo generators |
 | `mcp/` | MCP server — 6 tools: 5 read-only + `post_rfq`, which writes a real RFQ |

@@ -89,10 +89,26 @@ Say "three rails" out loud — reverse-Vickrey, direct bilateral OTC, partial
 fills on both — and that baskets settle atomically. Do not explain Vickrey here;
 that is a Q&A answer (`PITCH.md` Q3 and Q4).
 
+The second paragraph on the slide is the shape of the product, and it sets up the
+next slide: you sign in as one identity, and the home screen is the book of every
+request that party is allowed to see. One clause, then move.
+
+*If you are driving the live desk rather than the deck,* this is where you switch
+to it — **Active RFQs**, signed in as the buyer.
+
 ### Slide 05 — Dealer B's node never received it (1:26, 18s)
 
 The strongest sentence in the product, so slow down: *"Dealer A cannot see dealer
 B's quote. Not hidden by the interface. Dealer B's node never received it."*
+
+**Do it rather than say it if the desk is on screen.** The footer line on this
+slide is the demo path: sign in as dealer A and open its sealed ask; sign in as
+dealer B and the number is not in its book; sign back in as the buyer and settle.
+Three clicks of the sidebar's **Signed in as** control, one per sentence. Say what
+the switch actually does — it changes which participant node's contracts are read,
+so a rival dealer in its own session has nothing to hide. On the hosted desk,
+writes are rejected by design: open the ask that is already sealed rather than
+typing a new one, and read a settled row's receipt rather than pressing Award.
 
 Then the second card in one breath: the claim is falsifiable, and a verifier
 recomputes each party's visible contract set on the real ledger and exits
@@ -164,8 +180,6 @@ thirty-six Daml scripts green, hosted read-only desk over live state.
 product works, it is not customer traction. Volunteering that is stronger than
 being caught by it, and the judges asked about validation.
 
-*If you are showing the live desk instead of this slide, this is the moment.*
-
 ### Slide 11 — Checked against the live ledger (3:14, 16s)
 
 *"This view is not a claim. It queries what each party's node actually holds,
@@ -174,6 +188,10 @@ contracts before settlement."*
 
 Then best execution: no order book, yet sixteen attestations prove the buyer beat
 every competing ask, built from quotes selectively disclosed to the regulator.
+
+These two are pre-clicked tabs of their own (`PITCH.md` section 5, tabs 3 and 4).
+Do not switch views inside the desk tab you drove in block 2 — leave that one on
+**Active RFQs** in case you need to go back to it.
 
 *If block 4 is running long,* cut the best-execution sentence — it comes back in
 Q&A — but keep the privacy sentence.
@@ -227,7 +245,10 @@ pilot.
 
 - Tabs and fallbacks: the pre-flight checklist in `PITCH.md` section 5. Pre-click
   **Verify privacy** and **Best execution** in their own tabs — switching views
-  live costs five seconds of dead air each time.
+  live costs five seconds of dead air each time. Leave the desk tab on **Active
+  RFQs**, signed in as the buyer; the identity switch is the one thing you do live.
+- The demo video records the earlier three-column build of the desk. If you fall
+  back to it, say so — the note at the top of `DEMO-VO.md` has the wording.
 - The Canton Coin figures are fixed: six settlements, 60,900 CC. Nothing else gets a number.
 - Never claim the privacy verifier is green if it is not green on the day.
 - Never present the seeded DevNet history as usage.

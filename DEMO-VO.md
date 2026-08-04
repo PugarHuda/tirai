@@ -1,5 +1,23 @@
 # Demo video script — Tirai (≤5 min, own voice)
 
+> **Which build the footage shows.** The published cut
+> (https://youtu.be/_iHMouFdNA4) was recorded against the **three-column desk**,
+> where the buyer, both dealers and the regulator sat side by side on one screen.
+> The desk has since been restructured into a **single signed-in identity**: you
+> pick a party in the sidebar and see only what that party's participant node
+> holds; the home screen is **Active RFQs**, a table of every request that identity
+> can see; sealing a quote, cancelling a request and reading a settlement receipt
+> happen in dialogs; **Create RFQ** is its own page; and the old three-column
+> layout is still there, demoted to a sidebar entry called **Side-by-side proof**.
+>
+> Nothing the video claims about the ledger has changed — the model, the sealed
+> quotes, the privacy verification and the settlement path are the same. Only the
+> layout moved. The script below is kept **as recorded** rather than rewritten, so
+> it matches the footage; if you show the video live, say that it records the
+> earlier layout before a judge notices the difference from the hosted desk. A
+> re-record against the current build would rewrite §0:35–1:35 and §3:15–4:05, and
+> would replace "look at the two dealer columns" with the identity switch.
+
 **Rules that shape this script:** the narration must be **your own voice** (no AI
 voice-over), the video must show **real transactions on Canton Devnet** — not a
 mock-up — and it must run **≤ 5 minutes**.
@@ -30,7 +48,7 @@ Timings assume a normal speaking pace (~150 wpm). Total ≈ 4:40, leaving slack.
 
 *Screen: landing page hero, scroll once slowly.*
 
-## 0:35 – 1:35 · The desk, live on Devnet (hosted, three columns)
+## 0:35 – 1:35 · The desk, live on Devnet (hosted, three columns *as recorded*)
 
 > This is the desk running against Canton Devnet right now — buyer on the left,
 > two dealers in the middle, the regulator on the right. Everything you see is

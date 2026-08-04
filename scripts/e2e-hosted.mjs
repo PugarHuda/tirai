@@ -126,10 +126,17 @@ async function runEngine(name) {
   const rfqRows = await page.locator('.rfq-table tbody tr').count();
   ok('Active RFQs lists the live book', rfqRows > 1, `${rfqRows} rows`);
   ok('its filter chips render', (await page.locator('.rfq-chip').count()) === 3);
-  await page.locator('.rfq-chip[data-filter="open"]').click().catch(() => {});
+  // The hosted session is signed in as the buy side, which invites dealers rather
+  // than being invited — so "For me" must come back empty while "Mine" does not.
+  await page.locator('.rfq-chip[data-filter="forme"]').click().catch(() => {});
   await page.waitForTimeout(600);
-  const openRows = await page.locator('.rfq-table tbody tr').count();
-  ok('filtering to open requests narrows the list', openRows > 0 && openRows <= rfqRows, `${openRows} open of ${rfqRows}`);
+  const forMe = await page.locator('.rfq-table tbody tr').count();
+  ok('"For me" is empty for the buy side', forMe === 0, `${forMe} rows`);
+  await page.locator('.rfq-chip[data-filter="mine"]').click().catch(() => {});
+  await page.waitForTimeout(600);
+  const mine = await page.locator('.rfq-table tbody tr').count();
+  ok('"Mine" lists the requests this identity opened', mine > 0 && mine <= rfqRows, `${mine} of ${rfqRows}`);
+  ok('the identity chip names the signed-in party', /buyer/i.test(await page.locator('#ident-pid').innerText().catch(() => '')));
 
   // Balances in an asset issued by a registry this app does not control.
   await page.click('.side-nav a[data-view="portfolio"]').catch(() => {});

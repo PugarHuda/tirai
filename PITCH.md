@@ -69,28 +69,50 @@ the information" cleanly and the rest of the pitch has a spine.
 
 ### Block 2 · 1:00 – 2:00 · Solution and product
 
-**On screen:** click through to https://tirai.vercel.app/app — the three-column desk. Point
-at the buyer column, then the two dealer columns, as you describe them.
+**On screen:** click through to https://tirai.vercel.app/app — **Active RFQs**, the home
+screen: every request the signed-in party can see, one row each. Then drive the sidebar's
+**Signed in as** control, in this order, one click per sentence:
+
+1. **Dealer A** — open its row. The dialog holds its own sealed ask.
+2. **Dealer B** — same book, and that number is simply not in it.
+3. **Buyer** — the same request now carries a sealed-quote count. Its action is *Settle*
+   (or *Cancel*, if nobody has quoted yet); a settled row opens the settlement receipt,
+   with the clearing price and the counterparty on it.
+
+Say the switcher is not a filter: it changes which participant node's contracts are read.
+A rival dealer signed in to its own session does not have the other's quote to hide.
+
+**If a judge asks whether you are just hiding rows,** two sidebar entries answer it without
+leaving the desk: **Side-by-side proof** puts every party's own view on one screen — which
+no deployed venue would show you — and **Verify privacy** counts what each node actually
+received. Do not open either mid-block; say "I will show you that in a moment" and let
+block 4 do it.
+
+**Two things to know before you drive it live.** The hosted desk is read-only, so open the
+ask that is already sealed rather than typing a new one — the dialog is the same either
+way. And *Settle* leaves the book for the side-by-side view, where the award button is; if
+you would rather not leave the table on camera, open a settled row's receipt instead and
+let block 4 carry the settlement. On a local `npm run demo` build you can seal and award
+for real.
 
 *(~145 words)*
 
 > Tirai gives you both. My name is Pugar. *Tirai* is Indonesian for curtain — price
 > discovery happens behind it.
 >
-> It works like the dealer terminal institutions already use, but on-ledger. A buyer asks a
-> chosen panel of dealers for a price. Each dealer answers with a sealed quote. Quoting
-> locks that dealer's bond into escrow — so a price is a commitment, not a bluff.
+> This is the book — the dealer terminal institutions use, on-ledger: every request I may
+> see. A buyer asks a chosen panel for a price; each dealer answers with a sealed quote.
+> Quoting locks that dealer's bond into escrow — a price is a commitment, not a bluff.
 >
-> Dealer A cannot see dealer B's quote. Not hidden by the interface. Dealer B's node never
-> received it.
+> Signed in as dealer A, here is its ask. Signed in as dealer B, the number is not there.
+> Not hidden by the interface — dealer B's node never received it.
 >
-> The cheapest ask wins, and is paid the second-cheapest price — so quoting honestly is the
-> dealer's best strategy. Losing quotes are archived, never revealed to anyone.
+> The cheapest ask wins and is paid the second-cheapest price, so quoting honestly is the
+> dealer's best strategy. Losing quotes are archived, never revealed.
 >
-> Here is the superpower. On four other chains I built this with zero-knowledge circuits,
-> trusted hardware, threshold encryption, homomorphic encryption. On Canton, that is a
-> `signatory` and `observer` declaration. Privacy is the ledger model — not cryptography
-> bolted on.
+> On four other chains this took trusted hardware, zero-knowledge circuits, threshold
+> encryption, homomorphic encryption. On Canton, it is a `signatory` and `observer`
+> declaration — the ledger model, not cryptography bolted on.
 
 ---
 
@@ -186,8 +208,8 @@ Three things, in this order of value to you:
 ## 2 · The 60-second cut (fallback)
 
 Use this only if the slot is shortened again on the day, or if you are cut off and offered a
-recap. Roughly 150 words — the four blocks compressed into one. Keep the desk on screen the
-whole time; switch to "Verify privacy" at the 25-second mark.
+recap. Roughly 150 words — the four blocks compressed into one. Keep **Active RFQs** on
+screen the whole time; switch to "Verify privacy" at the 25-second mark.
 
 > When a bank wants to move a large block of bonds, the question itself is the information.
 > Ask, and the market moves against you. That is why block trading is still on the phone.
@@ -308,7 +330,7 @@ the design-partner conversation, not out of my head. Zero revenue today.
 **Q6. What is the regulatory posture? A private venue sounds like the opposite of what
 regulators want.**
 The regulator is a first-class party in the model, not an afterthought — it is one of the
-four views in the product. It observes `TradeReport` and `BasketTradeReport` only: zero
+four identities you can sign in to the desk as. It observes `TradeReport` and `BasketTradeReport` only: zero
 pre-trade visibility, complete post-trade record. That is exactly the shape of existing
 block-trading rules, which permit pre-trade opacity for large-in-scale orders precisely
 because publishing them harms the end investor, and then demand full post-trade reporting.
@@ -406,31 +428,38 @@ read-only desk; and now the real Canton Coin settlement through the DSO registry
 
 - [ ] Close everything else. One browser window. Notifications off, phone silent.
 - [ ] Laptop on mains power. Second network ready (phone hotspot, tested, not just paired).
-- [ ] Screen resolution set so the three desk columns fit without horizontal scroll.
+- [ ] Screen resolution set so the Active RFQs table fits without horizontal scroll — the
+      right-hand columns (sealed quotes, status, the row action) are the ones judges read.
 - [ ] Browser zoom at a level where a judge on a shared screen can read the quote prices.
 - [ ] Water within reach. You will talk for five minutes without a break.
 
 ### T-25 · Tabs, left to right, in this order
 
-Tab 1 is block 1. Tab 2 is block 2. Tabs 3, 4 and 7 are block 4. Block 3 needs no tab —
-leave tab 2 or the audit view on screen and just talk.
+Tab 1 is block 1. Tab 2 is block 2 — the only tab you drive live. Tabs 3, 4 and 7 are
+block 4. Block 3 needs no tab — leave tab 2 or the audit view on screen and just talk.
 
 1. https://tirai.vercel.app — landing page, scrolled to the top.
-2. https://tirai.vercel.app/app — the desk, **already loaded and connected** (check the
-   ledger status reads connected and the stats strip shows numbers, not dashes).
+2. https://tirai.vercel.app/app — the desk on **Active RFQs**, **signed in as Buyer**,
+   **already loaded and connected** (check the ledger status reads connected, the stats
+   strip shows numbers rather than dashes, and the table has rows). This is the tab where
+   you switch identity three times; do not switch views in it.
 3. The desk again, second tab, pre-clicked to **Verify privacy**.
 4. The desk again, third tab, pre-clicked to **Best execution**.
 5. https://youtu.be/_iHMouFdNA4 — the demo video, paused at 1:43 (the empty rival column),
-   as the fallback if the live desk fails.
+   as the fallback if the live desk fails. It records the earlier three-column build — see
+   the note at the top of `DEMO-VO.md` before you show it.
 6. https://github.com/PugarHuda/tirai — README open at the "Live on Devnet" table.
 7. `daml/Tirai.daml` in an editor, scrolled to `TokenTrade_Settle`.
 
 Pre-clicking tabs 3 and 4 matters: switching views live costs you five seconds of dead air
-each time, and the tab switch is instant.
+each time, and the tab switch is instant. The identity switch in tab 2 is the exception —
+it is one click, it is the point of block 2, and doing it live is what makes it credible.
 
 ### T-15 · Warm the live state
 
 - [ ] Reload the desk tab and confirm the stats strip shows a non-zero settled-trade count.
+- [ ] Walk the identity switch once — Buyer, Dealer A, Dealer B, Buyer — and confirm each
+      one's book renders and Dealer A's sealed ask opens. Leave it signed in as **Buyer**.
 - [ ] Confirm the Verify privacy tab shows the **green** verdict. If it is amber or errored,
       reload once; if still bad, switch to the video fallback and say so plainly.
 - [ ] Confirm Best execution lists the attestations.
@@ -457,7 +486,7 @@ speaking too slowly for a four-minute slot — cut a sentence, do not speed up.
 
 | If this fails | Do this |
 |---|---|
-| Hosted desk will not load | Switch to the demo video tab, paused at 1:43. Say: "the hosted desk is read-only over live DevNet state — here is the same view recorded." Keep going. Do not debug on camera. |
+| Hosted desk will not load | Switch to the demo video tab, paused at 1:43. Say: "the hosted desk is read-only over live DevNet state — here is the same thing recorded, on an earlier layout of the desk." Keep going. Do not debug on camera. |
 | Desk loads but shows stale or zero state | Speak over the README "Live on Devnet" table instead: two participants, same package id, 47 settled trades and 5 baskets on the validator. |
 | Verify privacy shows an error | Say it plainly — "the live query is not responding right now" — and go to the video's 2:41–3:07 privacy verification chapter. Never claim green if it is not green. |
 | Canton Coin settlement demo will not run live | Show the scrollback of the last successful run, and `TokenTrade_Settle` in `daml/Tirai.daml`. The code plus a prior successful run is credible; a failing live run is not. |
