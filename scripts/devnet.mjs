@@ -1116,6 +1116,52 @@ async function seedBook() {
   console.log('Sealed quotes the buyer holds:', (await ofTemplate(p.buyer, 'Quote')).length, '(was', quotesByRfq.length + ')');
 }
 
+// Accept a token-standard transfer somebody sent this desk — the CBTC faucet parks
+// one as a TransferOffer that only the receiver can complete. Any registry works:
+// point REGISTRY_URL at that registry's API base and it fetches the accept choice
+// context from there. Canton Coin's is reached through the validator's scan proxy
+// and needs no extra configuration.
+//   REGISTRY_URL=https://<registry-api> node scripts/devnet.mjs accept-incoming
+async function acceptIncoming() {
+  const p = await partyMap();
+  const party = process.argv.find((a) => a.includes('::')) ?? p.buyer;
+  const pending = await heldVia(party, IFACE.transferInstruction);
+  if (!pending.length) { console.log('nothing pending for', party.split('::')[0]); return; }
+
+  const base = (process.env.REGISTRY_URL ?? '').replace(/\/$/, '');
+  for (const c of pending) {
+    const v = ifaceView(c) ?? {};
+    const t = v.transfer ?? {};
+    console.log(`· ${t.amount} ${t.instrumentId?.id} from ${String(t.sender).split('::')[0]}`);
+    // The registry decides what its accept needs. Canton Coin's context comes from
+    // the scan proxy; a foreign registry's must come from its own API, and without
+    // it the ledger refuses with "Missing context entry".
+    const isAmulet = t.instrumentId?.id === 'Amulet';
+    let ctx;
+    try {
+      ctx = isAmulet
+        ? await reg(`/transfer-instruction/v1/${c.contractId}/choice-contexts/accept`, {})
+        : await (async () => {
+            if (!base) throw new Error('set REGISTRY_URL to the API base of the registry that issued it');
+            const r = await fetch(`${base}/registry/transfer-instruction/v1/${c.contractId}/choice-contexts/accept`,
+              { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+            const text = await r.text();
+            if (!r.ok) throw new Error(`registry ${r.status}: ${text.slice(0, 200)}`);
+            return JSON.parse(text);
+          })();
+    } catch (e) {
+      console.log(`  cannot build the accept context: ${e.message}`);
+      console.log('  the offer stays on-ledger until it expires, so this is retryable.');
+      continue;
+    }
+    await submit(party, { ExerciseCommand: {
+      templateId: IFACE.transferInstruction, contractId: c.contractId, choice: 'TransferInstruction_Accept',
+      choiceArgument: { extraArgs: ctxArgs(ctx) },
+    } }, { disclosed: disclose(ctx), effects: true });
+    console.log('  accepted.');
+  }
+}
+
 // Importing this file (the logic test does) must not run a command.
 const cmd = process.argv[1]?.endsWith('devnet.mjs') ? process.argv[2] : null;
 if (cmd !== null) (async () => {
@@ -1132,7 +1178,8 @@ if (cmd !== null) (async () => {
   else if (cmd === 'seed-bestexec') await seedBestExec();
   else if (cmd === 'seed-cc') await seedCc();
   else if (cmd === 'seed-book') await seedBook();
+  else if (cmd === 'accept-incoming') await acceptIncoming();
   else if (cmd === 'tidy') await tidy();
   else if (cmd === 'verify') await verify();
-  else console.log('usage: probe | upload <dar> | allocate | seed | settle-demo | seed-basket | seed-cases | seed-bestexec | seed-cc | seed-book | tidy | verify');
+  else console.log('usage: probe | upload <dar> | allocate | seed | settle-demo | seed-basket | seed-cases | seed-bestexec | seed-cc | seed-book | accept-incoming | tidy | verify');
 })().catch((e) => { console.error('ERR', e.message); process.exit(1); });
