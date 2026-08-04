@@ -65,6 +65,19 @@ const DESK_TEMPLATE_GROUPS = [
   ['RFQ', 'Quote', 'TokenTrade', 'BasketRFQ', 'BasketQuote'],
 ];
 
+const acsGroup = async (party, tpls, off) => {
+  const rows = await api('/v2/state/active-contracts', 'POST', {
+    filter: { filtersByParty: { [party]: { cumulative: tpls.map((tpl) => ({ identifierFilter: {
+      TemplateFilter: { value: { templateId: `#tirai-desk:Tirai:${tpl}`, includeCreatedEventBlob: false } },
+    } })) } } },
+    verbose: true,
+    activeAtOffset: off,
+  });
+  if (!Array.isArray(rows)) throw new Error('active-contracts returned no array');
+  return rows.map((r) => r.contractEntry?.JsActiveContract?.createdEvent).filter(Boolean)
+    .map((e) => ({ cid: e.contractId, tpl: e.templateId, arg: e.createArgument }));
+};
+
 const acsAt = (party, off) => retryRead(async () => {
   const groups = await Promise.all(DESK_TEMPLATE_GROUPS.map(async (tpls) => {
     const rows = await api('/v2/state/active-contracts', 'POST', {
@@ -74,7 +87,15 @@ const acsAt = (party, off) => retryRead(async () => {
       verbose: true,
       activeAtOffset: off,
     });
-    if (!Array.isArray(rows)) throw new Error('active-contracts returned no array');
+    if (!Array.isArray(rows)) {
+      // The node refuses any response over 200 elements. If a group ever crosses
+      // that, read its templates one at a time rather than losing the whole view.
+      if (tpls.length > 1 && /MAXIMUM_LIST_ELEMENTS/i.test(JSON.stringify(rows))) {
+        const singly = await Promise.all(tpls.map((t) => acsGroup(party, [t], off)));
+        return singly.flat();
+      }
+      throw new Error('active-contracts returned no array');
+    }
     return rows
       .map((r) => r.contractEntry?.JsActiveContract?.createdEvent)
       .filter(Boolean)

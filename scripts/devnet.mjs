@@ -851,6 +851,18 @@ async function seedCc() {
     const amount = '60000.0000000000';
     for (let i = 0; i < 4 && total(buyerCash) < 20000; i++) {
       try {
+        // Accept anything already parked before issuing another transfer — a
+        // pending instruction holds the sender's cash and counts as nothing here.
+        for (const inst of await heldVia(p.buyer, IFACE.transferInstruction)) {
+          const ctx = await reg(`/transfer-instruction/v1/${inst.contractId}/choice-contexts/accept`, {});
+          await submit(p.buyer, { ExerciseCommand: {
+            templateId: IFACE.transferInstruction, contractId: inst.contractId, choice: 'TransferInstruction_Accept',
+            choiceArgument: { extraArgs: ctxArgs(ctx) },
+          } }, { disclosed: disclose(ctx), effects: true });
+          console.log('  accepted a transfer instruction left pending by an earlier run');
+        }
+        buyerCash = await cashOf(p.buyer);
+        if (total(buyerCash) >= 20000) break;
         // Read the wallet's holdings as late as possible: round automation
         // re-creates them, and a stale input cid fails the whole command.
         const transfer = {
@@ -974,9 +986,14 @@ async function ccTrade({ instrument, quantity, asks, mode = 'vickrey', p, dealer
     transferLeg: { sender: t.buyer, receiver: t.dealer, amount: t.clearingPrice, instrumentId: t.cashInstrument, meta: { values: {} } },
   };
 
-  let allocCid = (await heldVia(p.buyer, IFACE.allocation))
-    .find((a) => ifaceView(a)?.allocation?.settlement?.settlementRef?.cid === t.quoteCid)?.contractId;
+  let allocCid;
   for (let i = 0; !allocCid && i < 4; i++) {
+    // Look again on EVERY attempt: a lost response or an "already applied" null
+    // otherwise sends us back to the factory, and each extra allocation locks
+    // another clearingPrice of real cash until it expires.
+    allocCid = (await heldVia(p.buyer, IFACE.allocation))
+      .find((a) => ifaceView(a)?.allocation?.settlement?.settlementRef?.cid === t.quoteCid)?.contractId;
+    if (allocCid) break;
     // Refetch the context on every attempt: the round contracts it discloses are
     // archived when the amulet round rolls, and a replay fails as "archived".
     const args = {

@@ -111,10 +111,15 @@ async function acsAs(party) {
   return out;
 }
 
-// A configured role → its party id, or a full "id::namespace" passed through directly.
-// A bare role with no config resolves to undefined so the "no parties configured" guards
-// fire, instead of sending "regulator" to the ledger and getting a cryptic error.
-const resolveParty = (roleOrId) => PARTIES[roleOrId] ?? (String(roleOrId).includes('::') ? roleOrId : undefined);
+// A configured role, or one of this desk's own party ids — nothing else. The
+// validator's shared machine user holds CanActAs on other teams' parties in the
+// same namespace, so passing an arbitrary "id::namespace" straight through would
+// make this server a reader of contracts it has no business reading.
+const resolveParty = (roleOrId) => {
+  const known = PARTIES[roleOrId];
+  if (known) return known;
+  return Object.values(PARTIES).includes(roleOrId) ? roleOrId : undefined;
+};
 
 const TOOLS = [
   {
@@ -253,10 +258,20 @@ async function handle(name, args) {
       regulator = resolveParty('regulator'), cashIssuer = resolveParty('cashIssuer'), bondIssuer = resolveParty('bondIssuer');
     if (!buyer || !dealerA || !dealerB || !regulator || !cashIssuer || !bondIssuer)
       return text("Cannot post an RFQ: parties not configured (scripts/devnet.parties.json). This write tool needs the operator's local credentials.");
-    const instrument = String(args?.instrument ?? 'TBOND30').trim() || 'TBOND30';
-    const quantity = Number(args?.quantity ?? 1000).toFixed(1); // Decimal — "1000.0"
-    const payInstrument = String(args?.payInstrument ?? 'USDC').trim() || 'USDC';
-    if (!(Number(quantity) > 0)) return text('quantity must be a positive number.');
+    const ticker = (v, dflt) => {
+      const t = String(v ?? dflt).trim().toUpperCase() || dflt;
+      return /^[A-Z0-9]{1,16}$/.test(t) ? t : null;
+    };
+    const instrument = ticker(args?.instrument, 'TBOND30');
+    const payInstrument = ticker(args?.payInstrument, 'USDC');
+    if (!instrument || !payInstrument)
+      return text('instrument and payInstrument must be tickers: 1-16 letters or digits.');
+    const qty = Number(args?.quantity ?? 1000);
+    // Decimal, not float: reject what toFixed would silently round or render in
+    // exponent notation for the ledger to reject with a decode error.
+    if (!Number.isFinite(qty) || qty <= 0 || qty > 1e12)
+      return text('quantity must be a positive number below 1e12.');
+    const quantity = qty.toFixed(1);
     const tx = await submit(buyer, { CreateCommand: { templateId: `${PKG}:Tirai:RFQ`, createArguments: {
       buyer, regulator, invitedDealers: [dealerA, dealerB], instrument, quantity, payInstrument,
       assetIssuer: bondIssuer, payIssuer: cashIssuer, deadline: '2030-01-01T00:00:00Z' } } });
