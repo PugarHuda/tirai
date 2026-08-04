@@ -173,8 +173,10 @@ function renderBuyer(mine) {
   const allQuotes = mine.filter((c) => is(c, 'Quote'));
   awardable = null;
 
-  // Scope everything to ONE RFQ: the first that has quotes (else the first open).
-  const rfq = rfqs.find((r) => allQuotes.some((q) => q.arg.rfqId === r.cid)) ?? rfqs[0];
+  // Scope everything to ONE RFQ: whichever the Active RFQs list selected, else the
+  // first that has quotes, else the first open one.
+  const rfq = (selectedRfq && rfqs.find((r) => r.cid === selectedRfq))
+    ?? rfqs.find((r) => allQuotes.some((q) => q.arg.rfqId === r.cid)) ?? rfqs[0];
   const quotes = rfq ? allQuotes.filter((q) => q.arg.rfqId === rfq.cid) : [];
 
   if (!quotes.length) {
@@ -360,16 +362,84 @@ function showView(v) {
   document.querySelector('.desk').style.display = desk ? '' : 'none';
   document.querySelector('.foot').style.display = desk ? '' : 'none';
   document.getElementById('view-audit').hidden = v !== 'audit';
+  document.getElementById('view-rfqs').hidden = v !== 'rfqs';
   document.getElementById('view-portfolio').hidden = v !== 'portfolio';
   document.getElementById('view-verify').hidden = v !== 'verify';
   document.getElementById('view-bestexec').hidden = v !== 'bestexec';
   const ht = document.getElementById('howto'); if (ht) ht.style.display = desk ? '' : 'none';
   document.querySelectorAll('.side-nav a[data-view]').forEach((a) => a.classList.toggle('on', a.dataset.view === v));
   if (v === 'audit') renderAudit();
+  if (v === 'rfqs') renderRfqs();
   if (v === 'portfolio') renderPortfolio();
   if (v === 'verify') renderVerify();
   if (v === 'bestexec') renderBestExec();
 }
+
+// ---- Active RFQs: the whole book in one list ----
+// The three-column desk deliberately scopes to ONE auction at a time, which hides
+// every other live request. This table is the index: pick a row and the desk
+// re-scopes to it. Rows come from contracts the party already has — no extra read.
+let rfqFilter = 'all';
+let selectedRfq = null;
+
+function rfqRows() {
+  const mine = lastAcs.buyer ?? [];
+  const quotes = mine.filter((c) => is(c, 'Quote'));
+  const open = mine.filter((c) => is(c, 'RFQ')).map((r) => {
+    const qs = quotes.filter((q) => q.arg.rfqId === r.cid);
+    return {
+      kind: 'open', cid: r.cid,
+      instrument: r.arg.instrument, quantity: r.arg.quantity, pay: r.arg.payInstrument,
+      dealers: (r.arg.invitedDealers ?? []).length, quotes: qs.length,
+      status: qs.length ? 'Open' : 'Awaiting quotes', price: null,
+    };
+  });
+  // Settled trades give the list its history; the buyer sees its own, and this is
+  // the same contract the regulator sees post-trade.
+  const done = mine.filter((c) => is(c, 'TradeReport')).map((t) => ({
+    kind: 'filled', cid: t.cid,
+    instrument: t.arg.instrument, quantity: t.arg.quantity, pay: '',
+    dealers: 1, quotes: 0, status: 'Filled', price: t.arg.clearingPrice, dealer: t.arg.dealer,
+  }));
+  return [...open, ...done];
+}
+
+function renderRfqs() {
+  const table = document.getElementById('rfq-table'); if (!table) return;
+  const all = rfqRows();
+  const counts = { all: all.length, open: all.filter((r) => r.kind === 'open').length, filled: all.filter((r) => r.kind === 'filled').length };
+  const rows = rfqFilter === 'all' ? all : all.filter((r) => r.kind === rfqFilter);
+
+  const chips = document.getElementById('rfq-chips');
+  if (chips) chips.innerHTML = [['all', 'All'], ['open', 'Open'], ['filled', 'Filled']]
+    .map(([k, label]) => `<button class="rfq-chip${rfqFilter === k ? ' on' : ''}" data-filter="${k}">${label} <span>${counts[k]}</span></button>`).join('');
+  const count = document.getElementById('rfq-count');
+  if (count) count.textContent = `${rows.length} shown`;
+
+  table.innerHTML = rows.length ? '<table class="audit rfq-table"><thead><tr>'
+    + '<th>Request</th><th>Instrument</th><th>Quantity</th><th>Cash leg</th><th>Dealers</th><th>Sealed quotes</th><th>Status</th><th></th>'
+    + '</tr></thead><tbody>'
+    + rows.map((r) => `<tr class="${r.cid === selectedRfq ? 'sel' : ''}">
+        <td class="mono">${esc(r.cid.slice(0, 8))}</td>
+        <td class="hi">${esc(r.instrument)}</td>
+        <td class="num">${fmt(r.quantity)}</td>
+        <td>${r.price != null ? fmt(r.price) + ' ' + esc(r.pay) : esc(r.pay)}</td>
+        <td class="num">${r.kind === 'filled' ? dealerLabel(r.dealer) : r.dealers}</td>
+        <td class="num">${r.kind === 'filled' ? '—' : r.quotes}</td>
+        <td><span class="pill ${r.status === 'Filled' ? 'ok' : r.quotes ? 'live' : 'wait'}">${esc(r.status)}</span></td>
+        <td>${r.kind === 'open' ? `<button class="ghost rfq-open" data-rfq="${esc(r.cid)}">${r.quotes ? 'Open auction' : 'View'}</button>` : ''}</td>
+      </tr>`).join('')
+    + '</tbody></table>'
+    : '<div class="audit-empty">Nothing here yet — open an RFQ from the desk.</div>';
+}
+
+// Delegated so the 1.8s re-render never leaves a dead button behind.
+document.addEventListener('click', (e) => {
+  const chip = e.target.closest('.rfq-chip');
+  if (chip) { rfqFilter = chip.dataset.filter; renderRfqs(); return; }
+  const open = e.target.closest('.rfq-open');
+  if (open) { selectedRfq = open.dataset.rfq; showView('desk'); refresh(); }
+});
 
 // Provable best execution — the institutional payoff. On a public exchange, best
 // execution is audited against a visible order book. Tirai has no public book, yet
@@ -595,6 +665,7 @@ async function refresh() {
     const settled = renderRegulator(r);
     lastReg = r; lastAcs = { buyer: b, dealerA: a, dealerB: d };
     if (!document.getElementById('view-audit')?.hidden) renderAudit();
+    if (!document.getElementById('view-rfqs')?.hidden) renderRfqs();
     if (!document.getElementById('view-portfolio')?.hidden) renderPortfolio();
     if (!document.getElementById('view-verify')?.hidden) renderVerify();
     if (!document.getElementById('view-bestexec')?.hidden) renderBestExec();

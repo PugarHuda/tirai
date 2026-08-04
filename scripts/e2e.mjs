@@ -134,6 +134,36 @@ const check = (name, cond, detail = '') => {
   await wait(900);
   check('non-positive quantity is rejected (error toast)', await p.locator('.toast.err.show').count() >= 1 || (await p.locator('.toast').textContent().catch(() => '')).toLowerCase().includes('positive'));
 
+  console.log('── Case 10 · Active RFQs list — the whole book, and picking one ──');
+  // A second live request the desk would never scope to on its own: the auction
+  // from case 2 has quotes, so it always wins the default. Selecting from the list
+  // is the only way to reach this one.
+  await setDesk();
+  await p.fill('#rfq-instrument', 'GILT10');
+  await p.fill('#rfq-qty', '100');
+  await p.click('#btn-create-rfq');
+  await wait(2200);
+  await setView('rfqs');
+  const rfqRowCount = await p.locator('.rfq-table tbody tr').count();
+  check('list shows a row per request the party can see', rfqRowCount >= 2, `${rfqRowCount} rows`);
+  check('filter chips render with counts', (await p.locator('.rfq-chip').count()) === 3);
+  await p.locator('.rfq-chip[data-filter="filled"]').click();
+  await wait(400);
+  const filledOnly = await p.locator('.rfq-table tbody tr').count();
+  check('a filter narrows the list', filledOnly < rfqRowCount, `${filledOnly} filled of ${rfqRowCount}`);
+  await p.locator('.rfq-chip[data-filter="open"]').click();
+  await wait(400);
+
+  // The unquoted GILT10 row: selecting it must re-scope the desk away from the
+  // quoted auction, which is exactly what the three-column view cannot do alone.
+  const gilt = p.locator('.rfq-table tbody tr', { hasText: 'GILT10' }).first();
+  await gilt.locator('.rfq-open').click();
+  await wait(2200);
+  check('picking a row returns to the desk', await p.locator('.desk').isVisible());
+  check('the desk re-scoped to the request with no quotes yet',
+    (await txt('#buyer-quotes')).toLowerCase().includes('waiting'));
+  check('award stays disabled on an unquoted request', await p.locator('#btn-award').isDisabled());
+
   check('no uncaught page errors during the whole run', errs.length === 0, errs.join(' | '));
 
   await b.close();

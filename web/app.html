@@ -4,9 +4,9 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="description" content="The Tirai desk — three party views of one Canton ledger. Watch a dealer quote and the rival's column stay blank: sealed quotes, atomic Vickrey DvP, provable best execution, live on Devnet." />
-<meta name="theme-color" content="#0b0d10" />
+<meta name="theme-color" content="#0e1116" />
 <title>Tirai — the desk</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b0d10'/%3E%3Ctext x='16' y='23' font-size='20' font-family='monospace' font-weight='bold' text-anchor='middle' fill='%236ee7b7'%3Eb%3C/text%3E%3C/svg%3E" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b0d10'/%3E%3Ctext x='16' y='23' font-size='20' font-family='monospace' font-weight='bold' text-anchor='middle' fill='%236ee7b7'%3Et%3C/text%3E%3C/svg%3E" />
 <link rel="stylesheet" href="style.css" />
 </head>
 <body class="app">
@@ -15,6 +15,7 @@
   <div class="side-net">CANTON · DEVNET<br><span>JSON Ledger API</span></div>
   <nav class="side-nav">
     <a class="on" href="#" data-view="desk"><span class="ic" aria-hidden="true">▤</span> The desk</a>
+    <a href="#" data-view="rfqs"><span class="ic" aria-hidden="true">≣</span> Active RFQs</a>
     <a href="#" data-view="portfolio"><span class="ic" aria-hidden="true">◈</span> Portfolio</a>
     <a href="#" data-view="verify"><span class="ic" aria-hidden="true">◉</span> Verify privacy</a>
     <a href="#" data-view="audit"><span class="ic" aria-hidden="true">✓</span> Audit trail</a>
@@ -110,6 +111,17 @@
   <section class="audit-view" id="view-audit" hidden>
     <h2 class="audit-title">Regulator audit trail <span class="hint">post-trade only — the regulator sees nothing about live RFQs or losing quotes</span></h2>
     <div id="audit-table"></div>
+  </section>
+
+  <!-- Every RFQ the buyer can see, open and settled, in one dense list. The desk
+       itself only ever scopes to one auction; this is where you pick which. -->
+  <section class="audit-view" id="view-rfqs" hidden>
+    <h2 class="audit-title">Active RFQs <span class="hint">every request this party can see — rival dealers see only the ones they were invited to</span></h2>
+    <div class="rfq-bar">
+      <div class="rfq-chips" id="rfq-chips" role="group" aria-label="Filter requests"></div>
+      <span class="rfq-count" id="rfq-count"></span>
+    </div>
+    <div id="rfq-table"></div>
   </section>
 
   <!-- Portfolio view: each party's holdings, aggregated by instrument. -->
