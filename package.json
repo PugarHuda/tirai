@@ -25,7 +25,8 @@
     "devnet:cc": "node scripts/devnet.mjs seed-cc",
     "e2e:shell": "node scripts/e2e-shell.mjs",
     "devnet:book": "node scripts/devnet.mjs seed-book",
-    "social": "node scripts/make-social.mjs"
+    "social": "node scripts/make-social.mjs",
+    "e2e:paths": "node scripts/e2e-paths.mjs"
   },
   "devDependencies": {
     "playwright": "^1.48.0"

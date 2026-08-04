@@ -196,6 +196,7 @@ and addresses the operator-allocated parties directly.
 | Read-only proxy security | `node scripts/test-readonly-proxy.mjs` | 14 / 14 |
 | Deployer decision logic | `node scripts/test-devnet-logic.mjs` | 6 / 6 |
 | Product path, one identity | `npm run e2e:shell` | 23 / 23 (incl. the front-end audit's regression checks) |
+| Happy path and wrong path | `npm run e2e:paths` | 22 / 22 — bad input, actions an identity is not entitled to, a second quote from the same dealer, filters that hide everything. Every refusal is checked to have submitted **nothing**, not merely to have looked refused |
 | Local write-path UI | `npm run e2e` · `e2e:bestexec` · `e2e:actions` | 28 / 28 · 8 / 8 · 16 / 16 |
 
 The local suites drive the real ledger, so **restart `npm run demo` before
