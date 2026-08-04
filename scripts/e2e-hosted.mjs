@@ -135,8 +135,7 @@ async function runEngine(name) {
   await page.click('.side-nav a[data-view="portfolio"]').catch(() => {});
   await page.waitForTimeout(3500);
   const reg = (await page.locator('#pf-registry').innerText().catch(() => ''));
-  ok('Portfolio shows registry-issued balances', /DSO/.test(reg), reg.slice(0, 60).replace(/
-/g, ' '));
+  ok('Portfolio shows registry-issued balances', /DSO/.test(reg), reg.slice(0, 60).replace(/\s+/g, ' '));
 
   // Best execution should carry attestations from the seeded book.
   await page.click('.side-nav a[data-view="bestexec"]').catch(() => {});

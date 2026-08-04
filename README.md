@@ -132,7 +132,11 @@ To reproduce the frozen DARs: download `dars/` from the Splice release bundle
 - [x] **Deployed on two Canton Devnet participants** (privacy verified on both)
 - [x] Three-party web desk (buyer / dealers / regulator) over the JSON Ledger API
 - [x] MCP server + agent scripts
-- [x] **Hosted read-only desk — https://tirai.vercel.app** (live Devnet state)
+- [x] **Hosted read-only desk — https://tirai.vercel.app** (live Devnet state) —
+      the three-column desk plus five read views: **Active RFQs** (the whole book,
+      filterable; picking a row re-scopes the desk), **Portfolio** (holdings, including
+      balances issued by an external registry), **Verify privacy**, **Audit trail**,
+      **Best execution**
 - [x] **Demo video — https://youtu.be/_iHMouFdNA4** (4:27, the desk driven for real)
 - [x] **Live settlement against an external Token Standard registry** — six trades
       settled in real **Canton Coin** through the DSO-run registry on the 5N Devnet
