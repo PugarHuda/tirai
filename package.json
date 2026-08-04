@@ -21,7 +21,8 @@
     "e2e:hosted": "node scripts/e2e-hosted.mjs",
     "e2e:mcp": "node scripts/e2e-mcp.mjs",
     "pdf": "node scripts/make-pdf.mjs",
-    "logo": "node scripts/make-logo.mjs"
+    "logo": "node scripts/make-logo.mjs",
+    "devnet:cc": "node scripts/devnet.mjs seed-cc"
   },
   "devDependencies": {
     "playwright": "^1.48.0"

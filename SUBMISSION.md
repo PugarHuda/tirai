@@ -113,6 +113,13 @@ BitSafe CBTC registry, a validator/hosting venue, and wallet support (Canton Loo
   binding, wallet-facing standard choices).
 - **CIP-0056 settlement against the real Splice v1 interfaces** — see the "How the
   cash leg uses cETH / CBTC" section of the [README](README.md).
+- **Settled live against an external registry we do not control** —
+  `node scripts/devnet.mjs seed-cc` clears the desk's auctions in **Canton Coin,
+  issued and administered by the DSO**, on the 5N Devnet validator: six trades
+  (four reverse-Vickrey, two direct OTC), 60,900 CC moved to the winning dealers,
+  each bond-against-cash in one atomic transaction. The cash leg is driven entirely
+  by the registry's own transfer and allocation factories over HTTP. cETH and CBTC
+  differ by one field — the `InstrumentId` admin — and wait only on the token grants.
 - **Deployed & privacy-verified on Devnet** — `node scripts/devnet.mjs verify`
   asserts on the live network that dealers see only their own quotes and the
   regulator sees zero pre-trade.
@@ -135,7 +142,8 @@ verify` asserts there that **each dealer sees only its own quotes and the
 regulator sees zero pre-trade contracts**.
 
 **The shared 5N validator** — same package id, parties `tirai-v1-*`, carrying
-the richer history: 41 settled trades, 5 atomic baskets, 16 best-execution
+the richer history: 47 settled trades (6 of them settled in real Canton
+Coin through the DSO's registry), 5 atomic baskets, 16 best-execution
 attestations. The hosted desk at https://tirai.vercel.app reads this deployment,
 because its proxy holds a long-lived machine credential; `hackcanton-01` issues
 only 3-hour user tokens (the account is Google SSO, so there is no machine

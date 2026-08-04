@@ -94,6 +94,33 @@ escrowed bond shows up as a *locked* position in any standard wallet. Instrument
 identity is bound end-to-end — a quote priced in cETH cannot settle in CBTC, nor
 against an impostor registry (`testWrongInstrumentRejected`).
 
+### This is not a mock — it runs against a registry we do not control
+
+`node scripts/devnet.mjs seed-cc` settles the desk's auctions in **Canton Coin
+issued and administered by the DSO** on the 5N Devnet validator. Nothing about the
+cash leg is ours: we read the registry's instrument list, ask its factories for
+choice contexts, and hand the contracts it discloses to the ledger.
+
+| Step | Registry endpoint (via the validator's scan proxy) | Ledger |
+|---|---|---|
+| Fund the buyer | `POST /registry/transfer-instruction/v1/transfer-factory`, then `…/{cid}/choice-contexts/accept` | `TransferFactory_Transfer` → `TransferInstruction_Accept` |
+| Allocate the cash | `POST /registry/allocation-instruction/v1/allocation-factory` | `AllocationFactory_Allocate` |
+| Settle | `POST /registry/allocations/v1/{cid}/choice-contexts/execute-transfer` | `TokenTrade_Settle` |
+
+Six trades are live on that validator this way — four reverse-Vickrey, two direct
+OTC, 60,900 CC moved to the winning dealers, each one bond-against-cash in a single
+transaction. The registry reports `splice-api-token-allocation-v1` support, which
+is the interface `TokenTrade` was written against.
+
+Two things worth knowing before you run it: the registry's choice contexts are
+**round-scoped**, so a retry must refetch the context rather than replay it (a
+replay surfaces as "contract has been archived" and reads like your bug); and the
+seeder is idempotent against on-ledger state, because DevNet drops responses for
+commands that did in fact commit.
+
+**cETH and CBTC change one field** — the `InstrumentId` admin. The code path,
+the tests and the atomicity are identical; only the test-token grants are missing.
+
 To reproduce the frozen DARs: download `dars/` from the Splice release bundle
 (`0.6.13_splice-node.tar.gz` → `splice-node/dars/`) at
 [digital-asset/decentralized-canton-sync releases](https://github.com/digital-asset/decentralized-canton-sync/releases).
@@ -107,7 +134,11 @@ To reproduce the frozen DARs: download `dars/` from the Splice release bundle
 - [x] MCP server + agent scripts
 - [x] **Hosted read-only desk — https://tirai.vercel.app** (live Devnet state)
 - [x] **Demo video — https://youtu.be/_iHMouFdNA4** (4:27, the desk driven for real)
-- [ ] Live cETH transactions on Devnet — pending the onRails test-token grant
+- [x] **Live settlement against an external Token Standard registry** — six trades
+      settled in real **Canton Coin** through the DSO-run registry on the 5N Devnet
+      validator (`node scripts/devnet.mjs seed-cc`)
+- [ ] The same, in cETH / CBTC — identical code path, pending the onRails and BitSafe
+      test-token grants
 
 ### Live on Devnet
 
@@ -118,7 +149,7 @@ Same package id on both participants: `tirai-desk`
 | Participant | Namespace | Live state |
 |---|---|---|
 | **`hackcanton-01`** (HackCanton's own node) | `122003aa7c49…` | 20 settled trades + 1 atomic basket, 16 best-execution attestations, 32 quote disclosures, 3 open RFQs |
-| **Shared 5N validator** | `1220a14ca128…` | 41 settled trades + 5 atomic baskets, 16 attestations — this is what the hosted desk reads |
+| **Shared 5N validator** | `1220a14ca128…` | 47 settled trades (6 of them in real Canton Coin) + 5 atomic baskets, 16 attestations — this is what the hosted desk reads |
 
 `node scripts/devnet.mjs verify` (add `ENV_FILE=.env.hackcanton` for the
 HackCanton node) asserts **on the real network** that each dealer sees only its

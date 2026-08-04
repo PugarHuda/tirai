@@ -187,3 +187,58 @@ trade — `seed-cases` and `seed-bestexec` on the 5N validator. Live state now:
 
 Also removed the `/deck` route: no slide deck ships (the pitch is the video), so
 the rewrite only ever produced 404s in the hosted QA run.
+
+## 2026-08-04 — the cash leg settles in a currency I do not issue
+
+Tirai reached the Grand Final. The judges' one technical ask was the honest gap
+we had already written down ourselves: settlement against a **real external
+Canton Token Standard issuer**, not our own `MockRegistry`.
+
+That gap turned out to be one probe deep. The 5N validator Tirai is deployed on
+exposes the Token Standard registry API through its scan proxy:
+
+```
+GET /api/validator/v0/scan-proxy/registry/metadata/v1/info
+    → adminId "DSO::1220be58c29e…"
+GET …/metadata/v1/instruments
+    → Amulet · "Canton Coin" · supports splice-api-token-allocation-v1
+```
+
+`splice-api-token-allocation-v1` is exactly the interface `TokenTrade` was
+written against. So the cash leg could settle in Canton Coin — issued and
+administered by the DSO, an issuer this project does not control and cannot
+mint into — with no model change, no redeploy, and no waiting for a token grant.
+
+`node scripts/devnet.mjs seed-cc` now does it end to end:
+
+1. **Fund the buyer** — the validator's own wallet party holds CC, so the desk's
+   buyer is funded through the registry's `transfer-factory`, two-phase
+   (`TransferFactory_Transfer` → parked instruction → `TransferInstruction_Accept`,
+   because the receiver has no transfer pre-approval).
+2. **Run the auction** — unchanged. Sealed quotes, escrowed bonds,
+   `AwardWithAllocation` at the second price or `ConvertToTokenTrade` at the ask.
+3. **Allocate** — ask `allocation-instruction/v1/allocation-factory` for a choice
+   context, exercise `AllocationFactory_Allocate`, and the registry locks the cash.
+4. **Settle** — `TokenTrade_Settle` executes `Allocation_ExecuteTransfer` plus the
+   bond delivery plus the regulator's report, in one atomic transaction.
+
+Live on the 5N validator: **six trades settled in real Canton Coin** — four
+reverse-Vickrey, two direct OTC — moving **60,900 CC** to the winning dealers.
+`verify` re-run afterwards is still green: each dealer sees only its own quotes,
+the regulator still sees zero pre-trade contracts, now over 47 settlements.
+
+Two findings worth passing on, both of which cost time:
+
+- **Registry choice contexts are round-scoped.** The contracts they disclose are
+  archived when the amulet round rolls. A retry must *refetch* the context; a
+  replay fails as `UNKNOWN_CONTRACT_SYNCHRONIZERS … has been archived`, which
+  reads like a bug in your own command rather than an expired context.
+- **A wildcard `active-contracts` read is capped at 200 elements by the node**,
+  and it is not a query parameter. The buyer had quietly passed that cap, so the
+  hosted desk's buyer column was returning an error instead of contracts. Both
+  the deployer and the desk now read per template and re-join. Ledger growth
+  broke a read path that had worked for weeks — worth checking on any Canton app
+  that queries an ACS with an empty filter.
+
+cETH and CBTC remain the same code path with a different `InstrumentId` admin.
+The blocker there was never the engineering.
