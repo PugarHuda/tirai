@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Tirai — confidential multi-dealer RFQ desk on Canton</title>
 <meta name="description" content="Tirai is a confidential multi-dealer RFQ desk for OTC block trades, native on Canton. Sealed quotes rivals never receive, atomic Vickrey delivery-versus-payment, and provable best execution — live on Canton Devnet." />
-<meta name="theme-color" content="#07090c" />
+<meta name="theme-color" content="#f6f7f9" />
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="Tirai" />
 <meta property="og:title" content="Tirai — whisper your quotes, the market hears nothing" />
@@ -26,86 +26,110 @@
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" /></noscript>
 <style>
+  /* Light product surface everywhere; the hero re-declares the same tokens dark,
+     so one set of component rules serves both grounds. */
   :root{
-    --bg:#07090c; --bg2:#0b0f14; --ink:#e9eef5; --muted:#8b97a6; --line:#1d242d;
-    --accent:#6ee7b7; --accent2:#7dd3fc; --card:#0f141a;
+    --bg:#f6f7f9; --bg2:#eef1f5; --card:#ffffff; --ink:#111826; --muted:#68717f;
+    --line:#e5e8ec; --accent:#0e9f6e; --accent-ink:#0a7a55; --accent-soft:#e7f7f0;
+    --accent2:#0b6ea8; --btn-fg:#ffffff;
+    --shadow:0 1px 2px rgba(17,24,38,.04), 0 8px 24px rgba(17,24,38,.05);
   }
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
   body{margin:0;background:var(--bg);color:var(--ink);
-    font:15px/1.6 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    font:15px/1.6 'Manrope',ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
     -webkit-font-smoothing:antialiased}
   a{color:inherit;text-decoration:none}
-  :focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px}
+  :focus-visible{outline:2px solid var(--accent-ink);outline-offset:3px;border-radius:8px}
   @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
-  .mono{font-family:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace}
+  .mono{font-family:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;font-size:.92em;
+    background:var(--bg2);border:1px solid var(--line);border-radius:6px;padding:1px 6px}
   .wrap{max-width:1120px;margin:0 auto;padding:0 24px}
 
   /* nav */
   nav{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);
-    background:rgba(7,9,12,.72);border-bottom:1px solid var(--line)}
+    background:rgba(255,255,255,.97);border-bottom:1px solid var(--line)}
   nav .wrap{display:flex;align-items:center;gap:28px;height:64px}
   .logo{font-size:20px;font-weight:800;letter-spacing:-.02em}
   .logo .d{color:var(--accent)}
   nav .links{margin-left:auto;display:flex;gap:26px;align-items:center}
   nav .links a{color:var(--muted);font-size:14px}
   nav .links a:hover{color:var(--ink)}
-  .btn{display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:#04231a;
-    padding:9px 16px;border-radius:8px;font-weight:700;font-size:14px;border:0;cursor:pointer;white-space:nowrap}
-  .btn:hover{filter:brightness(1.08)}
-  .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
-  .btn.ghost:hover{border-color:var(--muted)}
+  /* fill uses --accent-ink, not --accent: white on #0e9f6e is only 3.4:1 */
+  .btn{display:inline-flex;align-items:center;gap:6px;background:var(--accent-ink);color:var(--btn-fg);
+    padding:9px 16px;border-radius:10px;font-weight:700;font-size:14px;border:1px solid transparent;
+    cursor:pointer;white-space:nowrap;transition:background .15s ease,border-color .15s ease}
+  .btn:hover{background:#08653f}
+  .btn.ghost{background:var(--card);color:var(--ink);border-color:var(--line)}
+  .btn.ghost:hover{background:var(--card);border-color:#cbd2db}
+  /* `nav .links a` outranks `.btn`, so the CTA label needs the extra class */
+  nav .links a.btn{border-radius:999px;color:var(--btn-fg)}
+  nav .links a.btn:hover{color:var(--btn-fg)}
 
-  /* hero */
-  .hero{position:relative;overflow:hidden;border-bottom:1px solid var(--line)}
-  .hero::before{content:"";position:absolute;inset:0;z-index:0;
-    background:radial-gradient(900px 480px at 78% -10%,rgba(110,231,183,.16),transparent 60%),
-               radial-gradient(700px 420px at 12% 8%,rgba(125,211,252,.10),transparent 55%)}
-  .hero .wrap{position:relative;z-index:1;padding:96px 24px 88px}
-  .eyebrow{font-size:12px;letter-spacing:.18em;color:var(--accent);font-weight:600;text-transform:uppercase}
-  h1{font-family:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
-    font-size:clamp(30px,8.5vw,84px);line-height:.98;letter-spacing:-.03em;margin:20px 0 0;font-weight:800;overflow-wrap:break-word}
-  h1 .g{color:var(--accent)}
-  .lede{max-width:620px;color:#c2ccd8;font-size:18px;margin:26px 0 0}
-  .cta{display:flex;gap:14px;margin-top:34px;flex-wrap:wrap}
-  .chips{display:flex;gap:10px;flex-wrap:wrap;margin-top:40px}
-  .chip{font-size:12.5px;color:var(--muted);border:1px solid var(--line);border-radius:999px;
-    padding:6px 13px;background:rgba(255,255,255,.02)}
-  .chip b{color:var(--accent);font-weight:700}
+  /* hero — the one dark band on the page; tokens flip inside this scope */
+  .hero{ --ink:#e9eef5; --muted:#97a3b2; --line:#2b3542; --card:#0f141a;
+    --accent:#6ee7b7; --accent-ink:#6ee7b7; --btn-fg:#06231a;
+    position:relative; overflow:hidden; min-height:min(94vh,1000px);
+    background:#07090c; color:var(--ink) }
+  .hero-fx{ position:absolute; inset:0; z-index:0; display:block; width:100%; height:100% }
+  .hero .wrap{ position:relative; z-index:1; display:flex; flex-direction:column; align-items:center;
+    text-align:center; padding:10vh 24px 0 }
+  .hero-copy{ display:flex; flex-direction:column; align-items:center; gap:22px; max-width:1000px }
+  .hero-pill{ display:inline-flex; align-items:center; gap:8px; border:1px solid var(--line);
+    border-radius:999px; background:rgba(255,255,255,.03); color:#c2ccd8; font-size:13px; font-weight:600;
+    letter-spacing:.01em; padding:8px 17px }
+  .hero-pill::first-letter{ color:var(--accent) }
+  h1{ font-weight:700; letter-spacing:-.022em; margin:0; font-size:clamp(34px,5.4vw,66px);
+    line-height:1.1; overflow-wrap:break-word }
+  h1 .g{ color:var(--accent) }
+  .lede{ margin:0 auto; max-width:56ch; font-size:18px; color:#aeb9c6 }
+  .cta{ display:flex; gap:16px; flex-wrap:wrap; justify-content:center; margin:8px 0 0 }
+  .hero .cta .btn{ border:0; border-radius:999px; padding:13px 28px; font-weight:700; font-size:15px;
+    transition:transform .12s ease, filter .12s ease }
+  .hero .cta .btn:first-child{ background:#a6f0cd; color:#06231a }
+  .hero .cta .btn.ghost{ background:#236b4d; color:#eafff5 }
+  .hero .cta .btn:hover{ transform:translateY(-1px); filter:brightness(1.06) }
+  .chips{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin:6px 0 0 }
+  .chip{ font-size:12.5px; color:var(--muted); border:1px solid var(--line); border-radius:999px;
+    padding:6px 13px; background:var(--card); font-weight:500 }
+  .chip b{ color:var(--accent-ink); font-weight:700 }
 
   /* sections */
   section.blk{padding:76px 0;border-bottom:1px solid var(--line)}
-  .kicker{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:600}
-  h2{font-size:clamp(26px,4vw,38px);letter-spacing:-.02em;margin:12px 0 0}
+  .kicker{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-ink);font-weight:700}
+  h2{font-size:clamp(26px,4vw,38px);letter-spacing:-.024em;margin:12px 0 0;font-weight:700}
   .sub{color:var(--muted);margin-top:10px;max-width:640px}
   .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:36px}
   @media(max-width:860px){.grid{grid-template-columns:1fr 1fr}}
   @media(max-width:520px){.grid{grid-template-columns:1fr}}
-  .feat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px}
-  .feat .n{font-family:ui-monospace,monospace;font-size:12px;color:var(--accent)}
-  .feat h3{margin:12px 0 6px;font-size:16px}
+  .feat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;box-shadow:var(--shadow)}
+  .feat .n{font-family:ui-monospace,monospace;font-size:11.5px;letter-spacing:.02em;color:var(--accent-ink);font-weight:600}
+  .feat h3{margin:12px 0 6px;font-size:16px;font-weight:700}
   .feat p{margin:0;color:var(--muted);font-size:13.5px}
 
   /* flow */
-  .flow{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-top:36px;
-    border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .flow{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-top:36px;background:var(--card);
+    border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
   @media(max-width:860px){.flow{grid-template-columns:1fr}}
   .step{padding:22px;border-right:1px solid var(--line)}
   .flow .step:last-child{border-right:0}
   @media(max-width:860px){.step{border-right:0;border-bottom:1px solid var(--line)}}
-  .step .s{font-family:ui-monospace,monospace;color:var(--accent2);font-size:12px}
-  .step h4{margin:10px 0 6px;font-size:15px}
+  .step .s{font-family:ui-monospace,monospace;color:var(--accent2);font-size:12px;font-weight:600}
+  .step h4{margin:10px 0 6px;font-size:15px;font-weight:700}
   .step p{margin:0;color:var(--muted);font-size:13px}
 
   /* lineage table */
-  .tbl{margin-top:32px;border:1px solid var(--line);border-radius:14px;overflow:hidden;font-size:14px}
+  .tbl{margin-top:32px;background:var(--card);border:1px solid var(--line);border-radius:12px;
+    overflow:hidden;font-size:14px;box-shadow:var(--shadow)}
   .tr{display:grid;grid-template-columns:1.1fr 1.4fr 2.2fr;gap:0}
   .tr>div{padding:13px 16px;border-bottom:1px solid var(--line)}
   .tr:last-child>div{border-bottom:0}
-  .th{background:rgba(255,255,255,.03);color:var(--muted);font-size:12px;letter-spacing:.05em;text-transform:uppercase}
-  .tr.now>div{background:rgba(110,231,183,.06)}
-  .tr.now .p{color:var(--accent);font-weight:700}
+  .th{background:var(--bg2);color:var(--muted);font-size:11.5px;letter-spacing:.06em;
+    text-transform:uppercase;font-weight:700}
+  .tr.now>div{background:var(--accent-soft)}
+  .tr.now .p{color:var(--accent-ink);font-weight:700}
   .tbl .mut{color:var(--muted)}
+  section.blk .cta{justify-content:flex-start;margin-top:34px}
 
   footer{padding:44px 0 60px}
   footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;color:var(--muted);font-size:13px}
@@ -116,58 +140,10 @@
     nav .wrap{gap:12px;height:58px}
     nav .links{gap:14px}
     nav .links a:not(.btn){display:none}
-    .hero .wrap{padding:64px 20px 56px}
     section.blk{padding:56px 0}
     .wrap{padding:0 20px}
+    .hero .wrap{padding-left:20px;padding-right:20px}
   }
-
-  /* ==========================================================================
-     INSTITUTIONAL BRUTALISM — dark terminal ground, brutalist structure.
-     ========================================================================== */
-  :root{ --line:#38424f; --shadow:#03050a; }
-  *{ border-radius:0 !important }
-  body{ font-family:'Manrope',ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif }
-  nav{ backdrop-filter:none; background:var(--bg); border-bottom:2px solid var(--line) }
-  .logo{ font-weight:900 }
-  nav .btn{ border-radius:999px !important; border:0 !important; box-shadow:none !important; background:#a6f0cd; color:#06231a }
-  .btn{ border:2px solid #071410; box-shadow:4px 4px 0 var(--shadow); font-weight:800; transition:transform .05s,box-shadow .05s }
-  .btn:hover{ filter:none; transform:translate(2px,2px); box-shadow:2px 2px 0 var(--shadow) }
-  .btn.ghost{ border:2px solid var(--line); box-shadow:4px 4px 0 var(--shadow) }
-  .chip{ border:2px solid var(--line); background:var(--card); font-weight:600 }
-  section.blk{ border-bottom:2px solid var(--line) }
-  h2{ font-weight:800 }
-  .eyebrow,.kicker{ font-weight:800 }
-  .feat{ border:2px solid var(--line); box-shadow:5px 5px 0 var(--shadow) }
-  .feat h3{ font-weight:800 } .feat .n{ text-transform:uppercase; letter-spacing:.06em; font-weight:700 }
-  .flow{ border:2px solid var(--line); box-shadow:5px 5px 0 var(--shadow) }
-  .step{ border-right:2px solid var(--line) }
-  @media(max-width:860px){ .step{ border-right:0; border-bottom:2px solid var(--line) } }
-  .tbl{ border:2px solid var(--line); box-shadow:5px 5px 0 var(--shadow) }
-
-  /* ---- HERO: the RFQ ticket (the thesis as an object) ---- */
-  /* grand hero (reference layout): the words sit up top, the nebula owns the space below */
-  .hero{ position:relative; min-height:min(94vh,1000px); border-bottom:2px solid var(--line); overflow:hidden }
-  .hero::before{ display:none }                     /* flat — no radial glow */
-  .hero-fx{ position:absolute; inset:0; z-index:0; display:block; width:100%; height:100% }
-  .hero .wrap{ position:relative; z-index:1; display:flex; flex-direction:column; align-items:center; text-align:center;
-    padding-top:10vh; padding-bottom:0 }
-  .hero-copy{ display:flex; flex-direction:column; align-items:center; gap:22px; max-width:1000px }
-  /* reference-style hero: soft rounded pill badge, sans headline, two-tone rounded CTAs */
-  .hero-pill{ display:inline-flex; align-items:center; gap:8px; border:1px solid var(--line) !important;
-    border-radius:999px !important; background:rgba(255,255,255,.03); color:#c2ccd8; font-size:13px; font-weight:600;
-    letter-spacing:.01em; padding:8px 17px; text-transform:none }
-  .hero-pill::first-letter{ color:var(--accent) }
-  .hero h1{ font-family:'Manrope',ui-sans-serif,system-ui,sans-serif !important;
-    font-weight:700; letter-spacing:-.022em; margin:0; font-size:clamp(34px,5.4vw,66px); line-height:1.1 }
-  .hero .lede{ margin:0 auto; max-width:56ch; text-align:center; color:#aeb9c6 }
-  .hero .cta{ justify-content:center; margin:8px 0 0; gap:16px }
-  .hero .cta .btn{ border:0 !important; box-shadow:none !important; border-radius:999px !important;
-    padding:13px 28px; font-weight:700; font-size:15px; transition:transform .12s ease, filter .12s ease }
-  .hero .cta .btn:first-child{ background:#a6f0cd; color:#06231a }
-  .hero .cta .btn.ghost{ background:#236b4d; color:#eafff5 }
-  .hero .cta .btn:hover{ transform:translateY(-1px); filter:brightness(1.06) }
-  .hero .chips{ justify-content:center; margin:6px 0 0 }
-  .hero .chip{ border-radius:999px !important; border:1px solid var(--line) !important; font-weight:500; color:var(--muted) }
 </style>
 </head>
 <body>

@@ -104,8 +104,9 @@ async function runEngine(name) {
   const banner = await page.locator('body').innerText();
   ok('read-only notice is shown to the public', /read-only/i.test(banner));
 
-  // All four sidebar read views must render real content.
+  // Every sidebar read view must render real content.
   const views = [
+    ['rfqs', '#rfq-table'],
     ['portfolio', '#portfolio-body'],
     ['verify', '#verify-body'],
     ['audit', '#audit-table'],
@@ -117,6 +118,25 @@ async function runEngine(name) {
     const txt = (await page.locator(sel).innerText().catch(() => '')).trim();
     ok(`view "${view}" renders content`, txt.length > 30, `${txt.length} chars`);
   }
+
+  // The Active RFQs list is the index into the book: rows, working filters, and a
+  // control that re-scopes the desk.
+  await page.click('.side-nav a[data-view="rfqs"]').catch(() => {});
+  await page.waitForTimeout(2500);
+  const rfqRows = await page.locator('.rfq-table tbody tr').count();
+  ok('Active RFQs lists the live book', rfqRows > 1, `${rfqRows} rows`);
+  ok('its filter chips render', (await page.locator('.rfq-chip').count()) === 3);
+  await page.locator('.rfq-chip[data-filter="open"]').click().catch(() => {});
+  await page.waitForTimeout(600);
+  const openRows = await page.locator('.rfq-table tbody tr').count();
+  ok('filtering to open requests narrows the list', openRows > 0 && openRows <= rfqRows, `${openRows} open of ${rfqRows}`);
+
+  // Balances in an asset issued by a registry this app does not control.
+  await page.click('.side-nav a[data-view="portfolio"]').catch(() => {});
+  await page.waitForTimeout(3500);
+  const reg = (await page.locator('#pf-registry').innerText().catch(() => ''));
+  ok('Portfolio shows registry-issued balances', /DSO/.test(reg), reg.slice(0, 60).replace(/
+/g, ' '));
 
   // Best execution should carry attestations from the seeded book.
   await page.click('.side-nav a[data-view="bestexec"]').catch(() => {});
