@@ -996,6 +996,75 @@ async function ccTrade({ instrument, quantity, asks, mode = 'vickrey', p, dealer
   return { instrument, mode, clearing: t.clearingPrice, dealer: t.dealer };
 }
 
+// ===========================================================================
+// A live book. The settled history seeders leave the desk with a handful of open
+// requests; a trading screen should look like a trading screen. This creates a
+// spread of OPEN requests across instruments, execution modes and quote states,
+// so the book reads the same from any identity: the buy side sees its own
+// requests, and each dealer sees exactly the ones it was invited to.
+// Idempotent per instrument — a rerun tops up what is missing, nothing else.
+// ===========================================================================
+async function seedBook() {
+  const p = await partyMap();
+  const dealerC = await allocateOne('tirai-v1-dealerC'); await grant(dealerC);
+  const open = (await ofTemplate(p.buyer, 'RFQ')).map((r) => r.arg.instrument);
+  const quotesByRfq = await ofTemplate(p.buyer, 'Quote');
+
+  const book = [
+    // instrument, qty, invited dealers, asks that get sealed against it
+    ['UST2Y',    '2000.0', ['A', 'B'],      ['1980000.0', '1992000.0']],
+    ['UST10Y',   '1000.0', ['A', 'B'],      ['1042000.0']],
+    ['UST30Y',   '800.0',  ['A', 'B'],      []],
+    ['GILT30',   '500.0',  ['A', 'B', 'C'], ['612000.0', '615500.0', '611000.0']],
+    ['BUND10',   '500.0',  ['A'],           ['494500.0']],
+    ['BUND30',   '400.0',  ['B'],           []],
+    ['JGB10Y',   '2000.0', ['A', 'B'],      ['1760000.0', '1772000.0']],
+    ['OAT10Y',   '600.0',  ['B'],           ['588000.0']],
+    ['BTP10Y',   '1500.0', ['A', 'B'],      []],
+    ['SPGB10Y',  '600.0',  ['A', 'C'],      ['591000.0']],
+    ['AAPL30',   '300.0',  ['A', 'B'],      ['318000.0', '319500.0']],
+    ['MSFT29',   '400.0',  ['B'],           []],
+    ['NVDA34',   '300.0',  ['A', 'B'],      ['341000.0']],
+    ['IBRD28',   '1500.0', ['A', 'B'],      ['1487000.0', '1491000.0']],
+    ['KFW27',    '1200.0', ['A'],           []],
+    ['MEX34',    '600.0',  ['A', 'B'],      ['576000.0']],
+    ['INDON34',  '800.0',  ['B', 'C'],      ['781000.0', '784500.0']],
+  ];
+  const partyOf = { A: p.dealerA, B: p.dealerB, C: dealerC };
+
+  let made = 0, quoted = 0;
+  for (const [inst, qty, panel, asks] of book) {
+    let rfq = (await ofTemplate(p.buyer, 'RFQ')).find((r) => r.arg.instrument === inst)?.cid;
+    if (!rfq) {
+      rfq = cidOf(await submit(p.buyer, { CreateCommand: { templateId: `${PKG}:Tirai:RFQ`, createArguments: {
+        buyer: p.buyer, regulator: p.regulator, invitedDealers: panel.map((d) => partyOf[d]),
+        instrument: inst, quantity: qty, payInstrument: 'USDC',
+        assetIssuer: p.bondIssuer, payIssuer: p.cashIssuer, deadline: '2030-01-01T00:00:00Z' } } }));
+      made++;
+      process.stdout.write(`· ${inst.padEnd(9)} ${panel.length > 1 ? 'auction' : 'direct '} ${panel.join('+')}`);
+    } else {
+      process.stdout.write(`· ${inst.padEnd(9)} exists`);
+    }
+    // Top up sealed quotes: a dealer may only quote once, and only with a lot of
+    // exactly the requested size.
+    const already = new Set((await ofTemplate(p.buyer, 'Quote'))
+      .filter((q) => optionalCid(q.arg.rfqId) === rfq).map((q) => q.arg.dealer));
+    for (let i = 0; i < asks.length; i++) {
+      const dealer = partyOf[panel[i]];
+      if (!dealer || already.has(dealer)) continue;
+      const lot = (await ofTemplate(dealer, 'Holding')).find((h) => h.arg.instrument === inst && h.arg.amount === qty)?.cid
+        ?? cidOf(await submit(p.bondIssuer, createHolding(p.bondIssuer, dealer, inst, qty)));
+      await submit(dealer, { ExerciseCommand: { templateId: `${PKG}:Tirai:RFQ`, contractId: rfq,
+        choice: 'SubmitQuote', choiceArgument: { dealer, price: asks[i], assetCid: lot } } });
+      quoted++;
+    }
+    console.log(` · ${asks.length} sealed`);
+  }
+  console.log(`\nbook: ${made} new request(s), ${quoted} new sealed quote(s).`);
+  console.log('Open requests now:', (await ofTemplate(p.buyer, 'RFQ')).length, '(was', open.length + ')');
+  console.log('Sealed quotes the buyer holds:', (await ofTemplate(p.buyer, 'Quote')).length, '(was', quotesByRfq.length + ')');
+}
+
 // Importing this file (the logic test does) must not run a command.
 const cmd = process.argv[1]?.endsWith('devnet.mjs') ? process.argv[2] : null;
 if (cmd !== null) (async () => {
@@ -1011,7 +1080,8 @@ if (cmd !== null) (async () => {
   else if (cmd === 'seed-cases') await seedCases();
   else if (cmd === 'seed-bestexec') await seedBestExec();
   else if (cmd === 'seed-cc') await seedCc();
+  else if (cmd === 'seed-book') await seedBook();
   else if (cmd === 'tidy') await tidy();
   else if (cmd === 'verify') await verify();
-  else console.log('usage: probe | upload <dar> | allocate | seed | settle-demo | seed-basket | seed-cases | seed-bestexec | seed-cc | tidy | verify');
+  else console.log('usage: probe | upload <dar> | allocate | seed | settle-demo | seed-basket | seed-cases | seed-bestexec | seed-cc | seed-book | tidy | verify');
 })().catch((e) => { console.error('ERR', e.message); process.exit(1); });

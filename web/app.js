@@ -475,16 +475,20 @@ function rowAction(r) {
 
 function renderActive() {
   const table = document.getElementById('rfq-table'); if (!table) return;
-  const all = rfqRows();
+  // Live requests first, and among them the ones with quotes waiting on you;
+  // settled rows fall to the bottom as history.
+  const rank = (r) => (r.kind === 'filled' ? 2 : r.quotes ? 0 : 1);
+  const all = rfqRows().sort((a, b) => rank(a) - rank(b) || a.instrument.localeCompare(b.instrument));
   const pass = { all: () => true, mine: (r) => r.mine, forme: (r) => r.forMe };
   const counts = { all: all.length, mine: all.filter(pass.mine).length, forme: all.filter(pass.forme).length };
-  const rows = all.filter(pass[rfqFilter] ?? pass.all);
+  const q = (document.getElementById('rfq-search')?.value ?? '').trim().toUpperCase();
+  const rows = all.filter(pass[rfqFilter] ?? pass.all).filter((r) => !q || r.instrument.toUpperCase().includes(q));
 
   const chips = document.getElementById('rfq-chips');
   if (chips) chips.innerHTML = [['all', 'All'], ['mine', 'Mine'], ['forme', 'For me']]
     .map(([k, label]) => `<button class="rfq-chip${rfqFilter === k ? ' on' : ''}" data-filter="${k}">${label} <span>${counts[k]}</span></button>`).join('');
   const count = document.getElementById('rfq-count');
-  if (count) count.textContent = `${rows.length} shown`;
+  if (count) count.textContent = rows.length === all.length ? `${rows.length} shown` : `${rows.length} of ${all.length} shown`;
 
   table.innerHTML = rows.length ? '<table class="audit rfq-table"><thead><tr>'
     + '<th>Request</th><th>Instrument</th><th class="num">Quantity</th><th>Mode</th><th>Maker</th>'
@@ -503,12 +507,14 @@ function renderActive() {
         <td class="num">${r.kind === 'filled' ? '—' : r.quotes}</td>
         <td><span class="pill ${r.status === 'Filled' ? 'ok' : r.quotes ? 'live' : 'wait'}">${esc(r.status)}</span></td>
         <td><button class="${a.primary ? '' : 'ghost'} rfq-act" data-act="${a.act}" data-rfq="${esc(r.cid)}">${esc(a.label)}</button></td>
-      </tr>`;
+      </tr>`.replace('<tr ', `<tr data-row="${esc(r.cid)}" data-rowact="${a.act}" `);
     }).join('')
     + '</tbody></table>'
-    : `<div class="audit-empty">${ACTING === 'buyer'
-        ? 'No requests yet — open one with "New RFQ".'
-        : 'Nothing addressed to this identity yet. A dealer only sees the requests it was invited to.'}</div>`;
+    : `<div class="audit-empty">${all.length
+        ? 'No request matches that filter.'
+        : ACTING === 'buyer'
+          ? 'No requests yet — open one with "New RFQ".'
+          : 'Nothing addressed to this identity yet. A dealer only sees the requests it was invited to.'}</div>`;
 }
 
 // ---- dialogs -----------------------------------------------------------
@@ -829,8 +835,17 @@ async function refresh() {
     if (!document.getElementById('view-portfolio')?.hidden) renderPortfolio();
     if (!document.getElementById('view-verify')?.hidden) renderVerify();
     if (!document.getElementById('view-bestexec')?.hidden) renderBestExec();
-    setStats({ offset: off, rfqs: b.filter((c) => is(c, 'RFQ')).length,
-      quotes: b.filter((c) => is(c, 'Quote')).length, settled });
+    // The tiles describe the signed-in identity, not always the buy side: a dealer's
+    // "sealed quotes" is its own book, and its "open requests" only the invited ones.
+    const seen = actingAcs();
+    setStats({ offset: off,
+      rfqs: seen.filter((c) => is(c, 'RFQ')).length,
+      quotes: seen.filter((c) => is(c, 'Quote')).length,
+      settled: ACTING === 'regulator' ? settled : seen.filter((c) => is(c, 'TradeReport')).length });
+    const lab = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+    lab('lab-rfqs', isDealer() ? 'Requests to you' : 'Open requests');
+    lab('lab-quotes', isDealer() ? 'Your sealed quotes' : 'Sealed quotes received');
+    lab('lab-settled', ACTING === 'regulator' ? 'Settled trades (all)' : 'Your settled trades');
     setLedger(stale ? 'warn' : 'ok',
       (stale ? `ledger live · ${stale} column stale, retrying` : 'ledger live')
       + ' · pkg ' + (PKG ? PKG.slice(0, 8) : '—'));
@@ -1087,6 +1102,7 @@ async function rejectBasket(quoteCid, tpl, btn) {
 
 // ---- production shell: identity, the book, dialogs ----
 document.getElementById('acting-as')?.addEventListener('change', (e) => setActing(e.target.value));
+document.getElementById('rfq-search')?.addEventListener('input', () => renderActive());
 document.getElementById('btn-new-rfq')?.addEventListener('click', () => showView('create'));
 document.getElementById('modal-x')?.addEventListener('click', closeModal);
 document.getElementById('modal-host')?.addEventListener('click', (e) => { if (e.target.id === 'modal-host') closeModal(); });
@@ -1098,6 +1114,9 @@ document.addEventListener('click', (e) => {
 
   const act = e.target.closest('.rfq-act');
   if (act) { openRow(act.dataset.rfq, act.dataset.act); return; }
+
+  const row = e.target.closest('tr[data-row]');
+  if (row) { openRow(row.dataset.row, row.dataset.rowact); return; }
 
   const mode = e.target.closest('#create-modes .mode');
   if (mode) { createMode = mode.dataset.mode; renderCreate(); return; }

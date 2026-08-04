@@ -6,7 +6,7 @@
 // Covers: AwardPartial (partial-Vickrey), CancelRFQ, RejectQuote,
 // WithdrawBasketQuote, RejectBasketQuote. Complements scripts/e2e.mjs.
 import { chromium } from 'playwright';
-const URL = 'http://localhost:8080/app.html';
+const URL = process.env.TIRAI_URL ?? 'http://localhost:8080/app.html';
 const R = [];
 const check = (n, c, d = '') => { R.push({ n, ok: !!c }); console.log((c ? '  ✓ ' : '  ✗ FAIL ') + n + (c ? '' : '  — ' + d)); };
 (async () => {

@@ -231,6 +231,15 @@ table.audit td button.ghost { padding: 4px 10px; font-size: 12px; border-radius:
 .rfq-chip.on:hover { background: var(--ink); border-color: var(--ink); color: var(--panel); }
 .rfq-chip.on span { background: var(--on-count); color: var(--panel); }
 .rfq-count { margin-left: auto; font-size: 12px; color: var(--muted); }
+.rfq-search {
+  flex: 0 1 220px; min-width: 140px; font: inherit; font-size: 13px;
+  padding: 7px 11px; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--panel); color: var(--ink);
+}
+.rfq-search::placeholder { color: var(--faint); }
+.rfq-search:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+/* The whole row is a target, not just its button. */
+.rfq-table tbody tr { cursor: pointer; }
 
 /* Status pills in the RFQ table. */
 .pill {

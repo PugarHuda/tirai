@@ -23,7 +23,8 @@
     "pdf": "node scripts/make-pdf.mjs",
     "logo": "node scripts/make-logo.mjs",
     "devnet:cc": "node scripts/devnet.mjs seed-cc",
-    "e2e:shell": "node scripts/e2e-shell.mjs"
+    "e2e:shell": "node scripts/e2e-shell.mjs",
+    "devnet:book": "node scripts/devnet.mjs seed-book"
   },
   "devDependencies": {
     "playwright": "^1.48.0"

@@ -68,9 +68,9 @@
 
   <div class="stats" id="stats" role="status" aria-live="polite">
     <div class="stat"><span class="k" id="stat-offset">—</span><span class="l">Ledger offset</span></div>
-    <div class="stat"><span class="k" id="stat-rfqs">—</span><span class="l">Open RFQs</span></div>
-    <div class="stat"><span class="k" id="stat-quotes">—</span><span class="l">Sealed quotes</span></div>
-    <div class="stat"><span class="k" id="stat-settled">—</span><span class="l">Settled trades</span></div>
+    <div class="stat"><span class="k" id="stat-rfqs">—</span><span class="l" id="lab-rfqs">Open requests</span></div>
+    <div class="stat"><span class="k" id="stat-quotes">—</span><span class="l" id="lab-quotes">Sealed quotes</span></div>
+    <div class="stat"><span class="k" id="stat-settled">—</span><span class="l" id="lab-settled">Settled trades</span></div>
   </div>
 
   <div class="howto" id="howto">
@@ -173,6 +173,7 @@
     <h2 class="audit-title">Active RFQs <span class="hint">every request this party can see — rival dealers see only the ones they were invited to</span></h2>
     <div class="rfq-bar">
       <div class="rfq-chips" id="rfq-chips" role="group" aria-label="Filter requests"></div>
+      <input class="rfq-search" id="rfq-search" type="search" placeholder="Filter by instrument…" aria-label="Filter by instrument" />
       <span class="rfq-count" id="rfq-count"></span>
     </div>
     <div id="rfq-table"></div>
