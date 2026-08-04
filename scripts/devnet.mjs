@@ -196,12 +196,20 @@ async function allocate() {
 // with: daml damlc inspect-dar --json .daml/dist/tirai-desk-0.1.0.dar  (or set TIRAI_PKG).
 const PKG = process.env.TIRAI_PKG ?? '4b1e408f6eda27364a55da076d9251ee117f0641f03aaf20883995f1e507a7e3';
 let CID = 0;
-async function submit(actAs, command) {
+// `disclosed` carries a registry's off-ledger contracts (token-standard choice
+// contexts); `effects` asks for the ledger-effects shape, the only one whose
+// response includes exercise results — that is how the registry hands an
+// Allocation contract id back.
+async function submit(actAs, command, { disclosed = [], effects = false } = {}) {
   const commandId = `tirai-${Date.now()}-${CID++}`; // stable across retries → dedup on the ledger
   let last;
   for (let i = 0; i < 6; i++) {
     const r = await api('/v2/commands/submit-and-wait-for-transaction', { method: 'POST', json: {
-      commands: { userId: USER, commandId, actAs: [actAs], commands: [command] },
+      commands: { userId: USER, commandId, actAs: [actAs], commands: [command], disclosedContracts: disclosed },
+      ...(effects ? { transactionFormat: {
+        eventFormat: { filtersByParty: { [actAs]: { cumulative: [{ identifierFilter: { WildcardFilter: { value: { includeCreatedEventBlob: false } } } }] } }, verbose: false },
+        transactionShape: 'TRANSACTION_SHAPE_LEDGER_EFFECTS',
+      } } : {}),
     } });
     if (r.ok) return r.data;
     last = `submit ${r.status}: ${JSON.stringify(r.data).slice(0, 200)}`;
@@ -278,13 +286,27 @@ async function seed() {
   console.log('\nwrote scripts/devnet.parties.json — point the web UI at DevNet and open it.');
 }
 
+// Every template the desk defines. A wildcard ACS read for a busy party now
+// exceeds the node's hard 200-element response cap (it is not a query parameter),
+// so the read is split per template and re-joined.
+const TEMPLATES = ['Holding', 'EscrowedHolding', 'RFQ', 'Quote', 'QuoteDisclosure', 'TradeReport',
+  'TokenTrade', 'BasketRFQ', 'BasketQuote', 'BasketTradeReport'];
+
 async function acsAs(party) {
   const off = (await api('/v2/state/ledger-end', { retry: true })).data?.offset;
   if (typeof off !== 'number') throw new Error('ledger-end returned no offset (devnet unreachable?)');
-  const r = await api('/v2/state/active-contracts', { method: 'POST', retry: true, json: {
-    filter: { filtersByParty: { [party]: { cumulative: [] } } }, verbose: true, activeAtOffset: off } });
-  if (!Array.isArray(r.data)) throw new Error('active-contracts returned no array: ' + JSON.stringify(r.data).slice(0, 120));
-  return r.data.map((x) => x.contractEntry?.JsActiveContract?.createdEvent).filter(Boolean);
+  const out = [];
+  for (const tpl of TEMPLATES) {
+    const r = await api('/v2/state/active-contracts', { method: 'POST', retry: true, json: {
+      filter: { filtersByParty: { [party]: { cumulative: [{ identifierFilter: {
+        // Template filters take the package NAME; a package id is rejected here.
+        TemplateFilter: { value: { templateId: `#tirai-desk:Tirai:${tpl}`, includeCreatedEventBlob: false } },
+      } }] } } },
+      verbose: true, activeAtOffset: off } });
+    if (!Array.isArray(r.data)) throw new Error(`active-contracts (${tpl}) returned no array: ` + JSON.stringify(r.data).slice(0, 120));
+    out.push(...r.data.map((x) => x.contractEntry?.JsActiveContract?.createdEvent).filter(Boolean));
+  }
+  return out;
 }
 
 async function verify() {
@@ -726,6 +748,254 @@ async function tidy() {
   console.log(`tidy: cancelled ${orphans.length} orphan RFQ(s).`);
 }
 
+// ===========================================================================
+// Real Canton Token Standard settlement — the cash leg in Canton Coin, issued
+// and administered by the DSO, not by this app. Everything below talks to the
+// registry's own HTTP API (via the validator's scan proxy) and passes the
+// choice contexts and disclosed contracts it returns straight to the ledger.
+// cETH and CBTC are the same code path: only the InstrumentId admin changes.
+// ===========================================================================
+
+const V = () => (ENV.DEVNET_VALIDATOR_URL ?? '').replace(/\/$/, '');
+const REGISTRY = () => V() + '/api/validator/v0/scan-proxy/registry';
+
+async function reg(path, json) {
+  if (!V()) throw new Error('set DEVNET_VALIDATOR_URL in the env file to reach the token registry');
+  const t = await token();
+  const r = await fetch(REGISTRY() + path, {
+    method: json === undefined ? 'GET' : 'POST',
+    headers: { authorization: `Bearer ${t}`, ...(json === undefined ? {} : { 'content-type': 'application/json' }) },
+    body: json === undefined ? undefined : JSON.stringify(json),
+  });
+  const text = await r.text();
+  let data; try { data = JSON.parse(text); } catch { data = text; }
+  if (!r.ok) throw new Error(`registry ${path} → ${r.status}: ${JSON.stringify(data).slice(0, 300)}`);
+  return data;
+}
+
+const IFACE = {
+  transferFactory: '#splice-api-token-transfer-instruction-v1:Splice.Api.Token.TransferInstructionV1:TransferFactory',
+  transferInstruction: '#splice-api-token-transfer-instruction-v1:Splice.Api.Token.TransferInstructionV1:TransferInstruction',
+  allocFactory: '#splice-api-token-allocation-instruction-v1:Splice.Api.Token.AllocationInstructionV1:AllocationFactory',
+  allocation: '#splice-api-token-allocation-v1:Splice.Api.Token.AllocationV1:Allocation',
+  holding: '#splice-api-token-holding-v1:Splice.Api.Token.HoldingV1:Holding',
+};
+const disclose = (cc) => cc.disclosedContracts.map(({ templateId, contractId, createdEventBlob, synchronizerId }) =>
+  ({ templateId, contractId, createdEventBlob, synchronizerId }));
+const ctxArgs = (cc) => ({ context: cc.choiceContextData, meta: { values: {} } });
+const damlTime = (ms) => new Date(ms).toISOString().replace('Z', '000Z');
+const exResult = (tx, choice) => (tx?.transaction?.events ?? []).map((e) => e.ExercisedEvent).filter(Boolean)
+  .find((e) => e.choice === choice)?.exerciseResult;
+const createdOf = (tx, suffix) => (tx?.transaction?.events ?? []).map((e) => e.CreatedEvent).filter(Boolean)
+  .find((c) => c.templateId?.endsWith(suffix));
+const isStale = (e) => /archived|UNKNOWN_CONTRACT|CONTRACT_NOT_FOUND|STALE/i.test(String(e));
+
+// An ACS read scoped to one interface or template — the wildcard read is now too
+// large for a single response on the busier parties.
+async function acsFiltered(party, identifierFilter) {
+  const off = (await api('/v2/state/ledger-end', { retry: true })).data?.offset;
+  const r = await api('/v2/state/active-contracts?limit=5000', { method: 'POST', retry: true, json: {
+    filter: { filtersByParty: { [party]: { cumulative: [{ identifierFilter }] } } }, verbose: false, activeAtOffset: off } });
+  if (!Array.isArray(r.data)) throw new Error('active-contracts: ' + JSON.stringify(r.data).slice(0, 200));
+  return r.data.map((x) => x.contractEntry?.JsActiveContract?.createdEvent).filter(Boolean);
+}
+const heldVia = (party, interfaceId) => acsFiltered(party, { InterfaceFilter: { value: { interfaceId, includeInterfaceView: true, includeCreatedEventBlob: true } } });
+// Template filters take the package NAME, never a package id.
+const ofTemplate = async (party, tpl) => (await acsFiltered(party, { TemplateFilter: { value: { templateId: `#tirai-desk:Tirai:${tpl}`, includeCreatedEventBlob: false } } }))
+  .map((c) => ({ cid: c.contractId, arg: c.createArgument }));
+const ifaceView = (c) => c.interfaceViews?.[0]?.viewValue;
+const optionalCid = (v) => (v && typeof v === 'object' ? v.value ?? null : v ?? null);
+
+async function seedCc() {
+  const p = await partyMap();
+  const admin = (await reg('/metadata/v1/info')).adminId;
+  const instruments = (await reg('/metadata/v1/instruments')).instruments ?? [];
+  const cc = instruments.find((i) => i.id === 'Amulet') ?? instruments[0];
+  if (!cc) throw new Error('registry lists no instruments');
+  const CASH = { admin, id: cc.id };
+  console.log(`registry: ${cc.name} (${cc.symbol}) · admin ${admin.split('::')[0]} · allocation API ${Object.keys(cc.supportedApis ?? {}).some((k) => k.includes('allocation')) ? 'yes' : 'NO'}`);
+
+  const cashOf = async (party) => (await heldVia(party, IFACE.holding)).filter((h) => {
+    const v = ifaceView(h);
+    return v.instrumentId.id === CASH.id && v.instrumentId.admin === admin && !v.lock;
+  });
+  const total = (hs) => hs.reduce((s, h) => s + Number(ifaceView(h).amount), 0);
+
+  // 1 · Fund the desk's buyer from this validator's own wallet party, through
+  // the registry's transfer factory (two-phase: instruction, then accept).
+  const wallet = (await (await fetch(V() + '/api/validator/v0/validator-user', { headers: { authorization: `Bearer ${await token()}` } })).json()).party_id;
+  let buyerCash = await cashOf(p.buyer);
+  if (total(buyerCash) < 20000) {
+    const amount = '60000.0000000000';
+    for (let i = 0; i < 4 && total(buyerCash) < 20000; i++) {
+      try {
+        // Read the wallet's holdings as late as possible: round automation
+        // re-creates them, and a stale input cid fails the whole command.
+        const transfer = {
+          sender: wallet, receiver: p.buyer, amount, instrumentId: CASH,
+          requestedAt: damlTime(Date.now()), executeBefore: damlTime(Date.now() + 3600e3),
+          inputHoldingCids: (await cashOf(wallet)).map((h) => h.contractId), meta: { values: {} },
+        };
+        const f = await reg('/transfer-instruction/v1/transfer-factory', {
+          choiceArguments: { expectedAdmin: admin, transfer, extraArgs: { context: { values: {} }, meta: { values: {} } } },
+        });
+        const tx = await submit(wallet, { ExerciseCommand: {
+          templateId: IFACE.transferFactory, contractId: f.factoryId, choice: 'TransferFactory_Transfer',
+          choiceArgument: { expectedAdmin: admin, transfer, extraArgs: ctxArgs(f.choiceContext) },
+        } }, { disclosed: disclose(f.choiceContext), effects: true });
+        const pending = exResult(tx, 'TransferFactory_Transfer')?.output?.value?.transferInstructionCid;
+        if (pending) { // no pre-approval for the receiver: it accepts explicitly
+          const ctx = await reg(`/transfer-instruction/v1/${pending}/choice-contexts/accept`, {});
+          await submit(p.buyer, { ExerciseCommand: {
+            templateId: IFACE.transferInstruction, contractId: pending, choice: 'TransferInstruction_Accept',
+            choiceArgument: { extraArgs: ctxArgs(ctx) },
+          } }, { disclosed: disclose(ctx), effects: true });
+        }
+      } catch (e) {
+        if (!isStale(e)) throw e;
+        console.log('  funding input went stale — retrying with fresh holdings');
+      }
+      buyerCash = await cashOf(p.buyer);
+    }
+  }
+  console.log(`buyer holds ${total(buyerCash)} ${cc.symbol} (real registry asset, not a desk token)`);
+
+  // 2 · Auctions whose cash leg is that registry asset.
+  const dealers = { A: p.dealerA, B: p.dealerB };
+  const book = [
+    { instrument: 'GILT10Y', quantity: '1000.0', asks: [{ dealer: 'A', price: '12400.0' }, { dealer: 'B', price: '12500.0' }] },
+    { instrument: 'BUND2Y',  quantity: '500.0',  asks: [{ dealer: 'B', price: '8100.0' },  { dealer: 'A', price: '8250.0' }] },
+    { instrument: 'JGB20Y',  quantity: '2000.0', asks: [{ dealer: 'A', price: '15900.0' }, { dealer: 'B', price: '16050.0' }] },
+    { instrument: 'UST8Y',   quantity: '800.0',  asks: [{ dealer: 'A', price: '9800.0' }], mode: 'direct' },
+    { instrument: 'OAT15Y',  quantity: '600.0',  asks: [{ dealer: 'B', price: '7300.0' }], mode: 'direct' },
+    { instrument: 'KTB20Y',  quantity: '900.0',  asks: [{ dealer: 'A', price: '6900.0' }, { dealer: 'B', price: '7000.0' }] },
+  ];
+
+  const done = [];
+  for (const t of book) {
+    try { done.push(await ccTrade({ ...t, p, dealers, admin, CASH, cashOf })); }
+    catch (e) { console.log(`· FAILED ${t.instrument}: ${String(e.message ?? e).slice(0, 180)}`); }
+  }
+
+  console.log(`\n${done.length}/${book.length} trades settled in ${cc.symbol} through the ${cc.name} registry:`);
+  for (const d of done) console.log(`· ${d.mode === 'direct' ? 'direct OTC' : 'Vickrey   '} ${d.instrument.padEnd(8)} ${Number(d.clearing).toLocaleString('en-GB').padStart(10)} ${cc.symbol} → ${d.dealer.split('::')[0]}`);
+  console.log(`buyer ${total(await cashOf(p.buyer))} · dealerA ${total(await cashOf(p.dealerA))} · dealerB ${total(await cashOf(p.dealerB))} ${cc.symbol}`);
+}
+
+async function ccTrade({ instrument, quantity, asks, mode = 'vickrey', p, dealers, admin, CASH, cashOf }) {
+  const settledAlready = (await ofTemplate(p.regulator, 'TradeReport')).find((r) => r.arg.instrument === instrument);
+  if (settledAlready) {
+    console.log(`· ${instrument}: already settled`);
+    return { instrument, mode, clearing: settledAlready.arg.clearingPrice, dealer: settledAlready.arg.dealer };
+  }
+
+  // The RFQ has to name the registry instrument as its pay leg: ConvertToTokenTrade
+  // asserts cashInstrument.id == payInstrument and cashInstrument.admin == payIssuer.
+  const open = (await ofTemplate(p.buyer, 'RFQ')).find((r) => r.arg.instrument === instrument);
+  if (open && (open.arg.payInstrument !== CASH.id || open.arg.payIssuer !== admin)) {
+    for (const q of (await ofTemplate(p.buyer, 'Quote')).filter((q) => optionalCid(q.arg.rfqId) === open.cid))
+      await submit(p.buyer, { ExerciseCommand: { templateId: `${PKG}:Tirai:Quote`, contractId: q.cid, choice: 'RejectQuote', choiceArgument: {} } });
+    await submit(p.buyer, { ExerciseCommand: { templateId: `${PKG}:Tirai:RFQ`, contractId: open.cid, choice: 'CancelRFQ', choiceArgument: {} } });
+  }
+  let rfq = open && open.arg.payInstrument === CASH.id && open.arg.payIssuer === admin ? open.cid : null;
+  if (!rfq) rfq = createdOf(await submit(p.buyer, { CreateCommand: {
+    templateId: `${PKG}:Tirai:RFQ`,
+    createArguments: {
+      buyer: p.buyer, regulator: p.regulator, invitedDealers: asks.map((a) => dealers[a.dealer]),
+      instrument, quantity, payInstrument: CASH.id, assetIssuer: p.bondIssuer, payIssuer: admin,
+      deadline: '2030-01-01T00:00:00Z',
+    },
+  } }), ':Tirai:RFQ').contractId;
+
+  let trade = (await ofTemplate(p.buyer, 'TokenTrade')).find((t) => t.arg.instrument === instrument);
+  if (!trade) {
+    const existing = (await ofTemplate(p.buyer, 'Quote')).filter((q) => optionalCid(q.arg.rfqId) === rfq);
+    const quoteCids = [];
+    for (const a of asks) {
+      const dealer = dealers[a.dealer];
+      const already = existing.find((q) => q.arg.dealer === dealer);
+      if (already) { quoteCids.push(already.cid); continue; }
+      // A dealer can only quote a lot whose size matches the RFQ exactly.
+      const lot = (await ofTemplate(dealer, 'Holding')).find((h) => h.arg.instrument === instrument && h.arg.amount === quantity)?.cid
+        ?? cidOf(await submit(p.bondIssuer, createHolding(p.bondIssuer, dealer, instrument, quantity)));
+      quoteCids.push(createdOf(await submit(dealer, { ExerciseCommand: {
+        templateId: `${PKG}:Tirai:RFQ`, contractId: rfq, choice: 'SubmitQuote', choiceArgument: { dealer, price: a.price, assetCid: lot },
+      } }), ':Tirai:Quote').contractId);
+    }
+
+    // Vickrey awards the cheapest ask at the second price; direct OTC converts one
+    // sealed quote at that dealer's own ask. Both produce the same TokenTrade,
+    // which implements the standard AllocationRequest the buyer's wallet funds.
+    const now = Date.now();
+    const window = { allocateBefore: damlTime(now + 30 * 60e3), settleBefore: damlTime(now + 60 * 60e3) };
+    const tx = mode === 'direct'
+      ? await submit(p.buyer, { ExerciseCommand: { templateId: `${PKG}:Tirai:Quote`, contractId: quoteCids[0], choice: 'ConvertToTokenTrade',
+          choiceArgument: { cashInstrument: CASH, clearingPrice: asks[0].price, ...window } } })
+      : await submit(p.buyer, { ExerciseCommand: { templateId: `${PKG}:Tirai:RFQ`, contractId: rfq, choice: 'AwardWithAllocation',
+          choiceArgument: { quoteCids, cashInstrument: CASH, ...window } } });
+    const c = createdOf(tx, ':Tirai:TokenTrade');
+    trade = { cid: c.contractId, arg: c.createArgument };
+  }
+  const tradeCid = trade.cid;
+  const t = trade.arg;
+
+  // The spec the trade will accept, rebuilt exactly as expectedAllocation does:
+  // a forged or repointed allocation cannot settle it.
+  const allocation = {
+    settlement: {
+      executor: t.buyer,
+      settlementRef: { id: 'tirai-quote', cid: t.quoteCid },
+      requestedAt: t.createdAt, allocateBefore: t.allocateBefore, settleBefore: t.settleBefore,
+      meta: { values: {} },
+    },
+    transferLegId: 'cash',
+    transferLeg: { sender: t.buyer, receiver: t.dealer, amount: t.clearingPrice, instrumentId: t.cashInstrument, meta: { values: {} } },
+  };
+
+  let allocCid = (await heldVia(p.buyer, IFACE.allocation))
+    .find((a) => ifaceView(a)?.allocation?.settlement?.settlementRef?.cid === t.quoteCid)?.contractId;
+  for (let i = 0; !allocCid && i < 4; i++) {
+    // Refetch the context on every attempt: the round contracts it discloses are
+    // archived when the amulet round rolls, and a replay fails as "archived".
+    const args = {
+      expectedAdmin: admin, allocation, requestedAt: damlTime(Date.now()),
+      inputHoldingCids: (await cashOf(p.buyer)).map((h) => h.contractId),
+      extraArgs: { context: { values: {} }, meta: { values: {} } },
+    };
+    try {
+      const f = await reg('/allocation-instruction/v1/allocation-factory', { choiceArguments: args });
+      const tx = await submit(p.buyer, { ExerciseCommand: {
+        templateId: IFACE.allocFactory, contractId: f.factoryId, choice: 'AllocationFactory_Allocate',
+        choiceArgument: { ...args, extraArgs: ctxArgs(f.choiceContext) },
+      } }, { disclosed: disclose(f.choiceContext), effects: true });
+      allocCid = exResult(tx, 'AllocationFactory_Allocate')?.output?.value?.allocationCid;
+    } catch (e) {
+      if (!isStale(e)) throw e;
+    }
+  }
+  if (!allocCid) throw new Error('the registry never completed the allocation');
+
+  // One atomic transaction: the registry moves the cash, the desk delivers the
+  // bond out of escrow, the regulator gets its report. DvP or nothing.
+  for (let i = 0; i < 4; i++) {
+    const ctx = await reg(`/allocations/v1/${allocCid}/choice-contexts/execute-transfer`, {});
+    try {
+      await submit(p.buyer, { ExerciseCommand: {
+        templateId: `${PKG}:Tirai:TokenTrade`, contractId: tradeCid, choice: 'TokenTrade_Settle',
+        choiceArgument: { allocCid, extraArgs: ctxArgs(ctx) },
+      } }, { disclosed: disclose(ctx), effects: true });
+      break;
+    } catch (e) {
+      if (!isStale(e)) throw e;
+      // A stale settle may mean it already landed: the report is the proof.
+      if ((await ofTemplate(p.regulator, 'TradeReport')).some((r) => r.arg.instrument === instrument)) break;
+      if (i === 3) throw e;
+    }
+  }
+  console.log(`· ${instrument} settled: ${t.clearingPrice} ${CASH.id} → ${t.dealer.split('::')[0]}`);
+  return { instrument, mode, clearing: t.clearingPrice, dealer: t.dealer };
+}
+
 // Importing this file (the logic test does) must not run a command.
 const cmd = process.argv[1]?.endsWith('devnet.mjs') ? process.argv[2] : null;
 if (cmd !== null) (async () => {
@@ -740,7 +1010,8 @@ if (cmd !== null) (async () => {
   else if (cmd === 'seed-basket') await seedBasket();
   else if (cmd === 'seed-cases') await seedCases();
   else if (cmd === 'seed-bestexec') await seedBestExec();
+  else if (cmd === 'seed-cc') await seedCc();
   else if (cmd === 'tidy') await tidy();
   else if (cmd === 'verify') await verify();
-  else console.log('usage: probe | upload <dar> | allocate | seed | settle-demo | seed-basket | seed-cases | seed-bestexec | tidy | verify');
+  else console.log('usage: probe | upload <dar> | allocate | seed | settle-demo | seed-basket | seed-cases | seed-bestexec | seed-cc | tidy | verify');
 })().catch((e) => { console.error('ERR', e.message); process.exit(1); });

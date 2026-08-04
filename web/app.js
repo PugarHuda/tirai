@@ -52,17 +52,29 @@ const ledgerEnd = async () => {
 // Active contracts for a party AT a known offset — the caller fetches ledger-end
 // once and shares it across parties, so a refresh is 1 ledger-end + N parallel
 // queries instead of one ledger-end per party (much faster with many contracts).
+// The templates this desk renders. A wildcard read returns everything a party
+// can see, and the node refuses any response over 200 elements — a busy buyer
+// passed that — so the read is split per template and re-joined. Template
+// filters take the package NAME, which is stable across package versions.
+const DESK_TEMPLATES = ['Holding', 'RFQ', 'Quote', 'QuoteDisclosure', 'TradeReport',
+  'TokenTrade', 'BasketRFQ', 'BasketQuote', 'BasketTradeReport'];
+
 const acsAt = (party, off) => retryRead(async () => {
-  const rows = await api('/v2/state/active-contracts', 'POST', {
-    filter: { filtersByParty: { [party]: { cumulative: [] } } },
-    verbose: true,
-    activeAtOffset: off,
-  });
-  if (!Array.isArray(rows)) throw new Error('active-contracts returned no array');
-  return rows
-    .map((r) => r.contractEntry?.JsActiveContract?.createdEvent)
-    .filter(Boolean)
-    .map((e) => ({ cid: e.contractId, tpl: e.templateId, arg: e.createArgument }));
+  const perTemplate = await Promise.all(DESK_TEMPLATES.map(async (tpl) => {
+    const rows = await api('/v2/state/active-contracts', 'POST', {
+      filter: { filtersByParty: { [party]: { cumulative: [{ identifierFilter: {
+        TemplateFilter: { value: { templateId: `#tirai-desk:Tirai:${tpl}`, includeCreatedEventBlob: false } },
+      } }] } } },
+      verbose: true,
+      activeAtOffset: off,
+    });
+    if (!Array.isArray(rows)) throw new Error('active-contracts returned no array');
+    return rows
+      .map((r) => r.contractEntry?.JsActiveContract?.createdEvent)
+      .filter(Boolean)
+      .map((e) => ({ cid: e.contractId, tpl: e.templateId, arg: e.createArgument }));
+  }));
+  return perTemplate.flat();
 });
 const acs = async (party) => acsAt(party, await ledgerEnd());
 
