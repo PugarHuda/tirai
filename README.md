@@ -112,6 +112,16 @@ OTC, 60,900 CC moved to the winning dealers, each one bond-against-cash in a sin
 transaction. The registry reports `splice-api-token-allocation-v1` support, which
 is the interface `TokenTrade` was written against.
 
+**And it is not one registry.** `node scripts/devnet.mjs seed-foreign CBTC` settles the
+same auctions in **CBTC**, issued by BitSafe through the DA Utility Registry
+(`cbtc-network::12202a83…`): 0.34 CBTC cleared at the Vickrey second price, 0.22 CBTC
+hit directly at the ask. The faucet grant arrives as a `TransferOffer` that only the
+receiver can complete — `accept-incoming` does that — and from there nothing in the model
+knows the difference. Each registry keeps its off-ledger choice contexts somewhere
+different: Canton Coin behind this validator's scan proxy, the DA Utility Registry at
+`{base}/api/token-standard/v0/registrars/{admin}/registry`. That, and only that, is what
+the deployer had to learn.
+
 Two things worth knowing before you run it: the registry's choice contexts are
 **round-scoped**, so a retry must refetch the context rather than replay it (a
 replay surfaces as "contract has been archived" and reads like your bug); and the
@@ -146,11 +156,11 @@ To reproduce the frozen DARs: download `dars/` from the Splice release bundle
       **Side-by-side proof** — every party's own view at once, which no deployed venue would
       show you
 - [x] **Demo video — https://youtu.be/_iHMouFdNA4** (4:27, the desk driven for real)
-- [x] **Live settlement against an external Token Standard registry** — six trades
-      settled in real **Canton Coin** through the DSO-run registry on the 5N Devnet
-      validator (`node scripts/devnet.mjs seed-cc`)
-- [ ] The same, in cETH / CBTC — identical code path, pending the onRails and BitSafe
-      test-token grants
+- [x] **Live settlement against external Token Standard registries** — six trades in
+      real **Canton Coin** through the DSO-run registry (`seed-cc`), and two in real
+      **CBTC** through the DA Utility Registry that BitSafe issues on
+      (`seed-foreign CBTC`), both on the 5N Devnet validator
+- [ ] The same in **cETH** — identical code path, waiting only on the onRails token grant
 
 ### Live on Devnet
 

@@ -5,9 +5,10 @@ in the organisers' prescribed four-block structure. 18 teams reached the final, 
 fifteen seconds carry more weight than the last sixty.
 Builder: Pugar Huda Mantoro (team **Diam**), solo.
 
-Everything spoken here is checkable in this repo, including the Canton Coin settlements:
-six trades, four reverse-Vickrey and two direct OTC, 60,900 CC moved to the winning dealers
-through the DSO-run registry on the DevNet validator.
+Everything spoken here is checkable in this repo, including the settlements against two
+registries this project does not control: six trades in Canton Coin through the DSO's
+registry (60,900 CC), and two in real **CBTC** through the DA Utility Registry that BitSafe
+issues on, cleared by a reverse-Vickrey auction and a direct OTC hit.
 
 **Judges' written feedback, for reference:**
 
@@ -177,15 +178,16 @@ table is the settlement proof; you no longer need the terminal for it.
 > ask, from quotes selectively disclosed to the regulator.
 >
 > Your feedback asked for real external settlement. Done: the cash leg now settles in real
-> Canton Coin, through the DSO-run Token Standard registry. An issuer I do not control — and
-> that is the dealers' balance in it, on the ledger, right there. cETH and CBTC are the same
-> code path.
+> Canton Coin, and in real CBTC through BitSafe's registry. Issuers I do not control, and
+> that is the dealers' balance in them, on the ledger, right there. cETH is the same code
+> path, waiting on its tokens.
 >
 > I need one design-partner desk. Tirai — you whisper quotes, the market hears nothing.
 
-**The number is confirmed:** say "six trades settled in real Canton Coin" after "an issuer I
-do not control" — one clause, nothing more. (Four reverse-Vickrey, two direct OTC, 60,900 CC
-moved to the winning dealers; reproducible with `node scripts/devnet.mjs seed-cc`.)
+**The numbers are confirmed.** Canton Coin: six trades, four reverse-Vickrey and two direct
+OTC, 60,900 CC moved (`node scripts/devnet.mjs seed-cc`). CBTC: two trades, 0.34 CBTC at the
+Vickrey second price and 0.22 CBTC direct, from a faucet grant accepted on-ledger
+(`node scripts/devnet.mjs seed-foreign CBTC`). Say one clause about each, nothing more.
 
 **If block 4 runs long,** cut the sentence beginning "And there is no order book" — the
 attestations come up again in Q&A.
@@ -222,7 +224,8 @@ screen the whole time; switch to "Verify privacy" at the 25-second mark.
 > regulator sees nothing before settlement — and sixteen attestations prove the buyer beat
 > every competing ask, with no public order book.
 >
-> And the cash leg is real. Canton Coin, through the DSO's own Token Standard registry.
+> And the cash leg is real. Canton Coin through the DSO's registry, and CBTC through
+> BitSafe's.
 > Atomic delivery versus payment.
 >
 > I need one design partner desk. Tirai — you whisper quotes, the market hears nothing.
@@ -253,14 +256,14 @@ screen the whole time; switch to "Verify privacy" at the 25-second mark.
 | Losing quotes | Archived unrevealed (`RejectQuote`) | Public forever | Verbal, unrecorded | n/a |
 | Best-execution proof | Machine-checkable from disclosed sealed asks — 16 attestations live | Implicit from the public book | Manual, reconstructed from chat logs months later | n/a |
 | Regulator view | Post-trade only, on-ledger, zero pre-trade | Everything, always | Nothing, unless subpoenaed | Rarely modelled |
-| Settlement | Atomic DvP, cash leg through an external CTS registry (real Canton Coin) | Atomic, but public | T+1/T+2, separate legs, settlement risk | Usually no settlement leg |
+| Settlement | Atomic DvP, cash leg through external CTS registries (real Canton Coin and real CBTC) | Atomic, but public | T+1/T+2, separate legs, settlement risk | Usually no settlement leg |
 | Counterparty risk at quote time | Escrowed on quote (`Lock` → `EscrowedHolding`) | Collateral or none | Full, until settlement | n/a |
 
 ### What Tirai does **not** do
 
 Say these out loud if a judge probes — volunteering them is stronger than being caught.
 
-- **No live cETH or CBTC transaction yet.** The code path is identical to the Canton Coin
+- **No live cETH transaction yet** (CBTC and Canton Coin both settle for real). The path is identical to the Canton Coin
   path that now works; only the instrument administrator differs. It is blocked on the
   onRails and BitSafe test-token grants, not on engineering.
 - **No mainnet.** DevNet only. Two participants, same package id.
@@ -293,9 +296,10 @@ README says "none" for Canton, and that is the whole thesis.
 
 **Q2. What is real, and what is a demo?**
 Real: the Daml model, the 36 test scripts, two DevNet deployments under the same package id
-`4b1e408f…`, the on-network privacy verifier, 47 settled trades and 5 atomic baskets on the
-5N validator, 16 best-execution attestations, the hosted read-only desk, and now Canton Coin
-settlement through the DSO-run registry. Demo-only: nothing is faked, but the parties are
+`4b1e408f…`, the on-network privacy verifier, 49 settled trades and 5 atomic baskets on the
+5N validator, 16 best-execution attestations, the hosted read-only desk, and settlement in
+two assets neither of which this project issues: Canton Coin through the DSO's registry and
+CBTC through BitSafe's. Demo-only: nothing is faked, but the parties are
 mine, the bonds are desk-issued, and the volumes are seeded, not customer flow. The
 `MockRegistry` in the test suite is a test double for the *registry*, not for the standard —
 it implements the real Splice `Holding` and `Allocation` interfaces from frozen DARs.
