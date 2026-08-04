@@ -107,14 +107,15 @@ stumbling on. The sentence you stumble on twice is the sentence to cut.
 
 ---
 
-## Slide 8 · A venue fee the contract collects itself
+## Slide 8 · A venue fee the settlement can collect
 **2:20 to 2:40**
 
-> A per trade venue fee. Basis points of notional, taken in the settlement asset, inside
-> the settlement transaction. If the trade settles, the fee is paid. No invoice, no
-> collection risk.
+> A per trade venue fee. Basis points of notional, in the settlement asset, taken inside
+> the settlement transaction. If the trade settles, the fee settled with it. No invoice,
+> no collection risk.
 >
-> I haven't fixed the number. That comes from the first design partner, not from me.
+> That part is designed and not built. It's a field in the contract and a day of work,
+> and I'd rather add it once a design partner has argued about the number.
 
 *Kalau ada yang menekan soal angka bps, jawab jujur seperti kalimat terakhir itu. Jangan mengarang.*
 

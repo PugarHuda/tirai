@@ -4,7 +4,7 @@
   "private": true,
   "description": "Remotion source for the Tirai Grand Final trailer",
   "scripts": {
-    "render": "remotion render src/index.ts Tirai ../media/tirai-remotion.mp4 --log=info",
+    "render": "remotion render src/index.ts Tirai ../media/tirai-remotion.mp4 --codec=h264 --crf=20",
     "studio": "remotion studio src/index.ts"
   },
   "dependencies": {

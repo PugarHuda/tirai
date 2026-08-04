@@ -227,19 +227,19 @@ export const Tirai: React.FC = () => {
 
       {/* 2 · sealed quotes, as published */}
       <Beat from={A} duration={172} fadeOut={22}>
-        <At left={96} top={150}>
+        <At left={96} top={340}>
           <Eyebrow>One request &middot; two dealers, each in its own session</Eyebrow>
         </At>
-        <At left={96} top={330}>
+        <At left={96} top={410}>
           <Shot
             shot="privacy"
-            crop={{x: 0.004, y: 0.03, w: 0.992, h: 0.87}}
+            crop={{x: 0.004, y: 0.02, w: 0.992, h: 0.78}}
             width={1728}
             zoom={1.03}
             zoomFrames={172}
           />
         </At>
-        <At left={96} top={790} width={1728}>
+        <At left={96} top={700} width={1728}>
           <FadeIn at={34}>
             <Caption
               lead="Each quote is signed by that dealer and the buyer. Nobody else."
@@ -288,23 +288,23 @@ export const Tirai: React.FC = () => {
 
       {/* 3 · the proof */}
       <Beat from={B} duration={172} fadeOut={22}>
-        <At left={140} top={130}>
+        <At left={140} top={175}>
           <Eyebrow>Verify privacy &middot; live Canton Devnet state</Eyebrow>
         </At>
-        <At left={140} top={215}>
+        <At left={140} top={255}>
           <Shot
             shot="verify"
-            crop={{x: 0.155, y: 0.215, w: 0.74, h: 0.25}}
+            crop={{x: 0.155, y: 0.213, w: 0.74, h: 0.265}}
             width={1640}
             zoom={1.02}
             zoomFrames={172}
             boxes={[
-              {x: 0.468, y: 0.276, w: 0.125, h: 0.032, at: 44},
-              {x: 0.566, y: 0.416, w: 0.078, h: 0.032, at: 84},
+              {x: 0.48, y: 0.276, w: 0.103, h: 0.032, at: 44},
+              {x: 0.531, y: 0.416, w: 0.101, h: 0.032, at: 84},
             ]}
           />
         </At>
-        <At left={140} top={740} width={1640}>
+        <At left={140} top={790} width={1640}>
           <FadeIn at={20}>
             <Caption
               lead="Not a filter. It queries what each party's node actually holds."
@@ -315,20 +315,20 @@ export const Tirai: React.FC = () => {
       </Beat>
 
       <Beat from={B + 152} duration={S3 - 152} fadeIn={22}>
-        <At left={140} top={255}>
+        <At left={140} top={300}>
           <Eyebrow>Best execution &middot; with no public order book</Eyebrow>
         </At>
-        <At left={140} top={340}>
+        <At left={140} top={378}>
           <Shot
             shot="bestexec"
-            crop={{x: 0.155, y: 0.18, w: 0.66, h: 0.125}}
+            crop={{x: 0.155, y: 0.178, w: 0.66, h: 0.136}}
             width={1640}
             zoom={1.02}
             zoomFrames={150}
             boxes={[{x: 0.524, y: 0.2735, w: 0.192, h: 0.026, at: 40}]}
           />
         </At>
-        <At left={140} top={650} width={1640}>
+        <At left={140} top={700} width={1640}>
           <FadeIn at={20}>
             <Caption
               lead="Sixteen best execution attestations on the ledger."
@@ -346,7 +346,7 @@ export const Tirai: React.FC = () => {
         <At left={150} top={185}>
           <Shot
             shot="rails"
-            crop={{x: 0.17, y: 0.2, w: 0.815, h: 0.365}}
+            crop={{x: 0.17, y: 0.2, w: 0.815, h: 0.377}}
             width={1620}
             zoom={1.018}
             zoomFrames={227}
@@ -377,16 +377,16 @@ export const Tirai: React.FC = () => {
         <At left={150} top={160}>
           <Eyebrow>Portfolio &middot; read from one party's own node</Eyebrow>
         </At>
-        <At left={150} top={260}>
+        <At left={150} top={300}>
           <Shot
             shot="registry"
-            crop={{x: 0.158, y: 0.18, w: 0.265, h: 0.44}}
-            width={560}
+            crop={{x: 0.155, y: 0.178, w: 0.34, h: 0.4}}
+            width={700}
             zoom={1.02}
             zoomFrames={135}
           />
         </At>
-        <At left={830} top={440} width={950}>
+        <At left={950} top={450} width={820}>
           <FadeIn at={26}>
             <Caption
               lead="Every balance here is read live off the ledger."

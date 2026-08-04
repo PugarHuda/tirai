@@ -130,7 +130,7 @@ Keep it simple — this block is spoken, not shown.
 > leakage is the whole cost. And alongside the desks, the venues that would host Tirai as an
 > embedded app: Temple, Bron, Console, Canton Loop.
 >
-> How it makes money. A per-trade venue fee, basis points of notional, in the settlement
+> How it would make money. A per-trade venue fee, basis points of notional, in the settlement
 > asset — collected atomically inside the settlement transaction. If the trade settles, the
 > fee is paid. No invoicing, no collection risk. On top, CIP-0047 featured-app markers accrue
 > network rewards on every settlement.
@@ -144,8 +144,10 @@ Keep it simple — this block is spoken, not shown.
   the ICP document in `scripts/make-pdf.mjs`.
 - ICP (desks at banks, asset managers, prop shops) and the hosting venues (Temple, Bron,
   Console, Canton Loop): grounded, `SUBMISSION.md`.
-- Fee = bps of notional in the settlement asset, taken atomically; CIP-0047 activity
-  markers: grounded, `SUBMISSION.md`.
+- Fee = bps of notional in the settlement asset, taken inside the settlement transaction:
+  that is the **design**, and it is not in the model. There is no fee field in
+  `daml/Tirai.daml` and no CIP-0047 marker in the code. Say "designed, not built, a field
+  and a day of work" if anyone asks whether it runs today. Do not imply it does.
 - **The bps number itself is deliberately not stated — it is not set.** If asked, say so:
   it comes out of the design-partner conversation, not out of your head.
 - **[assumption]** Any total-market or revenue figure. There is no TAM number in this repo.
@@ -324,12 +326,13 @@ distribution of asks improves. The buyer also has the direct-OTC rail — `Settl
 live and both are covered by tests.
 
 **Q5. Who pays, and how much?**
-A per-trade venue fee, in basis points of notional, taken in the settlement asset atomically
-at settlement — the same economics as any OTC venue, except the contract collects it rather
-than an invoice, so there is no collection risk. On top of that, CIP-0047 featured-app
-activity markers accrue network rewards on every settlement, so a busy desk earns from the
-volume it clears. I have not set the bps yet, deliberately: that number should come out of
-the design-partner conversation, not out of my head. Zero revenue today.
+The design is a per-trade venue fee, in basis points of notional, taken in the settlement
+asset inside the settlement transaction: the same economics as any OTC venue, except that
+if the trade settles the fee settled with it, so there is nothing to invoice and nothing to
+chase. Be precise if pressed: that is designed, not built. There is no fee field in the
+Daml model today and no CIP-0047 marker in the code, and I have deliberately not set the
+bps, because that number should come out of the design-partner conversation. Zero revenue
+today, by construction.
 
 **Q6. What is the regulatory posture? A private venue sounds like the opposite of what
 regulators want.**

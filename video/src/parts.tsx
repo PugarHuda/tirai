@@ -1,8 +1,7 @@
 import React from 'react';
-import {AbsoluteFill, Img, interpolate, staticFile, useCurrentFrame} from 'remotion';
+import {Img, interpolate, staticFile, useCurrentFrame} from 'remotion';
 import {
   ACCENT_HI,
-  LINE,
   MONO,
   RADIUS,
   RAIL_INK,
@@ -30,16 +29,6 @@ export const clampFade = (
     extrapolateRight: 'clamp',
   });
   return Math.min(rise, fall);
-};
-
-/** Whole-scene fade, so cuts read as dissolves rather than jumps. */
-export const Scene: React.FC<{
-  durationInFrames: number;
-  children: React.ReactNode;
-}> = ({durationInFrames, children}) => {
-  const frame = useCurrentFrame();
-  const opacity = clampFade(frame, 0, 14, durationInFrames - 16, 16);
-  return <AbsoluteFill style={{opacity}}>{children}</AbsoluteFill>;
 };
 
 export type Rect = {x: number; y: number; w: number; h: number};
@@ -214,6 +203,3 @@ export const PanelLabel: React.FC<{
   </div>
 );
 
-export const Hairline: React.FC<{width: number; opacity?: number}> = ({width, opacity = 1}) => (
-  <div style={{width, height: 1, background: LINE, opacity: opacity * 0.14}} />
-);

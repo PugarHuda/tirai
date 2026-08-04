@@ -1,7 +1,7 @@
 # Tirai — HackCanton Season #2 submission
 
 **Confidential multi-dealer RFQ / OTC desk on Canton, settling in real
-CIP-0056 assets (cETH, CBTC, Canton Coin, USDCx).**
+CIP-0056 assets: live in Canton Coin and CBTC, with cETH on the same code path.**
 
 - **Repo:** https://github.com/PugarHuda/tirai (public)
 - **Live desk:** https://tirai.vercel.app — read-only, over real Devnet state
@@ -49,19 +49,23 @@ neither does. A regulator sees **executed trades only** — full post-trade audi
 zero pre-trade visibility. On Canton this privacy is not cryptography bolted on;
 it is the ledger's `signatory`/`observer` model.
 
-**The cash leg is real.** Settlement clears in **cETH, CBTC, Canton Coin or
-USDCx** via the CIP-0056 token standard's allocation flow — one integration, every
-asset. cETH/CBTC drive the actual value movement to the winning dealer.
+**The cash leg is real.** Settlement clears through the CIP-0056 token standard's
+allocation flow, and the desk has done it twice over: **Canton Coin** issued by the
+DSO, and **CBTC** issued by BitSafe through the DA Utility Registry. One integration,
+any registry: `cashInstrument` is any `{admin, id}`. **cETH has not moved yet** — it is
+the same code path, waiting on the token grant.
 
 **Ideal customer profile.** Fixed-income and crypto-asset trading desks at banks,
 asset managers, and prop shops that trade in size and cannot afford to signal;
 plus the venues (Temple, Bron, Console, Canton Loop) that would host the desk.
 
-**Who pays, and how.** A per-trade venue fee in the settlement asset (bps of
-notional), taken atomically at settlement — the same economics as an OTC venue,
-now enforced by the contract rather than invoiced. Featured-app activity markers
-(CIP-0047) accrue network rewards on every settlement, so a live desk keeps
-earning from the volume it clears.
+**Who pays, and how.** A per-trade venue fee in the settlement asset, basis
+points of notional. The design is to take it inside the settlement transaction,
+which is what makes it uncollectable-by-accident rather than invoiced: if the
+trade settles, the fee settled with it. **It is not in the model yet** — there is
+no fee field in `daml/Tirai.daml` today, and the rate is deliberately unset until
+a design partner argues about it. Featured-app activity markers (CIP-0047) are the
+intended second line, also not yet implemented.
 
 **Why Canton, specifically.** Sub-transaction privacy makes sealed quotes native —
 no ZK circuits, no TEEs, no FHE (we built this thesis four other ways on four other
@@ -77,10 +81,11 @@ together.
 - **Price discovery:** competitive multi-dealer RFQ. Reverse-Vickrey clears the
   cheapest ask at the *second* price (truthful bidding), or the buyer lifts a
   single ask directly (direct OTC). Partial fills on both rails.
-- **Value movement:** every settlement is a real CIP-0056 `Allocation_ExecuteTransfer`
-  of cETH/CBTC to the winning dealer, atomic against bond delivery. Each trade is
-  an on-chain cETH/CBTC transaction — the exact "recurring settlement activity"
-  the bounty rubric measures.
+- **Value movement:** a settlement on a registry rail is a real CIP-0056
+  `Allocation_ExecuteTransfer` to the winning dealer, atomic against bond delivery.
+  Eight of them exist on-ledger today: six in Canton Coin, two in CBTC. That is the
+  "recurring settlement activity" the bounty rubric measures, and cETH joins it the
+  day its tokens land.
 - **Incentive alignment:** sealed quotes remove the incentive to fade a visible
   order; escrow-on-quote removes counterparty risk; the regulator's post-trade-only
   view removes the surveillance objection to on-chain trading.
@@ -96,7 +101,7 @@ together.
    live Devnet state and put it in front of one fixed-income and one crypto-native
    trading desk for feedback on the quote/award/settle flow and the audit view.
 3. **Mainnet pilot (4–8 weeks).** Deploy `tirai-desk` to a hosting venue (Temple /
-   Bron / Console), turn on the per-trade venue fee and featured-app markers, and
+   Bron / Console), add the fee field and the featured-app markers to the model, and
    run a supervised pilot with a small dealer panel on a single instrument class.
 
 **Required integrations:** onRails cETH registry (allocation API + faucet),
