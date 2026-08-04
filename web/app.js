@@ -675,7 +675,29 @@ function renderActivity() {
 
 // ---- create ------------------------------------------------------------
 let createMode = 'auction';
+let railChoices = [];  // {id, admin, label} — refreshed whenever the create page renders
+
+// The rails this desk could settle on: its own mock cash, plus every token
+// standard asset the buyer actually holds. Picking one binds the RFQ to that
+// instrument, which is what the model checks before it will convert a quote into
+// a token trade.
+function railOptions() {
+  const deskCash = (lastAcs.buyer ?? []).find((c) => is(c, 'Holding') && c.arg.issuer === CFG_PARTIES.cashIssuer);
+  railChoices = [{ id: deskCash?.arg.instrument ?? 'USDC', admin: null, label: 'desk cash' }];
+  for (const r of registryRows ?? []) {
+    if (r.label !== 'Buyer') continue;
+    if (railChoices.some((c) => c.id === r.id && c.admin === r.admin)) continue;
+    railChoices.push({ id: r.id, admin: r.admin, label: r.admin.split('::')[0] });
+  }
+  return railChoices.map((c, i) =>
+    `<option value="${i}">${esc(c.id)}${c.admin ? ` · ${esc(c.label)}` : ' · desk cash'}</option>`).join('');
+}
+
 function renderCreate() {
+  registryAssets().then(() => {   // so a rail that just arrived is selectable
+    const sel = document.getElementById('c-rail');
+    if (sel && !document.activeElement?.isSameNode(sel)) sel.innerHTML = railOptions();
+  }).catch(() => {});
   document.querySelectorAll('#create-modes .mode').forEach((m) => m.classList.toggle('on', m.dataset.mode === createMode));
   const el = document.getElementById('create-form'); if (!el) return;
   if (el.contains(document.activeElement)) return; // don't wipe a half-typed form
@@ -683,9 +705,10 @@ function renderCreate() {
     <div class="form">
       <label>Instrument <input id="c-instrument" value="TBOND30" /></label>
       <label>Quantity <input id="c-qty" type="number" value="1000" /></label>
-      <label>Cash leg <input id="c-pay" value="USDC" /></label>
+      <label>Cash leg <select id="c-rail">${railOptions()}</select></label>
       <label>Dealer panel <span class="sub">${createMode === 'auction' ? 'Dealer A and Dealer B' : 'Dealer A only'}</span></label>
       <button id="c-submit">${createMode === 'auction' ? 'Open the auction' : 'Send to the counterparty'}</button>
+      <p class="sub" id="c-rail-note"></p>
       <p class="sub">${createMode === 'auction'
         ? 'Both dealers are invited and answer sealed. The cheapest ask wins and is paid the second-cheapest price, so quoting honestly is the dealer\'s best strategy.'
         : 'One counterparty is invited, and you settle at its own ask — the same sealed request and the same atomic delivery-versus-payment.'}</p>
@@ -1032,7 +1055,8 @@ async function createRFQ(btn) {
   const fromPage = btn?.id === 'c-submit';
   const val = (id) => document.getElementById(id)?.value ?? '';
   const instrument = (fromPage ? val('c-instrument') : val('rfq-instrument')).trim();
-  const payInstrument = (fromPage ? val('c-pay') : val('rfq-pay')).trim();
+  const rail = fromPage ? (railChoices[Number(val('c-rail'))] ?? railChoices[0]) : null;
+  const payInstrument = (fromPage ? (rail?.id ?? 'USDC') : val('rfq-pay')).trim();
   const quantity = posDec(fromPage ? val('c-qty') : val('rfq-qty'));
   const panel = fromPage && createMode === 'direct' ? [P.dealerA] : [P.dealerA, P.dealerB];
   if (!instrument || !payInstrument) return toast('instrument and pay currency are required', true);
@@ -1042,7 +1066,10 @@ async function createRFQ(btn) {
       await submit(P.buyer, { CreateCommand: { templateId: `${PKG}:Tirai:RFQ`, createArguments: {
         buyer: P.buyer, regulator: P.regulator, invitedDealers: panel,
         instrument, quantity, payInstrument,
-        assetIssuer: CFG_PARTIES.bondIssuer ?? null, payIssuer: CFG_PARTIES.cashIssuer ?? null,
+        assetIssuer: CFG_PARTIES.bondIssuer ?? null,
+        // A registry rail binds the RFQ to that registrar, so the winning quote can
+        // only ever be converted into a token trade in that exact instrument.
+        payIssuer: (rail?.admin ?? CFG_PARTIES.cashIssuer) ?? null,
         // Daml Time as RFC3339 without fractional seconds (the form the ledger's
         // codec is known to accept everywhere else); open for 24h.
         deadline: new Date(Date.now() + 86400000).toISOString().replace(/\.\d+Z$/, 'Z') } } });
@@ -1269,6 +1296,14 @@ async function rejectBasket(quoteCid, tpl, btn) {
 // ---- production shell: identity, the book, dialogs ----
 document.getElementById('acting-as')?.addEventListener('change', (e) => setActing(e.target.value));
 document.getElementById('rfq-search')?.addEventListener('input', () => renderActive());
+document.addEventListener('change', (e) => {
+  if (e.target.id !== 'c-rail') return;
+  const rail = railChoices[Number(e.target.value)];
+  const note = document.getElementById('c-rail-note');
+  if (note) note.textContent = rail?.admin
+    ? `Settles through ${rail.id}'s own registry: the winning quote becomes a token trade, the registry moves the cash, and the bond leaves escrow in the same transaction.`
+    : 'Settles in the desk’s own cash token, straight from escrow.';
+});
 document.getElementById('btn-new-rfq')?.addEventListener('click', () => showView('create'));
 document.getElementById('modal-x')?.addEventListener('click', closeModal);
 document.getElementById('modal-host')?.addEventListener('click', (e) => { if (e.target.id === 'modal-host') closeModal(); });
