@@ -781,6 +781,31 @@ async function tidy() {
 const V = () => (ENV.DEVNET_VALIDATOR_URL ?? '').replace(/\/$/, '');
 const REGISTRY = () => V() + '/api/validator/v0/scan-proxy/registry';
 
+// Canton Coin's registry is reached through this validator's scan proxy. Every
+// other registry publishes its own API, and the DA Utility Registry (which issues
+// CBTC on DevNet) namespaces it per registrar party. Nothing on-ledger tells you
+// the URL, so it is configuration.
+const UTILITY_REGISTRY = (process.env.REGISTRY_URL ?? 'https://api.utilities.digitalasset-dev.com').replace(/\/$/, '');
+const registryBase = (admin) => admin.startsWith('DSO::')
+  ? REGISTRY()
+  : `${UTILITY_REGISTRY}/api/token-standard/v0/registrars/${admin}/registry`;
+
+async function regAt(base, path, json) {
+  const t = await token();
+  const r = await fetch(base + path, {
+    method: json === undefined ? 'GET' : 'POST',
+    // A foreign registry does not accept this validator's token; it does not ask
+    // for one either. Only send the bearer to our own validator.
+    headers: { ...(base.startsWith(V()) ? { authorization: `Bearer ${t}` } : {}),
+      ...(json === undefined ? {} : { 'content-type': 'application/json' }) },
+    body: json === undefined ? undefined : JSON.stringify(json),
+  });
+  const text = await r.text();
+  let data; try { data = JSON.parse(text); } catch { data = text; }
+  if (!r.ok) throw new Error(`registry ${path} → ${r.status}: ${JSON.stringify(data).slice(0, 300)}`);
+  return data;
+}
+
 async function reg(path, json) {
   if (!V()) throw new Error('set DEVNET_VALIDATOR_URL in the env file to reach the token registry');
   const t = await token();
@@ -1002,7 +1027,7 @@ async function ccTrade({ instrument, quantity, asks, mode = 'vickrey', p, dealer
       extraArgs: { context: { values: {} }, meta: { values: {} } },
     };
     try {
-      const f = await reg('/allocation-instruction/v1/allocation-factory', { choiceArguments: args });
+      const f = await regAt(registryBase(admin), '/allocation-instruction/v1/allocation-factory', { choiceArguments: args });
       const tx = await submit(p.buyer, { ExerciseCommand: {
         templateId: IFACE.allocFactory, contractId: f.factoryId, choice: 'AllocationFactory_Allocate',
         choiceArgument: { ...args, extraArgs: ctxArgs(f.choiceContext) },
@@ -1017,7 +1042,7 @@ async function ccTrade({ instrument, quantity, asks, mode = 'vickrey', p, dealer
   // One atomic transaction: the registry moves the cash, the desk delivers the
   // bond out of escrow, the regulator gets its report. DvP or nothing.
   for (let i = 0; i < 4; i++) {
-    const ctx = await reg(`/allocations/v1/${allocCid}/choice-contexts/execute-transfer`, {});
+    const ctx = await regAt(registryBase(admin), `/allocations/v1/${allocCid}/choice-contexts/execute-transfer`, {});
     try {
       await submit(p.buyer, { ExerciseCommand: {
         templateId: `${PKG}:Tirai:TokenTrade`, contractId: tradeCid, choice: 'TokenTrade_Settle',
@@ -1128,7 +1153,6 @@ async function acceptIncoming() {
   const pending = await heldVia(party, IFACE.transferInstruction);
   if (!pending.length) { console.log('nothing pending for', party.split('::')[0]); return; }
 
-  const base = (process.env.REGISTRY_URL ?? '').replace(/\/$/, '');
   for (const c of pending) {
     const v = ifaceView(c) ?? {};
     const t = v.transfer ?? {};
@@ -1136,19 +1160,10 @@ async function acceptIncoming() {
     // The registry decides what its accept needs. Canton Coin's context comes from
     // the scan proxy; a foreign registry's must come from its own API, and without
     // it the ledger refuses with "Missing context entry".
-    const isAmulet = t.instrumentId?.id === 'Amulet';
     let ctx;
     try {
-      ctx = isAmulet
-        ? await reg(`/transfer-instruction/v1/${c.contractId}/choice-contexts/accept`, {})
-        : await (async () => {
-            if (!base) throw new Error('set REGISTRY_URL to the API base of the registry that issued it');
-            const r = await fetch(`${base}/registry/transfer-instruction/v1/${c.contractId}/choice-contexts/accept`,
-              { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
-            const text = await r.text();
-            if (!r.ok) throw new Error(`registry ${r.status}: ${text.slice(0, 200)}`);
-            return JSON.parse(text);
-          })();
+      ctx = await regAt(registryBase(t.instrumentId.admin),
+        `/transfer-instruction/v1/${c.contractId}/choice-contexts/accept`, {});
     } catch (e) {
       console.log(`  cannot build the accept context: ${e.message}`);
       console.log('  the offer stays on-ledger until it expires, so this is retryable.');
@@ -1160,6 +1175,54 @@ async function acceptIncoming() {
     } }, { disclosed: disclose(ctx), effects: true });
     console.log('  accepted.');
   }
+}
+
+// Settle in an asset issued by a registry that is not Canton Coin's. The desk does
+// not care which: `cashInstrument` is any {admin, id}, and the only thing that
+// changes is where the choice contexts come from.
+//   node scripts/devnet.mjs seed-foreign CBTC
+async function seedForeign() {
+  const p = await partyMap();
+  const want = (process.argv[3] ?? 'CBTC').toUpperCase();
+
+  // Find the instrument by looking at what the buyer actually holds — the desk
+  // learns the registrar party from the holding, not from configuration.
+  const held = (await heldVia(p.buyer, IFACE.holding)).map(ifaceView).filter(Boolean)
+    .filter((v) => v.instrumentId.id.toUpperCase() === want && !v.lock);
+  if (!held.length) {
+    console.log(`the buyer holds no ${want}. Request some to`);
+    console.log(' ', p.buyer);
+    console.log('then run `node scripts/devnet.mjs accept-incoming` and try again.');
+    return;
+  }
+  const admin = held[0].instrumentId.admin;
+  const CASH = { admin, id: held[0].instrumentId.id };
+  const balance = held.reduce((a, v) => a + Number(v.amount), 0);
+  const info = await regAt(registryBase(admin), '/metadata/v1/info');
+  const apis = Object.keys(info.supportedApis ?? {});
+  console.log(`${CASH.id} · registrar ${admin.split('::')[0]} · buyer holds ${balance}`);
+  console.log(`allocation API: ${apis.some((k) => k.includes('allocation-v1')) ? 'supported' : 'MISSING — DvP cannot settle'}`);
+
+  const cashOf = async (party) => (await heldVia(party, IFACE.holding)).filter((h) => {
+    const v = ifaceView(h);
+    return v.instrumentId.id === CASH.id && v.instrumentId.admin === admin && !v.lock;
+  });
+  const dealers = { A: p.dealerA, B: p.dealerB };
+  // Sized to a faucet's worth of a scarce asset: a whole Bitcoin is not 4.2m of
+  // anything, and the point is the rail, not the notional.
+  const book = [
+    { instrument: 'XBTC5Y', quantity: '500.0', asks: [{ dealer: 'A', price: '0.30' }, { dealer: 'B', price: '0.34' }] },
+    { instrument: 'XBTC10Y', quantity: '300.0', asks: [{ dealer: 'B', price: '0.22' }], mode: 'direct' },
+  ];
+  const done = [];
+  for (const t of book) {
+    try { done.push(await ccTrade({ ...t, p, dealers, admin, CASH, cashOf })); }
+    catch (e) { console.log(`· FAILED ${t.instrument}: ${String(e.message ?? e).slice(0, 200)}`); }
+  }
+  console.log(`
+${done.length}/${book.length} settled in ${CASH.id}:`);
+  for (const d of done) console.log(`· ${d.mode === 'direct' ? 'direct OTC' : 'Vickrey   '} ${d.instrument.padEnd(8)} ${d.clearing} ${CASH.id} → ${d.dealer.split('::')[0]}`);
+  console.log(`buyer ${(await cashOf(p.buyer)).reduce((a, h) => a + Number(ifaceView(h).amount), 0)} ${CASH.id} left`);
 }
 
 // Importing this file (the logic test does) must not run a command.
@@ -1179,7 +1242,8 @@ if (cmd !== null) (async () => {
   else if (cmd === 'seed-cc') await seedCc();
   else if (cmd === 'seed-book') await seedBook();
   else if (cmd === 'accept-incoming') await acceptIncoming();
+  else if (cmd === 'seed-foreign') await seedForeign();
   else if (cmd === 'tidy') await tidy();
   else if (cmd === 'verify') await verify();
-  else console.log('usage: probe | upload <dar> | allocate | seed | settle-demo | seed-basket | seed-cases | seed-bestexec | seed-cc | seed-book | accept-incoming | tidy | verify');
+  else console.log('usage: probe | upload <dar> | allocate | seed | settle-demo | seed-basket | seed-cases | seed-bestexec | seed-cc | seed-book | accept-incoming | seed-foreign <ID> | tidy | verify');
 })().catch((e) => { console.error('ERR', e.message); process.exit(1); });
