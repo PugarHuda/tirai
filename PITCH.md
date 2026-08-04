@@ -135,8 +135,9 @@ Keep it simple — this block is spoken, not shown.
 ### Block 4 · 3:00 – 4:00 · Demo and team
 
 **On screen, in this order — pre-open these tabs:** the desk's **Verify privacy** tab (green
-verdict), then **Best execution**, then `daml/Tirai.daml` at `TokenTrade_Settle` or the
-terminal scrollback of the Canton Coin settlement.
+verdict), then **Best execution**, then **Portfolio**, scrolled to the *Registry assets* table
+— it shows each desk's balance in Canton Coin, issuer `DSO`, read live off the ledger. That
+table is the settlement proof; you no longer need the terminal for it.
 
 *(~145 words)*
 
@@ -154,8 +155,9 @@ terminal scrollback of the Canton Coin settlement.
 > ask, from quotes selectively disclosed to the regulator.
 >
 > Your feedback asked for real external settlement. Done: the cash leg now settles in real
-> Canton Coin, through the DSO-run Token Standard registry. An issuer I do not control. cETH
-> and CBTC are the same code path.
+> Canton Coin, through the DSO-run Token Standard registry. An issuer I do not control — and
+> that is the dealers' balance in it, on the ledger, right there. cETH and CBTC are the same
+> code path.
 >
 > I need one design-partner desk. Tirai — you whisper quotes, the market hears nothing.
 

@@ -192,9 +192,10 @@ report. cETH and CBTC are the identical code path, waiting on a token grant
 rather than on engineering.
 
 **The number is confirmed:** six trades settled in real Canton Coin — four
-reverse-Vickrey, two direct OTC, 60,900 CC moved to the winning dealers. Say it
-as one clause — *"…an issuer I do not control; six settlements so far"* — and
-nothing more. Anything beyond that is improvisation.
+reverse-Vickrey, two direct OTC, 60,900 CC moved to the winning dealers. Show it
+rather than say it: the desk's **Portfolio** view has a *Registry assets* table
+listing each party's Canton Coin balance and the issuer (`DSO`). Buyer 39,100,
+Dealer A 45,350, Dealer B 15,550. One clause spoken, the table does the rest.
 
 ### Slide 13 — One person. Fifth implementation. (3:48, 6s)
 
