@@ -746,18 +746,26 @@ async function tidy() {
   // the built-in Archive clears the shells a settled basket leaves behind
   // (SettleBasket archives the quote, not the request).
   const basketOrphans = orphansOf(ev, 'BasketRFQ', 'BasketQuote');
-  for (const b of basketOrphans) {
-    await submit(p.buyer, { ExerciseCommand: { templateId: `${PKG}:Tirai:BasketRFQ`, contractId: b.contractId, choice: 'Archive', choiceArgument: {} } });
-    console.log(`· archived orphan BasketRFQ (${(b.createArgument.legs ?? []).length} legs)`);
+  const all = process.argv.includes('--all');
+  // The whole point of the gate is "I will not touch your live book unless you
+  // say so", and archiving baskets ahead of it broke that promise quietly.
+  if (basketOrphans.length && all) {
+    for (const b of basketOrphans) {
+      await submit(p.buyer, { ExerciseCommand: { templateId: `${PKG}:Tirai:BasketRFQ`, contractId: b.contractId, choice: 'Archive', choiceArgument: {} } });
+      console.log(`· archived orphan BasketRFQ (${(b.createArgument.legs ?? []).length} legs)`);
+    }
   }
   if (!orphans.length) {
-    console.log(basketOrphans.length ? `tidy: archived ${basketOrphans.length} orphan BasketRFQ(s); no orphan single RFQs.` : 'tidy: no orphan RFQs.');
+    console.log(basketOrphans.length
+      ? (all ? `tidy: archived ${basketOrphans.length} orphan BasketRFQ(s); no orphan single RFQs.`
+             : `tidy: ${basketOrphans.length} orphan BasketRFQ(s) found, NOT archived. Re-run with --all.`)
+      : 'tidy: no orphan RFQs.');
     return;
   }
   // This cancels EVERY quote-less RFQ, and `seed-book` deliberately leaves several
   // open with no asks yet — sweeping them guts the live book. It has happened once.
   // Make the caller say so out loud.
-  if (!process.argv.includes('--all')) {
+  if (!all) {
     console.log(`tidy: ${orphans.length} quote-less RFQ(s) found — NOT cancelled.`);
     console.log("       Some are the live book's un-quoted requests. Re-run `tidy --all` to cancel them anyway.");
     return;
@@ -791,12 +799,14 @@ const registryBase = (admin) => admin.startsWith('DSO::')
   : `${UTILITY_REGISTRY}/api/token-standard/v0/registrars/${admin}/registry`;
 
 async function regAt(base, path, json) {
-  const t = await token();
+  // Only our own validator gets the bearer. V() is empty when unconfigured, and
+  // startsWith('') is true for every string, so the old test handed this
+  // validator's token to any third-party registry we called.
+  const ours = !!V() && base.startsWith(V());
+  const t = ours ? await token() : null;
   const r = await fetch(base + path, {
     method: json === undefined ? 'GET' : 'POST',
-    // A foreign registry does not accept this validator's token; it does not ask
-    // for one either. Only send the bearer to our own validator.
-    headers: { ...(base.startsWith(V()) ? { authorization: `Bearer ${t}` } : {}),
+    headers: { ...(ours ? { authorization: `Bearer ${t}` } : {}),
       ...(json === undefined ? {} : { 'content-type': 'application/json' }) },
     body: json === undefined ? undefined : JSON.stringify(json),
   });
@@ -1111,11 +1121,11 @@ async function seedBook() {
     }
     // Top up sealed quotes: a dealer may only quote once, and only with a lot of
     // exactly the requested size.
-    const already = new Set((await ofTemplate(p.buyer, 'Quote'))
+    const alreadyQuoted = new Set((await ofTemplate(p.buyer, 'Quote'))
       .filter((q) => optionalCid(q.arg.rfqId) === rfq).map((q) => q.arg.dealer));
     for (let i = 0; i < asks.length; i++) {
       const dealer = partyOf[panel[i]];
-      if (!dealer || already.has(dealer)) continue;
+      if (!dealer || alreadyQuoted.has(dealer)) continue;
       const lot = (await ofTemplate(dealer, 'Holding')).find((h) => h.arg.instrument === inst && h.arg.amount === qty)?.cid
         ?? cidOf(await submit(p.bondIssuer, createHolding(p.bondIssuer, dealer, inst, qty)));
       await submit(dealer, { ExerciseCommand: { templateId: `${PKG}:Tirai:RFQ`, contractId: rfq,
@@ -1125,12 +1135,12 @@ async function seedBook() {
     // Leave every invited dealer that has NOT quoted holding a matching lot, so the
     // "Quote" action on the desk opens a real dialog instead of explaining why it
     // cannot. A dealer can only back a quote with a lot of exactly the RFQ size.
-    const quoted = new Set((await ofTemplate(p.buyer, 'Quote'))
+    const haveQuoted = new Set((await ofTemplate(p.buyer, 'Quote'))
       .filter((q) => optionalCid(q.arg.rfqId) === rfq).map((q) => q.arg.dealer));
     let stocked = 0;
     for (const d of panel) {
       const dealer = partyOf[d];
-      if (!dealer || quoted.has(dealer)) continue;
+      if (!dealer || haveQuoted.has(dealer)) continue;
       const has = (await ofTemplate(dealer, 'Holding')).some((h) => h.arg.instrument === inst && h.arg.amount === qty);
       if (!has) { await submit(p.bondIssuer, createHolding(p.bondIssuer, dealer, inst, qty)); stocked++; }
     }
@@ -1160,20 +1170,21 @@ async function acceptIncoming() {
     // The registry decides what its accept needs. Canton Coin's context comes from
     // the scan proxy; a foreign registry's must come from its own API, and without
     // it the ledger refuses with "Missing context entry".
-    let ctx;
+    // Only the receiver can accept, and this party can see instructions it sent too.
+    if (t.receiver !== party) { console.log('  not addressed to this party — skipped'); continue; }
     try {
-      ctx = await regAt(registryBase(t.instrumentId.admin),
+      const ctx = await regAt(registryBase(t.instrumentId.admin),
         `/transfer-instruction/v1/${c.contractId}/choice-contexts/accept`, {});
+      await submit(party, { ExerciseCommand: {
+        templateId: IFACE.transferInstruction, contractId: c.contractId, choice: 'TransferInstruction_Accept',
+        choiceArgument: { extraArgs: ctxArgs(ctx) },
+      } }, { disclosed: disclose(ctx), effects: true });
+      console.log('  accepted.');
     } catch (e) {
-      console.log(`  cannot build the accept context: ${e.message}`);
-      console.log('  the offer stays on-ledger until it expires, so this is retryable.');
-      continue;
+      // One transfer we cannot take must not stop the ones we can.
+      console.log(`  could not accept: ${String(e.message ?? e).slice(0, 160)}`);
+      console.log('  it stays on-ledger until it expires, so this is retryable.');
     }
-    await submit(party, { ExerciseCommand: {
-      templateId: IFACE.transferInstruction, contractId: c.contractId, choice: 'TransferInstruction_Accept',
-      choiceArgument: { extraArgs: ctxArgs(ctx) },
-    } }, { disclosed: disclose(ctx), effects: true });
-    console.log('  accepted.');
   }
 }
 
@@ -1214,6 +1225,14 @@ async function seedForeign() {
     { instrument: 'XBTC5Y', quantity: '500.0', asks: [{ dealer: 'A', price: '0.30' }, { dealer: 'B', price: '0.34' }] },
     { instrument: 'XBTC10Y', quantity: '300.0', asks: [{ dealer: 'B', price: '0.22' }], mode: 'direct' },
   ];
+  // What the book will actually cost: a Vickrey trade clears at the SECOND price.
+  const cost = book.reduce((a, t) => a + Math.max(...t.asks.map((x) => Number(x.price))), 0);
+  if (balance < cost) {
+    console.log(`not enough ${CASH.id}: the book needs ${cost} and this party holds ${balance}.`);
+    console.log('Request more, accept it with `accept-incoming`, then run this again.');
+    return;
+  }
+
   const done = [];
   for (const t of book) {
     try { done.push(await ccTrade({ ...t, p, dealers, admin, CASH, cashOf })); }

@@ -495,6 +495,10 @@ function rfqRows() {
       canQuote: mine.some((c) => is(c, 'Holding') && c.arg.owner === me
         && c.arg.instrument === r.arg.instrument && Number(c.arg.amount) === Number(r.arg.quantity)),
       mode: invited.length > 1 ? 'Auction' : 'Direct',
+      // Bound to a registry rail: its cash leg is an asset some other registrar
+      // issues, so settling it runs the token-standard allocation flow.
+      railBound: !!r.arg.payIssuer && r.arg.payIssuer !== CFG_PARTIES.cashIssuer,
+      payIssuer: r.arg.payIssuer,
       mine: r.arg.buyer === me, forMe: invited.includes(me),
       status: qs.length ? 'Open' : 'Awaiting quotes', price: null,
     };
@@ -513,7 +517,13 @@ function rfqRows() {
 // What this identity may do with a row, following the model's own rules.
 function rowAction(r) {
   if (r.kind === 'filled') return { label: 'Receipt', act: 'receipt' };
-  if (ACTING === 'buyer' && r.mine) return r.quotes ? { label: 'Settle', act: 'settle', primary: true } : { label: 'Cancel', act: 'cancel' };
+  if (ACTING === 'buyer' && r.mine) {
+    if (!r.quotes) return { label: 'Cancel', act: 'cancel' };
+    // Do not offer a plain Settle for a rail-bound request: the desk cannot reach
+    // the registry's off-ledger choice context from the browser, and an action
+    // that silently does nothing is worse than one that explains itself.
+    return r.railBound ? { label: 'Settle · token rail', act: 'railsettle' } : { label: 'Settle', act: 'settle', primary: true };
+  }
   if (isDealer() && r.forMe) {
     if (r.myQuote) return { label: 'Sealed', act: 'myquote' };
     // Offering "Quote" when this identity holds no lot of the right size promises
@@ -634,6 +644,21 @@ function openRow(cid, act) {
     return;
   }
   if (act === 'settle') { showView('desk'); refresh(); return; }
+  if (act === 'railsettle') {
+    const who = String(r.payIssuer ?? '').split('::')[0];
+    openModal(`Settle on the ${r.pay} rail`,
+      `<p class="sub">This request is bound to <span class="hi">${esc(r.pay)}</span>, issued by
+         <span class="mono">${esc(who)}</span>. Settling it runs the Canton Token Standard flow:
+         the winning quote becomes a <code>TokenTrade</code>, the registry locks the cash into an
+         <code>Allocation</code>, and <code>TokenTrade_Settle</code> executes the transfer against
+         the bond leaving escrow, in one transaction.</p>
+       <p class="sub">That needs the registry's off-ledger choice context, which is a server-side
+         call this browser cannot make. It runs from the deployer:</p>
+       <div class="card mono" style="font-size:12px">node scripts/devnet.mjs seed-foreign ${esc(r.pay)}</div>
+       <p class="sub">Requests on the desk's own cash settle here in the desk, with the Award and
+         Accept controls on the side-by-side view.</p>`, backToRow);
+    return;
+  }
   if (act === 'cancel') {
     openModal(`Cancel request · ${r.instrument}`,
       `<p class="sub">Withdraws the request. Any dealer that already quoted gets its escrowed lot back.</p>
@@ -696,7 +721,14 @@ function railOptions() {
 function renderCreate() {
   registryAssets().then(() => {   // so a rail that just arrived is selectable
     const sel = document.getElementById('c-rail');
-    if (sel && !document.activeElement?.isSameNode(sel)) sel.innerHTML = railOptions();
+    if (!sel || document.activeElement?.isSameNode(sel)) return;
+    // Rebuilding the options resets the select to the first entry. Remember what
+    // was chosen and put it back, or the request quietly goes out on desk cash
+    // while the note underneath still names the registry.
+    const chosen = railChoices[Number(sel.value)] ?? null;
+    sel.innerHTML = railOptions();
+    const again = railChoices.findIndex((c) => c.id === chosen?.id && c.admin === chosen?.admin);
+    if (again >= 0) sel.value = String(again);
   }).catch(() => {});
   document.querySelectorAll('#create-modes .mode').forEach((m) => m.classList.toggle('on', m.dataset.mode === createMode));
   const el = document.getElementById('create-form'); if (!el) return;
@@ -768,6 +800,14 @@ function renderBestExec() {
 }
 // Live, on-ledger privacy proof: count what each party's node actually holds.
 function renderVerify() {
+  // Until the other parties' nodes have actually been read, every count is zero
+  // and every check trivially passes. Say so instead of showing a green tick.
+  const readEverything = (lastAcs.dealerA?.length ?? 0) + (lastAcs.dealerB?.length ?? 0) + (lastReg?.length ?? 0) > 0;
+  if (!readEverything) {
+    const el = document.getElementById('verify-body');
+    if (el) el.innerHTML = '<div class="audit-empty">Reading each party’s node…</div>';
+    return;
+  }
   const el = document.getElementById('verify-body'); if (!el) return;
   const scan = (arr, party) => {
     const quotes = arr.filter((c) => is(c, 'Quote'));
@@ -890,7 +930,9 @@ const KNOWN_REGISTRARS = [
 
 async function renderRails() {
   const host = document.getElementById('rails-body'); if (!host) return;
-  const rows = await registryAssets().catch(() => []);
+  let rows, readFailed = false;
+  try { rows = await registryAssets(); }
+  catch { rows = []; readFailed = true; }
   // Group by instrument: one rail per asset, with who holds what on it.
   const rails = new Map();
   for (const r of rows) {
@@ -908,7 +950,7 @@ async function renderRails() {
       <code>{admin, id}</code> and asks that registry to move the money. So a rail is added by holding the asset,
       not by changing the desk.</p>
     <table class="audit"><thead><tr>
-      <th>Asset</th><th>Issued by</th><th>Registrar party</th><th class="num">Held by this desk</th><th>Settles</th>
+      <th>Asset</th><th>Issued by</th><th>Registrar party</th><th class="num">Held across the desk's parties</th><th>Settles</th>
     </tr></thead><tbody>
       <tr>
         <td class="hi">${esc(deskCash[0]?.arg.instrument ?? 'USDC')}</td>
@@ -928,7 +970,9 @@ async function renderRails() {
     ${rails.size ? `<p class="sub" style="margin-top:14px">Held across ${[...new Set(rows.map((r) => r.label))].join(', ')}.
       A cash leg on one of these rails settles through <code>AllocationFactory_Allocate</code> and
       <code>Allocation_ExecuteTransfer</code>, atomic against the bond leaving escrow.</p>`
-      : '<p class="sub" style="margin-top:14px">No external registry asset held yet. One arrives the moment a registry sends this desk a transfer.</p>'}
+      : readFailed
+        ? '<p class="sub" style="margin-top:14px">Could not read the holdings just now, so this list is incomplete. It is a failed read, not an empty book.</p>'
+        : '<p class="sub" style="margin-top:14px">No external registry asset held yet. One arrives the moment a registry sends this desk a transfer.</p>'}
     <p class="sub" style="margin-top:10px">Missing an asset you expected? It appears here as soon as the desk holds it.
       Nothing in the model is per-asset, so a new registry is a grant away, not a release away.</p>`;
 }
