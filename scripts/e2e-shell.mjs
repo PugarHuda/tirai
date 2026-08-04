@@ -11,6 +11,14 @@ const p = await b.newPage({ viewport: { width: 1600, height: 950 } });
 const errs = [];
 p.on('pageerror', (e) => errs.push(String(e).slice(0, 160)));
 p.on('console', (m) => m.type() === 'error' && errs.push(m.text().slice(0, 160)));
+// Which participant node each ACS read is actually addressed to — the pitch's
+// central claim is checkable in the network tab, so check it here.
+const reads = [];
+p.on('request', (r) => {
+  if (!/active-contracts/.test(r.url())) return;
+  const party = Object.keys(JSON.parse(r.postData() ?? '{}').filter?.filtersByParty ?? {})[0] ?? '?';
+  reads.push(party.split('::')[0]);
+});
 let pass = 0, total = 0;
 const say = (n, ok, d = '') => { total++; if (ok) pass++; console.log(`${ok ? '  ok  ' : '  FAIL'} ${n}${d ? ' — ' + d : ''}`); };
 const acting = async (role) => { await p.selectOption('#acting-as', role); await p.waitForTimeout(1500); };
@@ -61,6 +69,42 @@ say('buyer is offered Settle once a quote lands', settle >= 1, `${settle} settle
 await p.click('.side-nav a[data-view="activity"]');
 await p.waitForTimeout(700);
 say('activity log recorded the session', (await p.locator('#activity-body').innerText()).includes('Opened a request'));
+
+// --- the audit's findings, so they cannot come back quietly -----------------
+console.log('  · regression checks from the front-end audit');
+await p.click('.side-nav a[data-view="rfqs"]'); await p.waitForTimeout(1500);
+reads.length = 0; await p.waitForTimeout(4000);
+const partiesRead = [...new Set(reads)];
+say('the home view reads only the signed-in node', partiesRead.every((x) => /buyer/i.test(x)), partiesRead.join(', '));
+
+await p.locator('.rfq-chip[data-filter="mine"]').click(); await p.waitForTimeout(500);
+await acting('dealerA');
+say('a filter does not survive an identity switch', /All/i.test(await p.locator('.rfq-chip.on').innerText()));
+say('the tiles follow the identity', /Requests to you/i.test(await p.locator('#lab-rfqs').innerText()));
+say('the active filter is not colour-only', (await p.locator('.rfq-chip.on').getAttribute('aria-pressed')) === 'true');
+say('rows are reachable from the keyboard', (await p.locator('.rfq-table tbody tr').first().getAttribute('tabindex')) === '0');
+
+await p.locator('.rfq-chip[data-filter="mine"]').focus();
+await p.waitForTimeout(4200); // two polls
+say('the poll does not steal keyboard focus', /rfq-chip/.test(await p.evaluate(() => document.activeElement?.className ?? '')));
+
+const opener = p.locator('.rfq-act').first();
+await opener.click(); await p.waitForTimeout(900);
+// Focus must move into the dialog. A body control wins; the close button is the
+// correct fallback for a dialog that only reports something.
+say('focus moves into the dialog', await p.evaluate(() => {
+  const host = document.getElementById('modal-host');
+  const a = document.activeElement;
+  const bodyFirst = document.querySelector('#modal-body input, #modal-body select, #modal-body button');
+  return !!host?.contains(a) && (bodyFirst ? a === bodyFirst : a?.id === 'modal-x');
+}));
+await p.keyboard.press('Escape'); await p.waitForTimeout(600);
+say('closing returns focus to the row it came from',
+  /rfq-act/.test(await p.evaluate(() => document.activeElement?.className ?? '')));
+
+await p.click('.side-nav a[data-view="portfolio"]'); await p.waitForTimeout(2500);
+const pf = await p.locator('#portfolio-body').innerText();
+say('the portfolio shows one identity only', (pf.match(/— you/g) ?? []).length === 1, pf.split(/\r?\n/)[0]);
 
 say('no page errors', errs.length === 0, errs[0] ?? '');
 await b.close();

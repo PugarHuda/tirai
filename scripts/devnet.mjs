@@ -204,13 +204,23 @@ async function submit(actAs, command, { disclosed = [], effects = false } = {}) 
   const commandId = `tirai-${Date.now()}-${CID++}`; // stable across retries → dedup on the ledger
   let last;
   for (let i = 0; i < 6; i++) {
-    const r = await api('/v2/commands/submit-and-wait-for-transaction', { method: 'POST', json: {
+    let r;
+    try {
+      r = await api('/v2/commands/submit-and-wait-for-transaction', { method: 'POST', json: {
       commands: { userId: USER, commandId, actAs: [actAs], commands: [command], disclosedContracts: disclosed },
       ...(effects ? { transactionFormat: {
         eventFormat: { filtersByParty: { [actAs]: { cumulative: [{ identifierFilter: { WildcardFilter: { value: { includeCreatedEventBlob: false } } } }] } }, verbose: false },
         transactionShape: 'TRANSACTION_SHAPE_LEDGER_EFFECTS',
       } } : {}),
-    } });
+      } });
+    } catch (e) {
+      // A dropped connection is exactly what the stable commandId exists for:
+      // retry it rather than aborting the seeder mid-book.
+      last = `submit transport: ${e.message}`;
+      process.stdout.write(' (retry transport)');
+      await new Promise((res) => setTimeout(res, 2000 * (i + 1)));
+      continue;
+    }
     if (r.ok) return r.data;
     last = `submit ${r.status}: ${JSON.stringify(r.data).slice(0, 200)}`;
     // A duplicate means the ORIGINAL submit already committed on-ledger but its HTTP
@@ -235,9 +245,11 @@ async function submit(actAs, command, { disclosed = [], effects = false } = {}) 
 const createHolding = (issuer, owner, instrument, amount) =>
   ({ CreateCommand: { templateId: `${PKG}:Tirai:Holding`, createArguments: { issuer, owner, instrument, amount: String(amount) } } });
 
-const cidOf = (tx) => tx.transaction?.events?.find((e) => e.CreatedEvent)?.CreatedEvent?.contractId;
+// `tx` is null when submit() decided a lost response had already landed; the
+// caller then has no contract id and must re-read the ACS rather than crash.
+const cidOf = (tx) => tx?.transaction?.events?.find((e) => e.CreatedEvent)?.CreatedEvent?.contractId;
 // A SubmitQuote tx creates both an EscrowedHolding and a Quote — pick by template.
-const cidOfTpl = (tx, suffix) => (tx.transaction?.events ?? [])
+const cidOfTpl = (tx, suffix) => (tx?.transaction?.events ?? [])
   .map((e) => e.CreatedEvent).filter(Boolean)
   .find((c) => c.templateId?.endsWith(suffix))?.contractId;
 
@@ -316,6 +328,9 @@ async function verify() {
   const acs = {};
   for (const role of ['buyer', 'dealerA', 'dealerB', 'regulator']) acs[role] = await acsAs(p[role]);
   const quotesOf = (role) => acs[role].filter((e) => e.templateId.endsWith(':Tirai:Quote'));
+  // A green tick on an empty read is worse than a red one: pointing the deployer at
+  // the wrong node, or at a namespace with no desk on it, must not look like proof.
+  const nothingThere = !acs.buyer.length && !acs.dealerA.length && !acs.regulator.length;
   for (const role of ['buyer', 'dealerA', 'dealerB', 'regulator']) {
     const byTpl = {};
     for (const e of acs[role]) { const t = e.templateId.split(':').slice(-1)[0]; byTpl[t] = (byTpl[t] ?? 0) + 1; }
@@ -332,6 +347,7 @@ async function verify() {
   const regRfq = acs.regulator.filter((e) => e.templateId.endsWith(':Tirai:RFQ') || e.templateId.endsWith(':Tirai:BasketRFQ')).length;
   if (regQuotes) fails.push(`regulator sees ${regQuotes} sealed quote(s) — must see none pre-trade`);
   if (regRfq) fails.push(`regulator sees ${regRfq} live RFQ(s) — must see none pre-trade`);
+  if (nothingThere) fails.push('read nothing at all — wrong node, wrong namespace, or nothing deployed here');
   if (fails.length) { console.error('\n✗ PRIVACY VERIFICATION FAILED:\n  ' + fails.join('\n  ')); process.exit(1); }
   console.log('\n✓ privacy verified on-ledger: each dealer sees only its own quotes; the regulator sees zero pre-trade.');
 }
@@ -738,9 +754,15 @@ async function tidy() {
     console.log(basketOrphans.length ? `tidy: archived ${basketOrphans.length} orphan BasketRFQ(s); no orphan single RFQs.` : 'tidy: no orphan RFQs.');
     return;
   }
-  // NB: this cancels EVERY quote-less RFQ — including one that's genuinely open and
-  // still waiting for its first quote. Only run tidy when no live RFQ is intended.
-  console.log(`tidy: cancelling ${orphans.length} quote-less RFQ(s) — this also cancels any RFQ still awaiting its first quote.`);
+  // This cancels EVERY quote-less RFQ, and `seed-book` deliberately leaves several
+  // open with no asks yet — sweeping them guts the live book. It has happened once.
+  // Make the caller say so out loud.
+  if (!process.argv.includes('--all')) {
+    console.log(`tidy: ${orphans.length} quote-less RFQ(s) found — NOT cancelled.`);
+    console.log("       Some are the live book's un-quoted requests. Re-run `tidy --all` to cancel them anyway.");
+    return;
+  }
+  console.log(`tidy: cancelling ${orphans.length} quote-less RFQ(s) — including any still awaiting a first quote.`);
   for (const r of orphans) {
     await submit(p.buyer, { ExerciseCommand: { templateId: `${PKG}:Tirai:RFQ`, contractId: r.contractId, choice: 'CancelRFQ', choiceArgument: {} } });
     console.log(`· cancelled orphan RFQ ${r.createArgument.instrument} qty ${r.createArgument.quantity}`);

@@ -121,7 +121,15 @@ const toast = (msg, err = false) => {
   toastEl.textContent = msg;
   toastEl.className = 'toast show' + (err ? ' err' : '');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => (toastEl.className = 'toast'), 2600);
+  // An error stays until it is dismissed: 2.6 seconds is not long enough to read a
+  // ledger error, and a message that erases itself reads as "nothing happened".
+  if (err) {
+    toastEl.className += ' sticky';
+    toastEl.onclick = () => { toastEl.className = 'toast'; toastEl.onclick = null; };
+  } else {
+    toastEl.onclick = null;
+    toastTimer = setTimeout(() => (toastEl.className = 'toast'), 2600);
+  }
 };
 
 // Hosted public demo: the server proxies reads only. Reflect that in the UI —
@@ -406,9 +414,11 @@ function setActing(role) {
   ACTING = role;
   try { localStorage.setItem('tirai.acting', role); } catch { /* ignore */ }
   selectedRfq = null;
+  rfqFilter = 'all'; // a filter chosen as one identity empties the next one's book
   closeModal();
   renderIdentity();
   renderActive();
+  refresh(); // the tiles and their labels are computed in the refresh loop
   // The create page belongs to the buy side; leaving it selected as a dealer
   // would show a form that cannot submit.
   if (currentView === 'create' && role !== 'buyer') showView('rfqs');
@@ -454,19 +464,21 @@ function rfqRows() {
     return {
       best,
       counterparty: r.arg.buyer === me
-        ? esc(invited.map(shortOf).join(' + ')) || '—'
-        : esc(shortOf(r.arg.buyer)),
+        ? (invited.map(shortOf).join(' + ') || '—')
+        : shortOf(r.arg.buyer),
       kind: 'open', cid: r.cid, tpl: r.tpl,
       instrument: r.arg.instrument, quantity: r.arg.quantity, pay: r.arg.payInstrument,
       maker: r.arg.buyer, invited, quotes: qs.length,
       myQuote: qs.find((q) => q.arg.dealer === me) ?? null,
+      canQuote: mine.some((c) => is(c, 'Holding') && c.arg.owner === me
+        && c.arg.instrument === r.arg.instrument && Number(c.arg.amount) === Number(r.arg.quantity)),
       mode: invited.length > 1 ? 'Auction' : 'Direct',
       mine: r.arg.buyer === me, forMe: invited.includes(me),
       status: qs.length ? 'Open' : 'Awaiting quotes', price: null,
     };
   });
   const done = mine.filter((c) => is(c, 'TradeReport')).map((t) => ({
-    best: null, counterparty: esc(shortOf(t.arg.buyer === me ? t.arg.dealer : t.arg.buyer)),
+    best: null, counterparty: shortOf(t.arg.buyer === me ? t.arg.dealer : t.arg.buyer),
     kind: 'filled', cid: t.cid, tpl: t.tpl,
     instrument: t.arg.instrument, quantity: t.arg.quantity, pay: '',
     maker: t.arg.buyer, invited: [], quotes: 0, myQuote: null,
@@ -480,12 +492,36 @@ function rfqRows() {
 function rowAction(r) {
   if (r.kind === 'filled') return { label: 'Receipt', act: 'receipt' };
   if (ACTING === 'buyer' && r.mine) return r.quotes ? { label: 'Settle', act: 'settle', primary: true } : { label: 'Cancel', act: 'cancel' };
-  if (isDealer() && r.forMe) return r.myQuote ? { label: 'Sealed', act: 'myquote' } : { label: 'Quote', act: 'quote', primary: true };
+  if (isDealer() && r.forMe) {
+    if (r.myQuote) return { label: 'Sealed', act: 'myquote' };
+    // Offering "Quote" when this identity holds no lot of the right size promises
+    // something the dialog then has to take back.
+    return r.canQuote ? { label: 'Quote', act: 'quote', primary: true } : { label: 'No inventory', act: 'quote' };
+  }
   return { label: 'View', act: 'receipt' };
+}
+
+let pointerDown = false;
+document.addEventListener('pointerdown', () => { pointerDown = true; });
+document.addEventListener('pointerup', () => { pointerDown = false; });
+
+// Replacing innerHTML throws away whatever the keyboard was on. Remember the one
+// thing that identifies the focused control, and put focus back on its replacement.
+function keepFocus(render) {
+  const a = document.activeElement;
+  const key = a?.dataset?.filter ? `.rfq-chip[data-filter="${a.dataset.filter}"]`
+    : a?.dataset?.rfq ? `.rfq-act[data-rfq="${a.dataset.rfq}"]`
+    : a?.dataset?.row ? `tr[data-row="${a.dataset.row}"]`
+    : null;
+  render();
+  if (key) document.querySelector(key)?.focus();
 }
 
 function renderActive() {
   const table = document.getElementById('rfq-table'); if (!table) return;
+  // Replacing the table between mousedown and mouseup swallows the click with no
+  // error and no feedback — the worst possible failure in front of an audience.
+  if (pointerDown && table.querySelector('tr')) return;
   // Live requests first, and among them the ones with quotes waiting on you;
   // settled rows fall to the bottom as history.
   const rank = (r) => (r.kind === 'filled' ? 2 : r.quotes ? 0 : 1);
@@ -497,7 +533,7 @@ function renderActive() {
 
   const chips = document.getElementById('rfq-chips');
   if (chips) chips.innerHTML = [['all', 'All'], ['mine', 'Mine'], ['forme', 'For me']]
-    .map(([k, label]) => `<button class="rfq-chip${rfqFilter === k ? ' on' : ''}" data-filter="${k}">${label} <span>${counts[k]}</span></button>`).join('');
+    .map(([k, label]) => `<button class="rfq-chip${rfqFilter === k ? ' on' : ''}" data-filter="${k}" aria-pressed="${rfqFilter === k}">${label} <span>${counts[k]}</span></button>`).join('');
   const count = document.getElementById('rfq-count');
   if (count) count.textContent = rows.length === all.length ? `${rows.length} shown` : `${rows.length} of ${all.length} shown`;
 
@@ -512,13 +548,13 @@ function renderActive() {
         <td class="hi">${esc(r.instrument)}</td>
         <td class="num">${fmt(r.quantity)}</td>
         <td class="mode">${esc(r.mode)}</td>
-        <td>${r.counterparty}</td>
+        <td>${esc(r.counterparty)}</td>
         <td>${esc(r.pay) || '—'}</td>
         <td class="num">${r.price != null ? `<span class="hi">${fmt(r.price)}</span>` : r.best != null ? `${fmt(r.best)} <span class="sub">best</span>` : '—'}</td>
         <td class="num">${r.kind === 'filled' ? '—' : r.quotes}</td>
         <td><span class="pill ${r.status === 'Filled' ? 'ok' : r.quotes ? 'live' : 'wait'}">${esc(r.status)}</span></td>
         <td><button class="ghost rfq-act" data-act="${a.act}" data-rfq="${esc(r.cid)}">${esc(a.label)}</button></td>
-      </tr>`.replace('<tr ', `<tr data-row="${esc(r.cid)}" data-rowact="${a.act}" `);
+      </tr>`.replace('<tr ', () => `<tr data-row="${esc(r.cid)}" data-rowact="${a.act}" tabindex="0" `);
     }).join('')
     + '</tbody></table>'
     : `<div class="audit-empty">${!P.buyer || !lastLoaded
@@ -531,21 +567,36 @@ function renderActive() {
 }
 
 // ---- dialogs -----------------------------------------------------------
-function openModal(title, html) {
+let modalOpener = null, modalReturnTo = null;
+function openModal(title, html, returnTo) {
   const host = document.getElementById('modal-host'); if (!host) return;
+  // The opener is usually a table button, and the 1.8s re-render detaches it — so
+  // remember how to find its replacement, not just the node itself.
+  modalOpener = document.activeElement;
+  modalReturnTo = returnTo ?? null;
   document.getElementById('modal-title').textContent = title;
-  document.getElementById('modal-body').innerHTML = html;
+  const body = document.getElementById('modal-body');
+  body.innerHTML = html;
   host.hidden = false;
-  host.querySelector('input, button, select')?.focus();
+  // Into the body, not onto the close button: the head comes first in the DOM.
+  (body.querySelector('input, select, button') ?? document.getElementById('modal-x'))?.focus();
 }
 function closeModal() {
-  const host = document.getElementById('modal-host'); if (host) host.hidden = true;
+  const host = document.getElementById('modal-host');
+  if (!host || host.hidden) return;
+  host.hidden = true;
+  // Give the keyboard back to whatever opened it, not to <body>.
+  const back = (modalReturnTo && document.querySelector(modalReturnTo))
+    ?? (modalOpener?.isConnected ? modalOpener : null);
+  back?.focus();
+  modalOpener = null; modalReturnTo = null;
 }
 
 function openRow(cid, act) {
   const r = rfqRows().find((x) => x.cid === cid);
   if (!r) return;
   selectedRfq = cid;
+  const backToRow = `.rfq-act[data-rfq="${cid.replace(/"/g, '')}"]`;
   if (act === 'quote') {
     // Only a lot matching the request exactly can back a quote — the model rejects
     // anything else, so say so here rather than failing on submit.
@@ -557,21 +608,21 @@ function openRow(cid, act) {
            <button id="modal-submit" data-rfq="${esc(r.cid)}" data-tpl="${esc(r.tpl)}" data-lot="${esc(lot.cid)}">Whisper sealed quote</button>
            <p class="sub">Sealed to the buyer alone — a competing dealer's node is not an observer of this contract, so it never receives the number. Quoting locks ${fmt(r.quantity)} ${esc(r.instrument)} into escrow, which is what makes the price a commitment rather than an indication.</p>
          </div>`
-      : `<p class="sub">This identity holds no lot of exactly ${fmt(r.quantity)} ${esc(r.instrument)}, so it cannot back a quote with escrow. On a real desk that inventory comes from your own book.</p>`);
+      : `<p class="sub">This identity holds no lot of exactly ${fmt(r.quantity)} ${esc(r.instrument)}, so it cannot back a quote with escrow. On a real desk that inventory comes from your own book.</p>`, backToRow);
     return;
   }
   if (act === 'settle') { showView('desk'); refresh(); return; }
   if (act === 'cancel') {
     openModal(`Cancel request · ${r.instrument}`,
       `<p class="sub">Withdraws the request. Any dealer that already quoted gets its escrowed lot back.</p>
-       <button id="modal-cancel" data-rfq="${esc(r.cid)}" data-tpl="${esc(r.tpl)}">Cancel this RFQ</button>`);
+       <button id="modal-cancel" data-rfq="${esc(r.cid)}" data-tpl="${esc(r.tpl)}">Cancel this RFQ</button>`, backToRow);
     return;
   }
   if (act === 'myquote' && r.myQuote) {
     openModal(`Your sealed quote · ${r.instrument}`,
       `<div class="card"><div class="row"><span>your ask</span><span class="price">${fmt(r.myQuote.arg.price)} ${esc(r.pay)}</span></div>
         <div class="sub">${fmt(r.quantity)} ${esc(r.instrument)} · escrowed · visible to the buyer only</div></div>
-       <p class="sub">Nobody else holds this number. You can reveal it to the regulator yourself to defend your pricing, or withdraw it and release the escrow — both from the side-by-side view.</p>`);
+       <p class="sub">Nobody else holds this number. You can reveal it to the regulator yourself to defend your pricing, or withdraw it and release the escrow — both from the side-by-side view.</p>`, backToRow);
     return;
   }
   openModal(`${r.kind === 'filled' ? 'Settlement receipt' : 'Request'} · ${r.instrument}`,
@@ -582,7 +633,7 @@ function openRow(cid, act) {
        ${r.dealer ? `<tr><td>Counterparty</td><td>${dealerLabel(r.dealer)}</td></tr>` : ''}
        <tr><td>Status</td><td><span class="pill ${r.status === 'Filled' ? 'ok' : 'live'}">${esc(r.status)}</span></td></tr>
      </tbody></table>
-     <p class="sub">The executed price and the counterparty are recorded for the regulator. The losing asks are archived without ever being revealed — not to the market, not to the rivals, and not to the regulator unless someone chooses to disclose them.</p>`);
+     <p class="sub">The executed price and the counterparty are recorded for the regulator. The losing asks are archived without ever being revealed — not to the market, not to the rivals, and not to the regulator unless someone chooses to disclose them.</p>`, backToRow);
 }
 
 // ---- session activity --------------------------------------------------
@@ -734,11 +785,11 @@ function renderPortfolio() {
       + (rows.length ? rows.map(([inst, amt]) => `<div class="pf-row"><span>${esc(inst)}</span><span class="num">${fmt(amt)}</span></div>`).join('')
                      : '<div class="empty">no positions</div>') + '</div>';
   };
-  // Your own positions first, and named as yours — the rest stay for comparison.
-  const cols = [['Buyer', 'buyer'], ['Dealer A', 'dealerA'], ['Dealer B', 'dealerB']]
-    .sort(([, a], [, b]) => (a === ACTING ? -1 : b === ACTING ? 1 : 0));
-  el.innerHTML = cols.map(([label, role]) =>
-    col(role === ACTING ? `${label} — you` : label, P[role], lastAcs[role] ?? [])).join('');
+  // Only your own positions. Rendering the other desks' books here would have been
+  // the app leaking what the ledger does not: the side-by-side view is where the
+  // comparison belongs, and it is labelled as such.
+  const label = { buyer: 'Buyer', dealerA: 'Dealer A', dealerB: 'Dealer B', regulator: 'Regulator' }[ACTING] ?? 'You';
+  el.innerHTML = col(`${label} — you`, actingParty(), actingAcs());
   renderRegistryAssets();
 }
 
@@ -835,17 +886,25 @@ let busy = false;
 async function refresh() {
   if (busy) return; busy = true;
   try {
-    // One ledger-end, then every party's contracts in parallel at that offset.
     const off = await ledgerEnd();
+    // Which nodes this tick has to read. Normally only the one you are signed in
+    // as — a judge with the network tab open should see exactly that. The views
+    // that exist to COMPARE nodes (the side-by-side desk, the privacy verifier)
+    // are the only ones that read all four, and they say so on screen.
+    const everyone = ['desk', 'verify'].includes(currentView);
+    const needs = (role) => everyone || role === ACTING
+      // The regulator's post-trade record backs the audit and best-execution views.
+      || (role === 'regulator' && ['audit', 'bestexec'].includes(currentView));
     // One party's read failing (a cold serverless instance, a 502) must not blank
     // the whole desk: fall back to that party's last known contracts and let the
     // next poll catch up. A stale column beats an empty one during a live demo.
-    const settledReads = await Promise.allSettled([
-      acsAt(P.buyer, off), acsAt(P.dealerA, off), acsAt(P.dealerB, off),
-      P.regulator ? acsAt(P.regulator, off) : Promise.resolve([]),
-    ]);
+    const settledReads = await Promise.allSettled(
+      ['buyer', 'dealerA', 'dealerB', 'regulator'].map((role) =>
+        (P[role] && needs(role)) ? acsAt(P[role], off) : Promise.resolve(null)));
     const prev = [lastAcs.buyer, lastAcs.dealerA, lastAcs.dealerB, lastReg];
-    const [b, a, d, r] = settledReads.map((s, i) => (s.status === 'fulfilled' ? s.value : (prev[i] ?? [])));
+    // null = deliberately not read this tick; keep what we had rather than blanking.
+    const [b, a, d, r] = settledReads.map((s, i) =>
+      (s.status === 'fulfilled' && s.value !== null) ? s.value : (prev[i] ?? []));
     const stale = settledReads.filter((s) => s.status === 'rejected').length;
     if (!PKG) { const any = [...b, ...a, ...d].find((c) => typeof c.tpl === 'string' && c.tpl.includes(':Tirai:')); if (any) PKG = any.tpl.split(':')[0]; }
     renderBuyer(b); renderBasketBuyer(b); renderDealer('dealerA', a); renderDealer('dealerB', d);
@@ -854,7 +913,7 @@ async function refresh() {
     lastLoaded = true;
     renderIdentity();
     if (!document.getElementById('view-audit')?.hidden) renderAudit();
-    if (!document.getElementById('view-rfqs')?.hidden) renderActive();
+    if (!document.getElementById('view-rfqs')?.hidden) keepFocus(renderActive);
     if (!document.getElementById('view-portfolio')?.hidden) renderPortfolio();
     if (!document.getElementById('view-verify')?.hidden) renderVerify();
     if (!document.getElementById('view-bestexec')?.hidden) renderBestExec();
@@ -912,7 +971,7 @@ async function createRFQ(btn) {
         // codec is known to accept everywhere else); open for 24h.
         deadline: new Date(Date.now() + 86400000).toISOString().replace(/\.\d+Z$/, 'Z') } } });
       toast(panel.length > 1 ? 'RFQ sent to the dealer panel' : 'Request sent to the counterparty');
-      logActivity('Opened a request', `${instrument} x ${quantity}`);
+      logActivity('Opened a request', `${instrument} x ${quantity}`); // inside the try: only on acceptance
       await refresh();
       if (fromPage) showView('rfqs');
     } catch (e) { toast(e.message, true); }
@@ -921,17 +980,22 @@ async function createRFQ(btn) {
   (btn ?? document.getElementById('btn-create-rfq'))?.focus();
 }
 
+// Returns true only when the ledger actually accepted the command — the dialogs
+// log activity and close on that, never on "the promise resolved".
 async function submitQuote(role, rfqCid, bondCid, tpl, priceRaw, btn) {
-  if (READONLY) return toast(RO_MSG);
+  if (READONLY) { toast(RO_MSG); return false; }
   const price = posDec(priceRaw);
-  if (!price) return toast('ask must be a positive number', true);
+  if (!price) { toast('ask must be a positive number', true); return false; }
+  let ok = false;
   await guarded(btn, async () => {
     try {
       await submit(P[role], { ExerciseCommand: { templateId: tpl, contractId: rfqCid,
         choice: 'SubmitQuote', choiceArgument: { dealer: P[role], price, assetCid: bondCid } } });
+      ok = true;
       toast(role + ' quote sealed'); refresh();
     } catch (e) { toast(e.message, true); }
   });
+  return ok;
 }
 
 // Direct bilateral OTC: buyer hits one dealer's firm quote at its ask price.
@@ -1080,14 +1144,17 @@ async function awardPartial() {
 
 // Buyer archives its own live RFQ (sole signatory). Stray/mistaken RFQs.
 async function cancelRFQ() {
-  if (READONLY) return toast(RO_MSG);
-  if (!cancelableRfq) return;
+  if (READONLY) { toast(RO_MSG); return false; }
+  if (!cancelableRfq) return false;
+  let ok = false;
   await guarded(document.getElementById('btn-cancel-rfq'), async () => {
     try {
       await submit(P.buyer, { ExerciseCommand: { templateId: cancelableRfq.tpl, contractId: cancelableRfq.cid, choice: 'CancelRFQ', choiceArgument: {} } });
+      ok = true;
       toast('RFQ cancelled'); refresh();
     } catch (e) { toast(e.message, true); }
   });
+  return ok;
 }
 
 // Buyer declines a sealed quote — its escrowed bond returns to the dealer.
@@ -1129,7 +1196,14 @@ document.getElementById('rfq-search')?.addEventListener('input', () => renderAct
 document.getElementById('btn-new-rfq')?.addEventListener('click', () => showView('create'));
 document.getElementById('modal-x')?.addEventListener('click', closeModal);
 document.getElementById('modal-host')?.addEventListener('click', (e) => { if (e.target.id === 'modal-host') closeModal(); });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { closeModal(); return; }
+  // A clickable row must also be an operable one.
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('tr[data-row]')) {
+    e.preventDefault();
+    openRow(e.target.dataset.row, e.target.dataset.rowact);
+  }
+});
 
 document.addEventListener('click', (e) => {
   const chip = e.target.closest('.rfq-chip');
@@ -1149,14 +1223,14 @@ document.addEventListener('click', (e) => {
     const price = document.getElementById('modal-ask')?.value;
     const role = ACTING;
     submitQuote(role, seal.dataset.rfq, seal.dataset.lot, seal.dataset.tpl, price, seal)
-      .then(() => { logActivity('Sealed a quote', `${price} on ${seal.dataset.rfq.slice(0, 8)}`); closeModal(); });
+      .then((ok) => { if (!ok) return; logActivity('Sealed a quote', `${price} on ${seal.dataset.rfq.slice(0, 8)}`); closeModal(); });
     return;
   }
 
   const cancel = e.target.closest('#modal-cancel');
   if (cancel) {
     cancelableRfq = { cid: cancel.dataset.rfq, tpl: cancel.dataset.tpl };
-    cancelRFQ().then(() => { logActivity('Cancelled a request', cancel.dataset.rfq.slice(0, 8)); closeModal(); });
+    cancelRFQ().then((ok) => { if (!ok) return; logActivity('Cancelled a request', cancel.dataset.rfq.slice(0, 8)); closeModal(); });
     return;
   }
 

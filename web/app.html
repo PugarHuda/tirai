@@ -66,7 +66,7 @@
     <a class="topbar-cta" href="/">← Landing</a>
   </header>
 
-  <div class="stats" id="stats" role="status" aria-live="polite">
+  <div class="stats" id="stats">
     <div class="stat"><span class="k" id="stat-offset">—</span><span class="l">Ledger offset</span></div>
     <div class="stat"><span class="k" id="stat-rfqs">—</span><span class="l" id="lab-rfqs">Open requests</span></div>
     <div class="stat"><span class="k" id="stat-quotes">—</span><span class="l" id="lab-quotes">Sealed quotes</span></div>
@@ -181,7 +181,7 @@
 
   <!-- Portfolio view: each party's holdings, aggregated by instrument. -->
   <section class="audit-view" id="view-portfolio" hidden>
-    <h2 class="audit-title">Portfolio <span class="hint">holdings per party — each sees only its own positions</span></h2>
+    <h2 class="audit-title">Portfolio <span class="hint">what the identity you are signed in as actually holds — nobody else's book is readable from here</span></h2>
     <div id="portfolio-body" class="pf-grid"></div>
     <!-- Filled asynchronously: balances in assets issued by an external token
          registry (Canton Coin today, cETH/CBTC on the same query). -->
