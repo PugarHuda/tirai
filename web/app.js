@@ -506,6 +506,19 @@ function rfqRows() {
       status: qs.length ? 'Open' : 'Awaiting quotes', price: null,
     };
   });
+  // Awarded, cash not yet allocated. The RFQ is gone at this point, so without
+  // this the request disappears from the book between award and settlement.
+  const awaiting = mine.filter((c) => is(c, 'TokenTrade')).map((t) => ({
+    best: null, counterparty: shortOf(t.arg.buyer === me ? t.arg.dealer : t.arg.buyer),
+    kind: 'awaiting', cid: t.cid, tpl: t.tpl,
+    instrument: t.arg.instrument, quantity: t.arg.quantity,
+    pay: t.arg.cashInstrument?.id ?? '', maker: t.arg.buyer, invited: [], quotes: 0, myQuote: null,
+    mode: 'Token rail', mine: t.arg.buyer === me, forMe: t.arg.dealer === me,
+    railBound: true, payIssuer: t.arg.cashInstrument?.admin,
+    status: 'Awaiting allocation', price: t.arg.clearingPrice,
+    dealer: t.arg.dealer, settleBefore: t.arg.settleBefore,
+  }));
+
   const done = mine.filter((c) => is(c, 'TradeReport')).map((t) => ({
     best: null, counterparty: shortOf(t.arg.buyer === me ? t.arg.dealer : t.arg.buyer),
     kind: 'filled', cid: t.cid, tpl: t.tpl,
@@ -514,12 +527,14 @@ function rfqRows() {
     mode: '—', mine: t.arg.buyer === me, forMe: t.arg.dealer === me,
     status: 'Filled', price: t.arg.clearingPrice, dealer: t.arg.dealer,
   }));
-  return [...open, ...done];
+  return [...open, ...awaiting, ...done];
 }
 
 // What this identity may do with a row, following the model's own rules.
 function rowAction(r) {
   if (r.kind === 'filled') return { label: 'Receipt', act: 'receipt' };
+  // The award happened; the registry has not moved the cash yet.
+  if (r.kind === 'awaiting') return { label: 'Allocate', act: 'railsettle' };
   if (ACTING === 'buyer' && r.mine) {
     if (!r.quotes) return { label: 'Cancel', act: 'cancel' };
     // Do not offer a plain Settle for a rail-bound request: the desk cannot reach
@@ -559,7 +574,7 @@ function renderActive() {
   if (pointerDown && table.querySelector('tr')) return;
   // Live requests first, and among them the ones with quotes waiting on you;
   // settled rows fall to the bottom as history.
-  const rank = (r) => (r.kind === 'filled' ? 2 : r.quotes ? 0 : 1);
+  const rank = (r) => (r.kind === 'filled' ? 3 : r.kind === 'awaiting' ? 0 : r.quotes ? 1 : 2);
   const all = rfqRows().sort((a, b) => rank(a) - rank(b) || a.instrument.localeCompare(b.instrument));
   const pass = { all: () => true, mine: (r) => r.mine, forme: (r) => r.forMe };
   const counts = { all: all.length, mine: all.filter(pass.mine).length, forme: all.filter(pass.forme).length };
@@ -587,7 +602,7 @@ function renderActive() {
         <td>${esc(r.pay) || '—'}</td>
         <td class="num">${r.price != null ? `<span class="hi">${fmt(r.price)}</span>` : r.best != null ? `${fmt(r.best)} <span class="sub">best</span>` : '—'}</td>
         <td class="num">${r.kind === 'filled' ? '—' : r.quotes}</td>
-        <td><span class="pill ${r.status === 'Filled' ? 'ok' : r.quotes ? 'live' : 'wait'}">${esc(r.status)}</span></td>
+        <td><span class="pill ${r.status === 'Filled' ? 'ok' : r.kind === 'awaiting' ? 'live' : r.quotes ? 'live' : 'wait'}">${esc(r.status)}</span></td>
         <td><button class="ghost rfq-act" data-act="${a.act}" data-rfq="${esc(r.cid)}">${esc(a.label)}</button></td>
       </tr>`.replace('<tr ', () => `<tr data-row="${esc(r.cid)}" data-rowact="${a.act}" tabindex="0" `);
     }).join('')
@@ -649,7 +664,10 @@ function openRow(cid, act) {
   if (act === 'settle') { showView('desk'); refresh(); return; }
   if (act === 'railsettle') {
     const who = String(r.payIssuer ?? '').split('::')[0];
-    openModal(`Settle on the ${r.pay} rail`,
+    const awarded = r.kind === 'awaiting';
+    openModal(awarded ? `Awaiting allocation · ${r.instrument}` : `Settle on the ${r.pay} rail`,
+      (awarded ? `<div class="card"><div class="row"><span>cleared at</span><span class="price">${fmt(r.price)} ${esc(r.pay)}</span></div>
+         <div class="sub">${fmt(r.quantity)} ${esc(r.instrument)} to ${dealerLabel(r.dealer)} · the dealer's lot is in escrow until this settles or expires</div></div>` : '') +
       `<p class="sub">This request is bound to <span class="hi">${esc(r.pay)}</span>, issued by
          <span class="mono">${esc(who)}</span>. Settling it runs the Canton Token Standard flow:
          the winning quote becomes a <code>TokenTrade</code>, the registry locks the cash into an
