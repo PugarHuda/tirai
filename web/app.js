@@ -52,19 +52,25 @@ const ledgerEnd = async () => {
 // Active contracts for a party AT a known offset — the caller fetches ledger-end
 // once and shares it across parties, so a refresh is 1 ledger-end + N parallel
 // queries instead of one ledger-end per party (much faster with many contracts).
-// The templates this desk renders. A wildcard read returns everything a party
-// can see, and the node refuses any response over 200 elements — a busy buyer
-// passed that — so the read is split per template and re-joined. Template
-// filters take the package NAME, which is stable across package versions.
-const DESK_TEMPLATES = ['Holding', 'RFQ', 'Quote', 'QuoteDisclosure', 'TradeReport',
-  'TokenTrade', 'BasketRFQ', 'BasketQuote', 'BasketTradeReport'];
+// The templates this desk renders, in groups. Two constraints pull against each
+// other: the node refuses any response over 200 elements (a busy buyer passed
+// that, which is why a wildcard read no longer works), but one request per
+// template means four parties x nine templates per refresh, and that burst is
+// enough to make the serverless proxy fail. Grouping keeps every response well
+// under the cap at three requests per party. Template filters take the package
+// NAME, which is stable across package versions.
+const DESK_TEMPLATE_GROUPS = [
+  ['Holding'],
+  ['TradeReport', 'BasketTradeReport', 'QuoteDisclosure'],
+  ['RFQ', 'Quote', 'TokenTrade', 'BasketRFQ', 'BasketQuote'],
+];
 
 const acsAt = (party, off) => retryRead(async () => {
-  const perTemplate = await Promise.all(DESK_TEMPLATES.map(async (tpl) => {
+  const groups = await Promise.all(DESK_TEMPLATE_GROUPS.map(async (tpls) => {
     const rows = await api('/v2/state/active-contracts', 'POST', {
-      filter: { filtersByParty: { [party]: { cumulative: [{ identifierFilter: {
+      filter: { filtersByParty: { [party]: { cumulative: tpls.map((tpl) => ({ identifierFilter: {
         TemplateFilter: { value: { templateId: `#tirai-desk:Tirai:${tpl}`, includeCreatedEventBlob: false } },
-      } }] } } },
+      } })) } } },
       verbose: true,
       activeAtOffset: off,
     });
@@ -74,7 +80,7 @@ const acsAt = (party, off) => retryRead(async () => {
       .filter(Boolean)
       .map((e) => ({ cid: e.contractId, tpl: e.templateId, arg: e.createArgument }));
   }));
-  return perTemplate.flat();
+  return groups.flat();
 });
 const acs = async (party) => acsAt(party, await ledgerEnd());
 
