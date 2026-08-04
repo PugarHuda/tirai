@@ -117,7 +117,7 @@ and atomic cross-registry settlement together.</p>
 
 <h2>Proof it exists (live on Canton Devnet)</h2>
 <div class="facts">
-  <p><strong>41 settled trades + 5 atomic multi-leg baskets</strong> on-ledger, across
+  <p><strong>49 settled trades + 5 atomic multi-leg baskets</strong> on-ledger, across
   reverse-Vickrey, direct-OTC and partial-fill rails, over ~25 sovereign, supranational
   and corporate instruments.</p>
   <p><strong>16 best-execution attestations</strong> — clearing price provably at or
@@ -445,7 +445,7 @@ ${META}
   HackCanton's own <code>hackcanton-01</code> — <strong>20 settled trades + 1 atomic
   basket, 16 best-execution attestations, 32 quote disclosures</strong>, privacy verified
   on that node — and the shared 5N validator, which carries the longer history below.</p>
-  <p><strong>41 settled trades + 5 atomic multi-leg baskets</strong> — real contracts on
+  <p><strong>49 settled trades + 5 atomic multi-leg baskets</strong> — real contracts on
   the shared 5N Devnet validator.</p>
   <p><strong>16 best-execution attestations</strong> — each with both dealers' asks
   disclosed to the regulator <em>before</em> settlement, so the clearing price is
@@ -682,7 +682,7 @@ ${FOOT}`,
   <p class="kicker">Live on Canton Devnet — verifiable right now</p>
   <h2>Not a mock-up</h2>
   <div class="stats">
-    <div class="stat"><b>41</b><span>settled trades on-ledger<br>+ 5 atomic baskets</span></div>
+    <div class="stat"><b>49</b><span>settled trades on-ledger<br>+ 5 atomic baskets</span></div>
     <div class="stat"><b>16</b><span>best-execution attestations</span></div>
     <div class="stat"><b>36</b><span>Daml test scripts green</span></div>
     <div class="stat"><b>66</b><span>hosted QA checks, 3 browsers</span></div>

@@ -87,12 +87,11 @@ together.
 
 ## Pilot plan
 
-1. **Test-token integration (now → token grant).** Wire the onRails cETH Devnet
-   registry: fetch the registry's allocation choice-context off-ledger, attach
-   disclosed contracts to the JSON-API submission, and settle ~10 live RFQ/OTC
-   trades in real cETH on the 5N validator. Add CBTC via the BitSafe registry the
-   same way (asset-agnostic — already proven in `testCbtcDvp`). *Blocked only on
-   the cETH/CBTC test-token grant; the contract path is built and tested.*
+1. **Test-token integration — CBTC done, cETH pending.** The BitSafe rail is live:
+   the faucet grant was accepted on-ledger and spent through the desk's own auctions.
+   The same command settles cETH the day onRails grants tokens to
+   `tirai-v1-buyer`; the deployer learns the registrar from the holding, so no code
+   changes when it lands.
 2. **Design-partner desk (2–4 weeks).** Stand up the hosted read-only desk against
    live Devnet state and put it in front of one fixed-income and one crypto-native
    trading desk for feedback on the quote/award/settle flow and the audit view.
@@ -113,13 +112,18 @@ BitSafe CBTC registry, a validator/hosting venue, and wallet support (Canton Loo
   binding, wallet-facing standard choices).
 - **CIP-0056 settlement against the real Splice v1 interfaces** — see the "How the
   cash leg uses cETH / CBTC" section of the [README](README.md).
-- **Settled live against an external registry we do not control** —
-  `node scripts/devnet.mjs seed-cc` clears the desk's auctions in **Canton Coin,
-  issued and administered by the DSO**, on the 5N Devnet validator: six trades
-  (four reverse-Vickrey, two direct OTC), 60,900 CC moved to the winning dealers,
-  each bond-against-cash in one atomic transaction. The cash leg is driven entirely
-  by the registry's own transfer and allocation factories over HTTP. cETH and CBTC
-  differ by one field — the `InstrumentId` admin — and wait only on the token grants.
+- **Settled live against two registries we do not control** — on the 5N Devnet
+  validator, and driven entirely by each registry's own transfer and allocation
+  factories over HTTP:
+  - **Canton Coin**, issued and administered by the DSO (`seed-cc`): six trades,
+    four reverse-Vickrey and two direct OTC, 60,900 CC moved to the winning dealers.
+  - **CBTC**, issued by BitSafe through the DA Utility Registry (`seed-foreign CBTC`):
+    a faucet grant accepted on-ledger, then spent through the desk — 0.34 CBTC cleared
+    at the Vickrey second price, 0.22 CBTC hit directly at the ask.
+
+  Each is bond-against-cash in one atomic transaction, and nothing in the model is
+  per-asset: `cashInstrument` is any `{admin, id}`. **cETH differs by one field**,
+  the `InstrumentId` admin, and waits only on its token grant.
 - **Deployed & privacy-verified on Devnet** — `node scripts/devnet.mjs verify`
   asserts on the live network that dealers see only their own quotes and the
   regulator sees zero pre-trade.
@@ -142,7 +146,7 @@ verify` asserts there that **each dealer sees only its own quotes and the
 regulator sees zero pre-trade contracts**.
 
 **The shared 5N validator** — same package id, parties `tirai-v1-*`, carrying
-the richer history: 47 settled trades (6 of them settled in real Canton
+the richer history: 49 settled trades (6 of them settled in real Canton
 Coin through the DSO's registry), 5 atomic baskets, 16 best-execution
 attestations. The hosted desk at https://tirai.vercel.app reads this deployment,
 because its proxy holds a long-lived machine credential; `hackcanton-01` issues

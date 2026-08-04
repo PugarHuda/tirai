@@ -173,7 +173,7 @@ Same package id on both participants: `tirai-desk`
 | Participant | Namespace | Live state |
 |---|---|---|
 | **`hackcanton-01`** (HackCanton's own node) | `122003aa7c49…` | 20 settled trades + 1 atomic basket, 16 best-execution attestations, 32 quote disclosures, 3 open RFQs |
-| **Shared 5N validator** | `1220a14ca128…` | 47 settled trades (6 of them in real Canton Coin) + 5 atomic baskets, 16 attestations — this is what the hosted desk reads |
+| **Shared 5N validator** | `1220a14ca128…` | 49 settled trades (6 in real Canton Coin, 2 in real CBTC) + 5 atomic baskets, 16 attestations — this is what the hosted desk reads |
 
 `node scripts/devnet.mjs verify` (add `ENV_FILE=.env.hackcanton` for the
 HackCanton node) asserts **on the real network** that each dealer sees only its
@@ -195,7 +195,7 @@ and addresses the operator-allocated parties directly.
 | MCP against live Devnet | `node scripts/e2e-mcp.mjs` | 25 / 25 — leaves one real RFQ on the ledger (it exercises the write tool); `devnet.mjs tidy` clears it |
 | Read-only proxy security | `node scripts/test-readonly-proxy.mjs` | 14 / 14 |
 | Deployer decision logic | `node scripts/test-devnet-logic.mjs` | 6 / 6 |
-| Product path, one identity | `npm run e2e:shell` | 14 / 14 |
+| Product path, one identity | `npm run e2e:shell` | 23 / 23 (incl. the front-end audit's regression checks) |
 | Local write-path UI | `npm run e2e` · `e2e:bestexec` · `e2e:actions` | 28 / 28 · 8 / 8 · 16 / 16 |
 
 The local suites drive the real ledger, so **restart `npm run demo` before

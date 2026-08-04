@@ -369,7 +369,7 @@ that order.
 **Q10. If the hosted desk is read-only, how do I know the write path works?**
 Three ways. The demo video shows the desk driven end to end for real — RFQ, sealed quotes
 with the rival column visibly empty, disclosure, Vickrey award, atomic settlement. The
-47 settled trades on the validator were all written by that same write path. And the MCP
+49 settled trades on the validator were all written by that same write path. And the MCP
 suite's `post_rfq` tool writes a real RFQ to DevNet on every run; the deployer's `tidy`
 command clears it afterwards.
 

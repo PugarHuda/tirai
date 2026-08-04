@@ -1,0 +1,20 @@
+{
+  "name": "tirai-video",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Remotion source for the Tirai Grand Final trailer",
+  "scripts": {
+    "render": "remotion render src/index.ts Tirai ../media/tirai-remotion.mp4 --log=info",
+    "studio": "remotion studio src/index.ts"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.443",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "remotion": "4.0.443"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.2",
+    "typescript": "5.9.3"
+  }
+}
