@@ -19,6 +19,7 @@
     <a href="#" data-view="create"><span class="ic" aria-hidden="true">⇄</span> Create RFQ</a>
     <a href="#" data-view="activity"><span class="ic" aria-hidden="true">◷</span> My activity</a>
     <a href="#" data-view="portfolio"><span class="ic" aria-hidden="true">◈</span> Portfolio</a>
+    <a href="#" data-view="rails"><span class="ic" aria-hidden="true">⇉</span> Settlement rails</a>
     <a href="#" data-view="audit"><span class="ic" aria-hidden="true">✓</span> Audit trail</a>
     <a href="#" data-view="bestexec"><span class="ic" aria-hidden="true">⚖</span> Best execution</a>
     <a href="#" data-view="verify"><span class="ic" aria-hidden="true">◉</span> Verify privacy</a>
@@ -177,6 +178,12 @@
       <span class="rfq-count" id="rfq-count"></span>
     </div>
     <div id="rfq-table"></div>
+  </section>
+
+  <!-- Which assets this desk can actually clear a trade in, and who issues them. -->
+  <section class="audit-view" id="view-rails" hidden>
+    <h2 class="audit-title">Settlement rails <span class="hint">the cash legs this desk can clear a trade in, and who issues each one</span></h2>
+    <div id="rails-body"></div>
   </section>
 
   <!-- Portfolio view: each party's holdings, aggregated by instrument. -->

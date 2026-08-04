@@ -387,7 +387,7 @@ function renderRegulator(mine) {
 let lastReg = [];
 let lastAcs = { buyer: [], dealerA: [], dealerB: [] };
 let currentView = 'rfqs';
-const VIEWS = ['rfqs', 'create', 'activity', 'portfolio', 'audit', 'bestexec', 'verify'];
+const VIEWS = ['rfqs', 'create', 'activity', 'portfolio', 'rails', 'audit', 'bestexec', 'verify'];
 
 function showView(v) {
   currentView = v;
@@ -404,6 +404,7 @@ function showView(v) {
   if (v === 'create') renderCreate();
   if (v === 'activity') renderActivity();
   if (v === 'portfolio') renderPortfolio();
+  if (v === 'rails') renderRails();
   if (v === 'verify') renderVerify();
   if (v === 'bestexec') renderBestExec();
 }
@@ -856,6 +857,59 @@ async function registryAssets() {
   return registryRows;
 }
 
+// Registrars we can name. Anything else still shows, just without a label — the
+// desk does not need to recognise a registry in order to settle against it.
+const KNOWN_REGISTRARS = [
+  [/^DSO::/, 'Canton Coin', 'the Global Synchronizer DSO'],
+  [/^cbtc-network::/, 'CBTC', 'BitSafe, via the DA Utility Registry'],
+  [/^rails-ceth/i, 'cETH', 'onRails, via the DA Utility Registry'],
+];
+
+async function renderRails() {
+  const host = document.getElementById('rails-body'); if (!host) return;
+  const rows = await registryAssets().catch(() => []);
+  // Group by instrument: one rail per asset, with who holds what on it.
+  const rails = new Map();
+  for (const r of rows) {
+    const key = `${r.id}@${r.admin}`;
+    if (!rails.has(key)) rails.set(key, { id: r.id, admin: r.admin, holders: [] });
+    rails.get(key).holders.push(r);
+  }
+  const label = (admin) => KNOWN_REGISTRARS.find(([re]) => re.test(admin))?.[2] ?? 'an external registry';
+
+  const deskCash = (lastAcs.buyer ?? []).filter((c) => is(c, 'Holding') && c.arg.issuer === CFG_PARTIES.cashIssuer);
+  const deskTotal = deskCash.reduce((a, c) => a + Number(c.arg.amount), 0);
+
+  host.innerHTML = `
+    <p class="sub" style="max-width:70ch">A trade's cash leg is any Canton Token Standard instrument: the model takes an
+      <code>{admin, id}</code> and asks that registry to move the money. So a rail is added by holding the asset,
+      not by changing the desk.</p>
+    <table class="audit"><thead><tr>
+      <th>Asset</th><th>Issued by</th><th>Registrar party</th><th class="num">Held by this desk</th><th>Settles</th>
+    </tr></thead><tbody>
+      <tr>
+        <td class="hi">${esc(deskCash[0]?.arg.instrument ?? 'USDC')}</td>
+        <td>this desk (a mock cash token)</td>
+        <td class="mono">${esc((CFG_PARTIES.cashIssuer ?? '').split('::')[0] || 'local')}</td>
+        <td class="num">${fmt(deskTotal)}</td>
+        <td><span class="pill wait">native</span></td>
+      </tr>
+      ${[...rails.values()].map((r) => `<tr>
+        <td class="hi">${esc(r.id)}</td>
+        <td>${esc(label(r.admin))}</td>
+        <td class="mono">${esc(r.admin.split('::')[0])}</td>
+        <td class="num">${fmt(r.holders.reduce((a, h) => a + h.amount, 0))}</td>
+        <td><span class="pill ok">token standard</span></td>
+      </tr>`).join('')}
+    </tbody></table>
+    ${rails.size ? `<p class="sub" style="margin-top:14px">Held across ${[...new Set(rows.map((r) => r.label))].join(', ')}.
+      A cash leg on one of these rails settles through <code>AllocationFactory_Allocate</code> and
+      <code>Allocation_ExecuteTransfer</code>, atomic against the bond leaving escrow.</p>`
+      : '<p class="sub" style="margin-top:14px">No external registry asset held yet. One arrives the moment a registry sends this desk a transfer.</p>'}
+    <p class="sub" style="margin-top:10px">Missing an asset you expected? It appears here as soon as the desk holds it.
+      Nothing in the model is per-asset, so a new registry is a grant away, not a release away.</p>`;
+}
+
 async function renderRegistryAssets() {
   const host = document.getElementById('pf-registry'); if (!host) return;
   try {
@@ -936,6 +990,7 @@ async function refresh() {
     if (!document.getElementById('view-audit')?.hidden) renderAudit();
     if (!document.getElementById('view-rfqs')?.hidden) keepFocus(renderActive);
     if (!document.getElementById('view-portfolio')?.hidden) renderPortfolio();
+    if (!document.getElementById('view-rails')?.hidden) renderRails();
     if (!document.getElementById('view-verify')?.hidden) renderVerify();
     if (!document.getElementById('view-bestexec')?.hidden) renderBestExec();
     // The tiles describe the signed-in identity, not always the buy side: a dealer's
