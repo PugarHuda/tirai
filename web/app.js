@@ -416,15 +416,20 @@ function renderRfqs() {
   const count = document.getElementById('rfq-count');
   if (count) count.textContent = `${rows.length} shown`;
 
+  // Open rows and settled rows carry different facts: an open request has a cash
+  // instrument and a quote count, a settled one has a clearing price and a winner.
+  // Each gets its own column rather than one column meaning two things.
   table.innerHTML = rows.length ? '<table class="audit rfq-table"><thead><tr>'
-    + '<th>Request</th><th>Instrument</th><th>Quantity</th><th>Cash leg</th><th>Dealers</th><th>Sealed quotes</th><th>Status</th><th></th>'
+    + '<th>Request</th><th>Instrument</th><th class="num">Quantity</th><th>Cash leg</th>'
+    + '<th class="num">Cleared at</th><th>Counterparty</th><th class="num">Sealed quotes</th><th>Status</th><th></th>'
     + '</tr></thead><tbody>'
     + rows.map((r) => `<tr class="${r.cid === selectedRfq ? 'sel' : ''}">
         <td class="mono">${esc(r.cid.slice(0, 8))}</td>
         <td class="hi">${esc(r.instrument)}</td>
         <td class="num">${fmt(r.quantity)}</td>
-        <td>${r.price != null ? fmt(r.price) + ' ' + esc(r.pay) : esc(r.pay)}</td>
-        <td class="num">${r.kind === 'filled' ? dealerLabel(r.dealer) : r.dealers}</td>
+        <td>${esc(r.pay) || '—'}</td>
+        <td class="num">${r.price != null ? fmt(r.price) : '—'}</td>
+        <td>${r.kind === 'filled' ? dealerLabel(r.dealer) : r.dealers + ' invited'}</td>
         <td class="num">${r.kind === 'filled' ? '—' : r.quotes}</td>
         <td><span class="pill ${r.status === 'Filled' ? 'ok' : r.quotes ? 'live' : 'wait'}">${esc(r.status)}</span></td>
         <td>${r.kind === 'open' ? `<button class="ghost rfq-open" data-rfq="${esc(r.cid)}">${r.quotes ? 'Open auction' : 'View'}</button>` : ''}</td>
