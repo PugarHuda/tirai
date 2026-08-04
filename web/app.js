@@ -357,19 +357,23 @@ function renderRegulator(mine) {
 // ---- view switcher (sidebar): the 3-column desk · Portfolio · Audit trail ----
 let lastReg = [];
 let lastAcs = { buyer: [], dealerA: [], dealerB: [] };
+let currentView = 'rfqs';
+const VIEWS = ['rfqs', 'create', 'activity', 'portfolio', 'audit', 'bestexec', 'verify'];
+
 function showView(v) {
+  currentView = v;
+  // The three-column view is the side-by-side privacy proof, not the home screen:
+  // a deployed desk shows you one identity, not everyone's at once.
   const desk = v === 'desk';
   document.querySelector('.desk').style.display = desk ? '' : 'none';
   document.querySelector('.foot').style.display = desk ? '' : 'none';
-  document.getElementById('view-audit').hidden = v !== 'audit';
-  document.getElementById('view-rfqs').hidden = v !== 'rfqs';
-  document.getElementById('view-portfolio').hidden = v !== 'portfolio';
-  document.getElementById('view-verify').hidden = v !== 'verify';
-  document.getElementById('view-bestexec').hidden = v !== 'bestexec';
+  for (const name of VIEWS) document.getElementById('view-' + name).hidden = v !== name;
   const ht = document.getElementById('howto'); if (ht) ht.style.display = desk ? '' : 'none';
   document.querySelectorAll('.side-nav a[data-view]').forEach((a) => a.classList.toggle('on', a.dataset.view === v));
   if (v === 'audit') renderAudit();
-  if (v === 'rfqs') renderRfqs();
+  if (v === 'rfqs') renderActive();
+  if (v === 'create') renderCreate();
+  if (v === 'activity') renderActivity();
   if (v === 'portfolio') renderPortfolio();
   if (v === 'verify') renderVerify();
   if (v === 'bestexec') renderBestExec();
@@ -382,69 +386,219 @@ function showView(v) {
 let rfqFilter = 'all';
 let selectedRfq = null;
 
+// ---- identity ----------------------------------------------------------
+// A deployed desk authenticates one party per session. This switcher is the
+// honest local equivalent: choose who you are, and every view below shows only
+// what that party's participant node actually holds. Nothing is filtered client
+// side — switching identity switches which node's contracts we read.
+const ROLES = { buyer: 'Buyer', dealerA: 'Dealer A', dealerB: 'Dealer B', regulator: 'Regulator' };
+let ACTING = 'buyer';
+try { ACTING = localStorage.getItem('tirai.acting') ?? 'buyer'; } catch { /* private mode */ }
+if (!ROLES[ACTING]) ACTING = 'buyer';
+
+const actingParty = () => P[ACTING];
+const actingAcs = () => (ACTING === 'regulator' ? lastReg : lastAcs[ACTING]) ?? [];
+const isDealer = () => ACTING === 'dealerA' || ACTING === 'dealerB';
+
+function setActing(role) {
+  if (!ROLES[role]) return;
+  ACTING = role;
+  try { localStorage.setItem('tirai.acting', role); } catch { /* ignore */ }
+  selectedRfq = null;
+  renderIdentity();
+  renderActive();
+  // The create page belongs to the buy side; leaving it selected as a dealer
+  // would show a form that cannot submit.
+  if (currentView === 'create' && role !== 'buyer') showView('rfqs');
+}
+
+function renderIdentity() {
+  const sel = document.getElementById('acting-as');
+  if (sel && sel.value !== ACTING) sel.value = ACTING;
+  const pid = document.getElementById('ident-pid');
+  if (pid) pid.textContent = actingParty() ? actingParty().split('::')[0] : '—';
+  const bal = document.getElementById('ident-balance');
+  if (bal) {
+    const byInst = {};
+    for (const h of actingAcs()) {
+      if (!is(h, 'Holding') || h.arg.owner !== actingParty()) continue;
+      byInst[h.arg.instrument] = (byInst[h.arg.instrument] ?? 0) + Number(h.arg.amount);
+    }
+    const top = Object.entries(byInst).sort((a, b) => b[1] - a[1])[0];
+    bal.textContent = top ? `${fmt(top[1])} ${top[0]}` : 'no positions';
+  }
+  // Only the buy side can open a request.
+  const cta = document.getElementById('btn-new-rfq');
+  if (cta) cta.style.display = ACTING === 'buyer' ? '' : 'none';
+  const createNav = document.querySelector('.side-nav a[data-view="create"]');
+  if (createNav) createNav.style.display = ACTING === 'buyer' ? '' : 'none';
+}
+
+// ---- the book ----------------------------------------------------------
+// One row per request this identity can see. A dealer only ever sees requests it
+// was invited to, and against them only its own sealed quote — that is the ledger
+// speaking, not a filter applied here.
 function rfqRows() {
-  const mine = lastAcs.buyer ?? [];
+  const mine = actingAcs();
+  const me = actingParty();
   const quotes = mine.filter((c) => is(c, 'Quote'));
   const open = mine.filter((c) => is(c, 'RFQ')).map((r) => {
     const qs = quotes.filter((q) => q.arg.rfqId === r.cid);
+    const invited = r.arg.invitedDealers ?? [];
     return {
-      kind: 'open', cid: r.cid,
+      kind: 'open', cid: r.cid, tpl: r.tpl,
       instrument: r.arg.instrument, quantity: r.arg.quantity, pay: r.arg.payInstrument,
-      dealers: (r.arg.invitedDealers ?? []).length, quotes: qs.length,
+      maker: r.arg.buyer, invited, quotes: qs.length,
+      myQuote: qs.find((q) => q.arg.dealer === me) ?? null,
+      mode: invited.length > 1 ? 'Auction' : 'Direct',
+      mine: r.arg.buyer === me, forMe: invited.includes(me),
       status: qs.length ? 'Open' : 'Awaiting quotes', price: null,
     };
   });
-  // Settled trades give the list its history; the buyer sees its own, and this is
-  // the same contract the regulator sees post-trade.
   const done = mine.filter((c) => is(c, 'TradeReport')).map((t) => ({
-    kind: 'filled', cid: t.cid,
+    kind: 'filled', cid: t.cid, tpl: t.tpl,
     instrument: t.arg.instrument, quantity: t.arg.quantity, pay: '',
-    dealers: 1, quotes: 0, status: 'Filled', price: t.arg.clearingPrice, dealer: t.arg.dealer,
+    maker: t.arg.buyer, invited: [], quotes: 0, myQuote: null,
+    mode: '—', mine: t.arg.buyer === me, forMe: t.arg.dealer === me,
+    status: 'Filled', price: t.arg.clearingPrice, dealer: t.arg.dealer,
   }));
   return [...open, ...done];
 }
 
-function renderRfqs() {
+// What this identity may do with a row, following the model's own rules.
+function rowAction(r) {
+  if (r.kind === 'filled') return { label: 'Receipt', act: 'receipt' };
+  if (ACTING === 'buyer' && r.mine) return r.quotes ? { label: 'Settle', act: 'settle', primary: true } : { label: 'Cancel', act: 'cancel' };
+  if (isDealer() && r.forMe) return r.myQuote ? { label: 'Sealed', act: 'myquote' } : { label: 'Quote', act: 'quote', primary: true };
+  return { label: 'View', act: 'receipt' };
+}
+
+function renderActive() {
   const table = document.getElementById('rfq-table'); if (!table) return;
   const all = rfqRows();
-  const counts = { all: all.length, open: all.filter((r) => r.kind === 'open').length, filled: all.filter((r) => r.kind === 'filled').length };
-  const rows = rfqFilter === 'all' ? all : all.filter((r) => r.kind === rfqFilter);
+  const pass = { all: () => true, mine: (r) => r.mine, forme: (r) => r.forMe };
+  const counts = { all: all.length, mine: all.filter(pass.mine).length, forme: all.filter(pass.forme).length };
+  const rows = all.filter(pass[rfqFilter] ?? pass.all);
 
   const chips = document.getElementById('rfq-chips');
-  if (chips) chips.innerHTML = [['all', 'All'], ['open', 'Open'], ['filled', 'Filled']]
+  if (chips) chips.innerHTML = [['all', 'All'], ['mine', 'Mine'], ['forme', 'For me']]
     .map(([k, label]) => `<button class="rfq-chip${rfqFilter === k ? ' on' : ''}" data-filter="${k}">${label} <span>${counts[k]}</span></button>`).join('');
   const count = document.getElementById('rfq-count');
   if (count) count.textContent = `${rows.length} shown`;
 
-  // Open rows and settled rows carry different facts: an open request has a cash
-  // instrument and a quote count, a settled one has a clearing price and a winner.
-  // Each gets its own column rather than one column meaning two things.
   table.innerHTML = rows.length ? '<table class="audit rfq-table"><thead><tr>'
-    + '<th>Request</th><th>Instrument</th><th class="num">Quantity</th><th>Cash leg</th>'
-    + '<th class="num">Cleared at</th><th>Counterparty</th><th class="num">Sealed quotes</th><th>Status</th><th></th>'
+    + '<th>Request</th><th>Instrument</th><th class="num">Quantity</th><th>Mode</th><th>Maker</th>'
+    + '<th>Cash leg</th><th class="num">Cleared at</th><th class="num">Sealed quotes</th><th>Status</th><th></th>'
     + '</tr></thead><tbody>'
-    + rows.map((r) => `<tr class="${r.cid === selectedRfq ? 'sel' : ''}">
+    + rows.map((r) => {
+      const a = rowAction(r);
+      return `<tr class="${r.cid === selectedRfq ? 'sel' : ''}">
         <td class="mono">${esc(r.cid.slice(0, 8))}</td>
         <td class="hi">${esc(r.instrument)}</td>
         <td class="num">${fmt(r.quantity)}</td>
+        <td class="mode">${esc(r.mode)}</td>
+        <td>${r.mine ? '<span class="pill wait">you</span>' : dealerLabel(r.maker)}</td>
         <td>${esc(r.pay) || '—'}</td>
         <td class="num">${r.price != null ? fmt(r.price) : '—'}</td>
-        <td>${r.kind === 'filled' ? dealerLabel(r.dealer) : r.dealers + ' invited'}</td>
         <td class="num">${r.kind === 'filled' ? '—' : r.quotes}</td>
         <td><span class="pill ${r.status === 'Filled' ? 'ok' : r.quotes ? 'live' : 'wait'}">${esc(r.status)}</span></td>
-        <td>${r.kind === 'open' ? `<button class="ghost rfq-open" data-rfq="${esc(r.cid)}">${r.quotes ? 'Open auction' : 'View'}</button>` : ''}</td>
-      </tr>`).join('')
+        <td><button class="${a.primary ? '' : 'ghost'} rfq-act" data-act="${a.act}" data-rfq="${esc(r.cid)}">${esc(a.label)}</button></td>
+      </tr>`;
+    }).join('')
     + '</tbody></table>'
-    : '<div class="audit-empty">Nothing here yet — open an RFQ from the desk.</div>';
+    : `<div class="audit-empty">${ACTING === 'buyer'
+        ? 'No requests yet — open one with "New RFQ".'
+        : 'Nothing addressed to this identity yet. A dealer only sees the requests it was invited to.'}</div>`;
 }
 
-// Delegated so the 1.8s re-render never leaves a dead button behind.
-document.addEventListener('click', (e) => {
-  const chip = e.target.closest('.rfq-chip');
-  if (chip) { rfqFilter = chip.dataset.filter; renderRfqs(); return; }
-  const open = e.target.closest('.rfq-open');
-  if (open) { selectedRfq = open.dataset.rfq; showView('desk'); refresh(); }
-});
+// ---- dialogs -----------------------------------------------------------
+function openModal(title, html) {
+  const host = document.getElementById('modal-host'); if (!host) return;
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = html;
+  host.hidden = false;
+  host.querySelector('input, button, select')?.focus();
+}
+function closeModal() {
+  const host = document.getElementById('modal-host'); if (host) host.hidden = true;
+}
+
+function openRow(cid, act) {
+  const r = rfqRows().find((x) => x.cid === cid);
+  if (!r) return;
+  selectedRfq = cid;
+  if (act === 'quote') {
+    // Only a lot matching the request exactly can back a quote — the model rejects
+    // anything else, so say so here rather than failing on submit.
+    const lot = actingAcs().find((c) => is(c, 'Holding') && c.arg.owner === actingParty()
+      && c.arg.instrument === r.instrument && Number(c.arg.amount) === Number(r.quantity));
+    openModal(`Seal a quote · ${r.instrument}`, lot
+      ? `<div class="form">
+           <label>Your ask (${esc(r.pay)}) <input type="number" id="modal-ask" value="4230000" /></label>
+           <button id="modal-submit" data-rfq="${esc(r.cid)}" data-tpl="${esc(r.tpl)}" data-lot="${esc(lot.cid)}">Whisper sealed quote</button>
+           <p class="sub">Sealed to the buyer alone — a competing dealer's node is not an observer of this contract, so it never receives the number. Quoting locks ${fmt(r.quantity)} ${esc(r.instrument)} into escrow, which is what makes the price a commitment rather than an indication.</p>
+         </div>`
+      : `<p class="sub">This identity holds no lot of exactly ${fmt(r.quantity)} ${esc(r.instrument)}, so it cannot back a quote with escrow. On a real desk that inventory comes from your own book.</p>`);
+    return;
+  }
+  if (act === 'settle') { showView('desk'); refresh(); return; }
+  if (act === 'cancel') {
+    openModal(`Cancel request · ${r.instrument}`,
+      `<p class="sub">Withdraws the request. Any dealer that already quoted gets its escrowed lot back.</p>
+       <button id="modal-cancel" data-rfq="${esc(r.cid)}" data-tpl="${esc(r.tpl)}">Cancel this RFQ</button>`);
+    return;
+  }
+  if (act === 'myquote' && r.myQuote) {
+    openModal(`Your sealed quote · ${r.instrument}`,
+      `<div class="card"><div class="row"><span>your ask</span><span class="price">${fmt(r.myQuote.arg.price)} ${esc(r.pay)}</span></div>
+        <div class="sub">${fmt(r.quantity)} ${esc(r.instrument)} · escrowed · visible to the buyer only</div></div>
+       <p class="sub">Nobody else holds this number. You can reveal it to the regulator yourself to defend your pricing, or withdraw it and release the escrow — both from the side-by-side view.</p>`);
+    return;
+  }
+  openModal(`${r.kind === 'filled' ? 'Settlement receipt' : 'Request'} · ${r.instrument}`,
+    `<table class="audit"><tbody>
+       <tr><td>Instrument</td><td class="hi">${esc(r.instrument)}</td></tr>
+       <tr><td>Quantity</td><td class="num">${fmt(r.quantity)}</td></tr>
+       ${r.price != null ? `<tr><td>Clearing price</td><td class="num hi">${fmt(r.price)}</td></tr>` : ''}
+       ${r.dealer ? `<tr><td>Counterparty</td><td>${dealerLabel(r.dealer)}</td></tr>` : ''}
+       <tr><td>Status</td><td><span class="pill ${r.status === 'Filled' ? 'ok' : 'live'}">${esc(r.status)}</span></td></tr>
+     </tbody></table>
+     <p class="sub">The executed price and the counterparty are recorded for the regulator. The losing asks are archived without ever being revealed — not to the market, not to the rivals, and not to the regulator unless someone chooses to disclose them.</p>`);
+}
+
+// ---- session activity --------------------------------------------------
+const activity = [];
+function logActivity(what, detail) {
+  activity.unshift({ at: new Date(), who: ROLES[ACTING], what, detail });
+  if (!document.getElementById('view-activity')?.hidden) renderActivity();
+}
+function renderActivity() {
+  const el = document.getElementById('activity-body'); if (!el) return;
+  el.innerHTML = activity.length
+    ? '<table class="audit"><thead><tr><th>Time</th><th>Identity</th><th>Action</th><th>Detail</th></tr></thead><tbody>'
+      + activity.map((a) => `<tr><td class="mono">${a.at.toTimeString().slice(0, 8)}</td><td>${esc(a.who)}</td><td class="hi">${esc(a.what)}</td><td class="sub">${esc(a.detail ?? '')}</td></tr>`).join('')
+      + '</tbody></table>'
+    : '<div class="audit-empty">Nothing yet this session. Open a request, or seal a quote against one.</div>';
+}
+
+// ---- create ------------------------------------------------------------
+let createMode = 'auction';
+function renderCreate() {
+  document.querySelectorAll('#create-modes .mode').forEach((m) => m.classList.toggle('on', m.dataset.mode === createMode));
+  const el = document.getElementById('create-form'); if (!el) return;
+  if (el.contains(document.activeElement)) return; // don't wipe a half-typed form
+  el.innerHTML = `
+    <div class="form">
+      <label>Instrument <input id="c-instrument" value="TBOND30" /></label>
+      <label>Quantity <input id="c-qty" type="number" value="1000" /></label>
+      <label>Cash leg <input id="c-pay" value="USDC" /></label>
+      <label>Dealer panel <span class="sub">${createMode === 'auction' ? 'Dealer A and Dealer B' : 'Dealer A only'}</span></label>
+      <button id="c-submit">${createMode === 'auction' ? 'Open the auction' : 'Send to the counterparty'}</button>
+      <p class="sub">${createMode === 'auction'
+        ? 'Both dealers are invited and answer sealed. The cheapest ask wins and is paid the second-cheapest price, so quoting honestly is the dealer\'s best strategy.'
+        : 'One counterparty is invited, and you settle at its own ask — the same sealed request and the same atomic delivery-versus-payment.'}</p>
+    </div>`;
+}
 
 // Provable best execution — the institutional payoff. On a public exchange, best
 // execution is audited against a visible order book. Tirai has no public book, yet
@@ -669,8 +823,9 @@ async function refresh() {
     renderBuyer(b); renderBasketBuyer(b); renderDealer('dealerA', a); renderDealer('dealerB', d);
     const settled = renderRegulator(r);
     lastReg = r; lastAcs = { buyer: b, dealerA: a, dealerB: d };
+    renderIdentity();
     if (!document.getElementById('view-audit')?.hidden) renderAudit();
-    if (!document.getElementById('view-rfqs')?.hidden) renderRfqs();
+    if (!document.getElementById('view-rfqs')?.hidden) renderActive();
     if (!document.getElementById('view-portfolio')?.hidden) renderPortfolio();
     if (!document.getElementById('view-verify')?.hidden) renderVerify();
     if (!document.getElementById('view-bestexec')?.hidden) renderBestExec();
@@ -695,28 +850,37 @@ async function guarded(btn, fn) {
   finally { acting = false; if (btn) btn.disabled = false; }
 }
 
-async function createRFQ() {
+// Called from two places: the Create RFQ page (the product path) and the buyer
+// column of the side-by-side view (the demo path). `btn` decides which form is
+// being read, and an auction invites the panel while a direct request invites one.
+async function createRFQ(btn) {
   if (READONLY) return toast(RO_MSG);
   if (!PKG) return toast('package not discovered yet', true);
-  const instrument = document.getElementById('rfq-instrument').value.trim();
-  const payInstrument = document.getElementById('rfq-pay').value.trim();
-  const quantity = posDec(document.getElementById('rfq-qty').value);
+  const fromPage = btn?.id === 'c-submit';
+  const val = (id) => document.getElementById(id)?.value ?? '';
+  const instrument = (fromPage ? val('c-instrument') : val('rfq-instrument')).trim();
+  const payInstrument = (fromPage ? val('c-pay') : val('rfq-pay')).trim();
+  const quantity = posDec(fromPage ? val('c-qty') : val('rfq-qty'));
+  const panel = fromPage && createMode === 'direct' ? [P.dealerA] : [P.dealerA, P.dealerB];
   if (!instrument || !payInstrument) return toast('instrument and pay currency are required', true);
   if (!quantity) return toast('quantity must be a positive number', true);
-  await guarded(document.getElementById('btn-create-rfq'), async () => {
+  await guarded(btn ?? document.getElementById('btn-create-rfq'), async () => {
     try {
       await submit(P.buyer, { CreateCommand: { templateId: `${PKG}:Tirai:RFQ`, createArguments: {
-        buyer: P.buyer, regulator: P.regulator, invitedDealers: [P.dealerA, P.dealerB],
+        buyer: P.buyer, regulator: P.regulator, invitedDealers: panel,
         instrument, quantity, payInstrument,
         assetIssuer: CFG_PARTIES.bondIssuer ?? null, payIssuer: CFG_PARTIES.cashIssuer ?? null,
         // Daml Time as RFC3339 without fractional seconds (the form the ledger's
         // codec is known to accept everywhere else); open for 24h.
         deadline: new Date(Date.now() + 86400000).toISOString().replace(/\.\d+Z$/, 'Z') } } });
-      toast('RFQ sent to the dealer panel'); await refresh();
+      toast(panel.length > 1 ? 'RFQ sent to the dealer panel' : 'Request sent to the counterparty');
+      logActivity('Opened a request', `${instrument} x ${quantity}`);
+      await refresh();
+      if (fromPage) showView('rfqs');
     } catch (e) { toast(e.message, true); }
   });
   // after guarded() re-enabled the button, keep keyboard focus anchored (not on <body>)
-  document.getElementById('btn-create-rfq')?.focus();
+  (btn ?? document.getElementById('btn-create-rfq'))?.focus();
 }
 
 async function submitQuote(role, rfqCid, bondCid, tpl, priceRaw, btn) {
@@ -921,8 +1085,45 @@ async function rejectBasket(quoteCid, tpl, btn) {
   });
 }
 
+// ---- production shell: identity, the book, dialogs ----
+document.getElementById('acting-as')?.addEventListener('change', (e) => setActing(e.target.value));
+document.getElementById('btn-new-rfq')?.addEventListener('click', () => showView('create'));
+document.getElementById('modal-x')?.addEventListener('click', closeModal);
+document.getElementById('modal-host')?.addEventListener('click', (e) => { if (e.target.id === 'modal-host') closeModal(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
+document.addEventListener('click', (e) => {
+  const chip = e.target.closest('.rfq-chip');
+  if (chip) { rfqFilter = chip.dataset.filter; renderActive(); return; }
+
+  const act = e.target.closest('.rfq-act');
+  if (act) { openRow(act.dataset.rfq, act.dataset.act); return; }
+
+  const mode = e.target.closest('#create-modes .mode');
+  if (mode) { createMode = mode.dataset.mode; renderCreate(); return; }
+
+  const seal = e.target.closest('#modal-submit');
+  if (seal) {
+    const price = document.getElementById('modal-ask')?.value;
+    const role = ACTING;
+    submitQuote(role, seal.dataset.rfq, seal.dataset.lot, seal.dataset.tpl, price, seal)
+      .then(() => { logActivity('Sealed a quote', `${price} on ${seal.dataset.rfq.slice(0, 8)}`); closeModal(); });
+    return;
+  }
+
+  const cancel = e.target.closest('#modal-cancel');
+  if (cancel) {
+    cancelableRfq = { cid: cancel.dataset.rfq, tpl: cancel.dataset.tpl };
+    cancelRFQ().then(() => { logActivity('Cancelled a request', cancel.dataset.rfq.slice(0, 8)); closeModal(); });
+    return;
+  }
+
+  const create = e.target.closest('#c-submit');
+  if (create) createRFQ(create);
+});
+
 // ---- wire up ----
-document.getElementById('btn-create-rfq').addEventListener('click', createRFQ);
+document.getElementById('btn-create-rfq').addEventListener('click', () => createRFQ());
 document.getElementById('btn-award').addEventListener('click', award);
 document.getElementById('btn-award-partial')?.addEventListener('click', awardPartial);
 document.getElementById('btn-cancel-rfq')?.addEventListener('click', cancelRFQ);
@@ -1004,6 +1205,8 @@ document.getElementById('howto-x')?.addEventListener('click', () => document.get
     CFG_PARTIES = cfg.parties ?? {};
     if (cfg.readOnly) enterReadOnly();
     if (!(await loadParties(cfg.parties))) { setLedger('err', 'demo parties not found — run seed'); return; }
+    renderIdentity();
+    showView('rfqs');
     await refresh();
     setInterval(refresh, 1800);
     // Near-instant updates when the local server offers an SSE push stream. Skip it

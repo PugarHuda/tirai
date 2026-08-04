@@ -20,6 +20,8 @@ const check = (n, c, d = '') => { R.push({ n, ok: !!c }); console.log((c ? '  �
   const rfq = async (i, q) => { await p.fill('#rfq-instrument', i); await p.fill('#rfq-qty', String(q)); await p.click('#btn-create-rfq'); };
   await p.goto(URL, { waitUntil: 'load' });
   await p.waitForFunction(() => document.getElementById('pid-buyer')?.textContent !== '—', { timeout: 60000 }); await wait(1200);
+  // The side-by-side proof is a view now, not the home screen.
+  await p.locator('.side-nav a[data-view="desk"]').click(); await wait(600);
 
   console.log('\n── 1 · AwardPartial (partial-Vickrey) ──');
   try {

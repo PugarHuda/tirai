@@ -12,6 +12,8 @@ const errs = []; p.on('pageerror', e => errs.push(String(e)));
 const wait = ms => p.waitForTimeout(ms); const txt = s => p.locator(s).textContent();
 await p.goto('http://localhost:8080/app.html', { waitUntil: 'load' });
 await p.waitForFunction(() => document.getElementById('pid-buyer')?.textContent !== '—', { timeout: 60000 }); await wait(1200);
+// The side-by-side proof is a view now, not the home screen.
+await p.locator('.side-nav a[data-view="desk"]').click(); await wait(600);
 
 check('sidebar has a Best-execution view + a Devnet explorer link',
   await p.locator('.side-nav a[data-view="bestexec"]').count() === 1 &&

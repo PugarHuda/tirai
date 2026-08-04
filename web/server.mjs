@@ -152,7 +152,10 @@ const server = createServer(async (req, res) => {
   }
 
   // Static files — resolve and confirm the real path stays inside the web root.
-  const rel = normalize(url.pathname === '/' ? '/index.html' : url.pathname);
+  // The hosted deployment rewrites extensionless routes; mirror the two that
+  // matter so a URL written down for the demo works locally as well.
+  const ALIAS = { '/': '/index.html', '/app': '/app.html' };
+  const rel = normalize(ALIAS[url.pathname] ?? url.pathname);
   const full = resolve(ROOT, '.' + rel);
   if (full !== ROOT && !full.startsWith(ROOT + sep)) return send(res, 403, 'forbidden', 'text/plain');
   try {

@@ -13,13 +13,16 @@
 <aside class="side">
   <a class="side-brand" href="/">tirai<span class="dot">.</span></a>
   <div class="side-net">CANTON · DEVNET<br><span>JSON Ledger API</span></div>
+  <button class="side-cta" id="btn-new-rfq"><span aria-hidden="true">＋</span> New RFQ</button>
   <nav class="side-nav">
-    <a class="on" href="#" data-view="desk"><span class="ic" aria-hidden="true">▤</span> The desk</a>
-    <a href="#" data-view="rfqs"><span class="ic" aria-hidden="true">≣</span> Active RFQs</a>
+    <a class="on" href="#" data-view="rfqs"><span class="ic" aria-hidden="true">≣</span> Active RFQs</a>
+    <a href="#" data-view="create"><span class="ic" aria-hidden="true">⇄</span> Create RFQ</a>
+    <a href="#" data-view="activity"><span class="ic" aria-hidden="true">◷</span> My activity</a>
     <a href="#" data-view="portfolio"><span class="ic" aria-hidden="true">◈</span> Portfolio</a>
-    <a href="#" data-view="verify"><span class="ic" aria-hidden="true">◉</span> Verify privacy</a>
     <a href="#" data-view="audit"><span class="ic" aria-hidden="true">✓</span> Audit trail</a>
     <a href="#" data-view="bestexec"><span class="ic" aria-hidden="true">⚖</span> Best execution</a>
+    <a href="#" data-view="verify"><span class="ic" aria-hidden="true">◉</span> Verify privacy</a>
+    <a href="#" data-view="desk"><span class="ic" aria-hidden="true">▤</span> Side-by-side proof</a>
     <div class="side-sep" aria-hidden="true"></div>
     <a href="/" target="_blank" rel="noopener"><span class="ic" aria-hidden="true">↗</span> Landing page</a>
     <a href="https://youtu.be/_iHMouFdNA4" target="_blank" rel="noopener"><span class="ic" aria-hidden="true">▶</span> Demo video</a>
@@ -29,9 +32,33 @@
   </nav>
   <div class="side-foot">
     <div class="ledger" id="ledger-status" role="status" aria-live="polite">connecting…</div>
-    <div class="side-lens">Three party lenses on one ledger — each panel shows only what that party's node actually receives.</div>
+    <!-- Who you are acting as. A real deployment authenticates one party per
+         session; here the switcher is the honest equivalent — pick an identity and
+         the whole app shows only what that party's node actually holds. -->
+    <div class="ident" id="ident">
+      <label class="ident-label" for="acting-as">Signed in as</label>
+      <select id="acting-as" class="ident-select">
+        <option value="buyer">Buyer — buy side</option>
+        <option value="dealerA">Dealer A — sell side</option>
+        <option value="dealerB">Dealer B — sell side</option>
+        <option value="regulator">Regulator — observer</option>
+      </select>
+      <div class="ident-row"><span class="ident-bal" id="ident-balance">—</span></div>
+      <div class="ident-pid mono" id="ident-pid">—</div>
+    </div>
   </div>
 </aside>
+
+<!-- Dialogs: sealing a quote, and the settlement receipt. -->
+<div class="modal-host" id="modal-host" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-head">
+      <h3 id="modal-title">—</h3>
+      <button class="modal-x" id="modal-x" aria-label="close">×</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
 
 <div class="main">
   <header class="topbar">
@@ -47,7 +74,8 @@
   </div>
 
   <div class="howto" id="howto">
-    <strong>How to drive it</strong> — you play all three parties on one ledger:
+    <strong>Side-by-side proof</strong> — all three parties' own views at once, which no real
+    deployment shows you. Sign in as one identity in the sidebar for the product path:
     <span><b>1</b> Buyer → <em>Send to dealer panel</em></span>
     <span><b>2</b> Dealer A &amp; B → type an ask → <em>Whisper sealed quote</em> <i>(watch the rival column stay blank)</i></span>
     <span><b>3</b> Buyer → <em>Award</em> (Vickrey) · <em>Accept</em> (direct OTC) · or <em>Fill partial</em></span>
@@ -113,8 +141,34 @@
     <div id="audit-table"></div>
   </section>
 
-  <!-- Every RFQ the buyer can see, open and settled, in one dense list. The desk
-       itself only ever scopes to one auction; this is where you pick which. -->
+  <!-- Create RFQ: pick an execution mode, then the terms. The buy side's own page,
+       rather than a form wedged into a column. -->
+  <section class="audit-view" id="view-create" hidden>
+    <h2 class="audit-title">Create RFQ <span class="hint">choose how it should execute — the request itself is never public either way</span></h2>
+    <div class="modes" id="create-modes">
+      <button class="mode on" data-mode="auction">
+        <span class="mode-n">Mode 01</span>
+        <h3>RFQ auction</h3>
+        <p>A panel of dealers answers with sealed quotes. Cheapest ask wins and is paid the second-cheapest price, so quoting honestly is the dealer's best strategy.</p>
+        <div class="mode-facts"><span>Pricing <b>Vickrey</b></span><span>Dealers <b>2+</b></span></div>
+      </button>
+      <button class="mode" data-mode="direct">
+        <span class="mode-n">Mode 02</span>
+        <h3>Direct OTC</h3>
+        <p>One counterparty, settled at its own ask. Same sealed request and same atomic delivery-versus-payment — you simply choose who fills it.</p>
+        <div class="mode-facts"><span>Pricing <b>At ask</b></span><span>Dealers <b>1</b></span></div>
+      </button>
+    </div>
+    <div class="create-form" id="create-form"></div>
+  </section>
+
+  <!-- Session log: what this identity did, in order. -->
+  <section class="audit-view" id="view-activity" hidden>
+    <h2 class="audit-title">My activity <span class="hint">what this identity has done in this session</span></h2>
+    <div id="activity-body"></div>
+  </section>
+
+  <!-- Every RFQ the acting party can see, open and settled, in one dense list. -->
   <section class="audit-view" id="view-rfqs" hidden>
     <h2 class="audit-title">Active RFQs <span class="hint">every request this party can see — rival dealers see only the ones they were invited to</span></h2>
     <div class="rfq-bar">

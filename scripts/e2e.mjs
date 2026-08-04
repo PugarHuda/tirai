@@ -26,6 +26,9 @@ const check = (name, cond, detail = '') => {
 
   await p.goto(URL, { waitUntil: 'load' });
   await p.waitForFunction(() => { const e = document.getElementById('pid-buyer'); return e && e.textContent && e.textContent !== '—'; }, { timeout: 60000 });
+  // The side-by-side proof is a view now, not the home screen.
+  await p.locator('.side-nav a[data-view="desk"]').click();
+  await p.waitForTimeout(600);
   await wait(1200);
 
   console.log('\n── Case 1 · Buyer opens an RFQ ──');
@@ -134,35 +137,35 @@ const check = (name, cond, detail = '') => {
   await wait(900);
   check('non-positive quantity is rejected (error toast)', await p.locator('.toast.err.show').count() >= 1 || (await p.locator('.toast').textContent().catch(() => '')).toLowerCase().includes('positive'));
 
-  console.log('── Case 10 · Active RFQs list — the whole book, and picking one ──');
-  // A second live request the desk would never scope to on its own: the auction
-  // from case 2 has quotes, so it always wins the default. Selecting from the list
-  // is the only way to reach this one.
+  console.log('── Case 10 · The book — filters and row dialogs ──');
+  // The three-column view is the proof; this is the product surface. Identity-aware
+  // filtering and the row dialogs are checked here, and the full single-identity
+  // journey (sign in, quote, switch, settle) lives in scripts/e2e-shell.mjs.
   await setDesk();
   await p.fill('#rfq-instrument', 'GILT10');
   await p.fill('#rfq-qty', '100');
   await p.click('#btn-create-rfq');
   await wait(2200);
   await setView('rfqs');
-  const rfqRowCount = await p.locator('.rfq-table tbody tr').count();
-  check('list shows a row per request the party can see', rfqRowCount >= 2, `${rfqRowCount} rows`);
+  const bookRows = await p.locator('.rfq-table tbody tr').count();
+  check('the book lists what this identity can see', bookRows >= 1, `${bookRows} rows`);
   check('filter chips render with counts', (await p.locator('.rfq-chip').count()) === 3);
-  await p.locator('.rfq-chip[data-filter="filled"]').click();
-  await wait(400);
-  const filledOnly = await p.locator('.rfq-table tbody tr').count();
-  check('a filter narrows the list', filledOnly < rfqRowCount, `${filledOnly} filled of ${rfqRowCount}`);
-  await p.locator('.rfq-chip[data-filter="open"]').click();
-  await wait(400);
 
-  // The unquoted GILT10 row: selecting it must re-scope the desk away from the
-  // quoted auction, which is exactly what the three-column view cannot do alone.
+  await p.locator('.rfq-chip[data-filter="forme"]').click();
+  await wait(500);
+  check('“For me” is empty for the buy side — it invites, it is not invited',
+    (await p.locator('.rfq-table tbody tr').count()) === 0);
+  await p.locator('.rfq-chip[data-filter="all"]').click();
+  await wait(500);
+  check('clearing the filter restores the book', (await p.locator('.rfq-table tbody tr').count()) === bookRows);
+
   const gilt = p.locator('.rfq-table tbody tr', { hasText: 'GILT10' }).first();
-  await gilt.locator('.rfq-open').click();
-  await wait(2200);
-  check('picking a row returns to the desk', await p.locator('.desk').isVisible());
-  check('the desk re-scoped to the request with no quotes yet',
-    (await txt('#buyer-quotes')).toLowerCase().includes('waiting'));
-  check('award stays disabled on an unquoted request', await p.locator('#btn-award').isDisabled());
+  await gilt.locator('.rfq-act').click();
+  await wait(800);
+  check('a row opens a dialog', await p.locator('#modal-host').isVisible());
+  await p.locator('#modal-x').click();
+  await wait(400);
+  check('the dialog closes again', !(await p.locator('#modal-host').isVisible()));
 
   check('no uncaught page errors during the whole run', errs.length === 0, errs.join(' | '));
 

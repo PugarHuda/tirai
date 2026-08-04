@@ -22,7 +22,8 @@
     "e2e:mcp": "node scripts/e2e-mcp.mjs",
     "pdf": "node scripts/make-pdf.mjs",
     "logo": "node scripts/make-logo.mjs",
-    "devnet:cc": "node scripts/devnet.mjs seed-cc"
+    "devnet:cc": "node scripts/devnet.mjs seed-cc",
+    "e2e:shell": "node scripts/e2e-shell.mjs"
   },
   "devDependencies": {
     "playwright": "^1.48.0"

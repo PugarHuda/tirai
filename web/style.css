@@ -42,6 +42,11 @@
   --radius-pill: 999px;
   --shadow: 0 1px 2px rgba(17, 24, 38, .05);
   --shadow-pop: 0 8px 24px rgba(17, 24, 38, .12), 0 1px 3px rgba(17, 24, 38, .08);
+  /* production shell: a brighter accent for fills on the dark rail (the deep
+     --accent-ink reads as a hole there), and the dialog backdrop. */
+  --accent-hi: #12b87f;
+  --scrim: rgba(9, 12, 17, .55);
+  --shadow-modal: 0 18px 48px rgba(9, 12, 17, .28), 0 2px 8px rgba(9, 12, 17, .16);
 }
 * { box-sizing: border-box; }
 body {
@@ -202,7 +207,7 @@ table.audit th.num { text-align: right; }
 table.audit td.num { text-align: right; }
 table.audit td.mono { color: var(--muted); }
 table.audit td.hi { color: var(--ink); font-weight: 600; }
-table.audit td.mode { color: var(--accent-ink); font-size: 12px; }
+table.audit td#create-modes .mode { color: var(--accent-ink); font-size: 12px; }
 table.audit tr.sel td { background: var(--accent-dim); }
 table.audit tr.sel:hover td { background: var(--accent-dim); }
 table.audit tr.sel td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
@@ -335,4 +340,148 @@ body.app .desk { min-height: 0; flex: 1; }
   .side-net, .side-lens { display: none; }
   .side-nav { flex-direction: row; flex-wrap: wrap; margin-left: auto; }
   .side-foot { margin: 0; }
+}
+
+/* ============================================================
+   Production shell: rail CTA, identity block, dialogs, the
+   create page. Everything below is light-on-dark inside .side
+   and dark-on-white everywhere else.
+   ============================================================ */
+
+/* The one primary action on the page. Sits between the brand block and the nav,
+   so it is filled with the bright accent rather than the deep --accent-ink,
+   which would disappear into the rail. */
+.side-cta {
+  width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: var(--accent); color: var(--panel);
+  border: 1px solid transparent; border-radius: var(--radius);
+  padding: 10px 14px; font-size: 13.5px; font-weight: 600; letter-spacing: -.01em;
+}
+.side-cta span { font-size: 15px; line-height: 1; }
+.side-cta:hover:not(:disabled) { background: var(--accent-hi); }
+.side-cta:active:not(:disabled) { background: var(--accent-ink); }
+.side-cta:focus-visible { outline: 2px solid var(--accent-hi); outline-offset: 3px; }
+
+/* Signed-in identity, pinned to the bottom of the rail. */
+.ident {
+  display: flex; flex-direction: column; gap: 7px;
+  background: var(--rail-3); border: 1px solid var(--rail-line);
+  border-radius: var(--radius-sm); padding: 10px;
+}
+.ident-label {
+  font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--rail-muted);
+}
+/* ponytail: native select arrow kept — restyling the closed control is enough to
+   fix white-on-white here; a custom caret would mean an inline SVG for no gain. */
+.ident-select {
+  width: 100%; font: inherit; font-size: 12.5px;
+  background: var(--rail-2); color: var(--rail-ink);
+  border: 1px solid var(--rail-line); border-radius: var(--radius-sm);
+  padding: 7px 8px; cursor: pointer;
+  transition: border-color .12s ease, background .12s ease;
+}
+.ident-select:hover { border-color: var(--rail-muted); }
+.ident-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-color: var(--accent); }
+/* Popup list: some platforms fall back to the system default here, so name both. */
+.ident-select option { background: var(--rail-2); color: var(--rail-ink); }
+.ident-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.ident-bal {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 16px; font-weight: 700; color: var(--rail-ink);
+  font-variant-numeric: tabular-nums;
+}
+.ident-pid {
+  font-size: 10.5px; color: var(--rail-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ---- dialogs ---- */
+.modal-host {
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+  background: var(--scrim);
+}
+.modal-host[hidden] { display: none; }
+.modal {
+  width: 100%; max-width: 520px; max-height: calc(100vh - 48px);
+  display: flex; flex-direction: column; overflow: hidden;
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--shadow-modal);
+}
+.modal-head {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 18px; border-bottom: 1px solid var(--line);
+}
+.modal-head h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.modal-x {
+  margin-left: auto; background: none; border: 0; padding: 0 4px;
+  color: var(--muted); font-size: 20px; line-height: 1; cursor: pointer;
+}
+.modal-x:hover:not(:disabled) { background: none; color: var(--ink); }
+.modal-body { padding: 18px; overflow-y: auto; }
+.modal-body > *:first-child { margin-top: 0; }
+.modal-body .form input { width: 100%; max-width: 180px; }
+.modal-body table.audit { margin-top: 12px; font-size: 12.5px; }
+.modal-body .list + .form, .modal-body .card + .form { margin-top: 14px; }
+
+/* ---- create page: execution mode cards ---- */
+.modes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-top: 20px; max-width: 900px; }
+.mode {
+  display: flex; flex-direction: column; align-items: stretch; gap: 8px;
+  text-align: left; padding: 18px 20px;
+  background: var(--panel); color: var(--ink);
+  border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: var(--shadow); font-weight: 400;
+  transition: background .12s ease, border-color .12s ease, box-shadow .12s ease;
+}
+#create-modes .mode:hover:not(:disabled) { background: var(--panel); border-color: var(--line-2); box-shadow: var(--shadow-pop); }
+#create-modes .mode:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#create-modes .mode-n { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent-ink); font-weight: 700; }
+#create-modes .mode h3 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
+#create-modes .mode p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+#create-modes .mode-facts { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 4px; font-size: 11.5px; color: var(--muted); }
+#create-modes .mode-facts span { display: inline-flex; align-items: baseline; gap: 6px; }
+#create-modes .mode-facts b { color: var(--ink); font-weight: 600; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+/* Selected. Marked three ways — border, tint, and a tick on the caption — so it
+   does not depend on colour alone. */
+#create-modes .mode.on { border-color: var(--accent); background: var(--accent-dim); }
+#create-modes .mode.on:hover:not(:disabled) { background: var(--accent-dim); border-color: var(--accent); }
+.mode.on h3 { font-weight: 700; }
+#create-modes .mode.on .mode-n::after { content: " ✓ selected"; }
+.mode.on .mode-facts b { color: var(--accent-ink); }
+
+/* ---- create page: the terms form ---- */
+.create-form {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 20px; align-items: end;
+  max-width: 900px; margin-top: 26px; padding-top: 22px; border-top: 1px solid var(--line);
+}
+.create-form label {
+  display: flex; flex-direction: column; gap: 5px;
+  color: var(--muted); font-size: 12px; justify-content: flex-start;
+}
+.create-form input, .create-form select {
+  width: 100%; max-width: none; font: inherit; color: var(--ink);
+  background: var(--panel); border: 1px solid var(--line-2); border-radius: var(--radius);
+  padding: 8px 10px;
+}
+.create-form input:focus, .create-form select:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-dim); }
+.create-form p, .create-form .hint { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.6; }
+.create-form button { grid-column: 1 / -1; justify-self: start; padding: 9px 18px; }
+
+/* Session log: the table or the empty line, plus a scroll floor on narrow screens. */
+#activity-body { overflow-x: auto; }
+#activity-body .audit-empty { margin-top: 14px; }
+
+@media (max-width: 760px) {
+  .side-cta { width: auto; flex: 0 0 auto; order: 2; }
+  .side-foot { flex: 1 1 100%; }
+  .ident { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+  .ident-label { flex: 0 0 100%; }
+  .ident-select { width: auto; flex: 1 1 160px; }
+  .ident-pid { flex: 1 1 100%; }
+  .modes { grid-template-columns: 1fr; }
+  .create-form { grid-template-columns: 1fr; }
+  .modal-host { padding: 12px; align-items: flex-end; }
+  .modal { max-height: calc(100vh - 24px); }
 }
