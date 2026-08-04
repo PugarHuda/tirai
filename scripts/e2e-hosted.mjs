@@ -88,7 +88,13 @@ async function runEngine(name) {
   // ── Desk over live Devnet, read-only ──
   console.log('── Desk (read-only, live Devnet) ──');
   await page.goto(BASE + '/app', { waitUntil: 'load', timeout: 45000 });
-  await page.waitForTimeout(6000); // let the first ACS poll land
+  // Wait for the first ACS poll to actually land rather than guessing at a delay:
+  // a refresh is one ledger-end plus three grouped reads per party, and a cold
+  // serverless instance can push the first successful render past any fixed sleep.
+  await page.waitForFunction(
+    () => /\d/.test(document.getElementById('stat-offset')?.textContent ?? ''),
+    null, { timeout: 30000 },
+  ).catch(() => {});
 
   const offset = (await page.locator('#stat-offset').innerText().catch(() => '—')).trim();
   ok('ledger offset tile shows live data', /\d/.test(offset) && offset !== '—', offset);

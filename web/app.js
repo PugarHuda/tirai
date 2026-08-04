@@ -580,10 +580,16 @@ async function refresh() {
   try {
     // One ledger-end, then every party's contracts in parallel at that offset.
     const off = await ledgerEnd();
-    const [b, a, d, r] = await Promise.all([
+    // One party's read failing (a cold serverless instance, a 502) must not blank
+    // the whole desk: fall back to that party's last known contracts and let the
+    // next poll catch up. A stale column beats an empty one during a live demo.
+    const settledReads = await Promise.allSettled([
       acsAt(P.buyer, off), acsAt(P.dealerA, off), acsAt(P.dealerB, off),
       P.regulator ? acsAt(P.regulator, off) : Promise.resolve([]),
     ]);
+    const prev = [lastAcs.buyer, lastAcs.dealerA, lastAcs.dealerB, lastReg];
+    const [b, a, d, r] = settledReads.map((s, i) => (s.status === 'fulfilled' ? s.value : (prev[i] ?? [])));
+    const stale = settledReads.filter((s) => s.status === 'rejected').length;
     if (!PKG) { const any = [...b, ...a, ...d].find((c) => typeof c.tpl === 'string' && c.tpl.includes(':Tirai:')); if (any) PKG = any.tpl.split(':')[0]; }
     renderBuyer(b); renderBasketBuyer(b); renderDealer('dealerA', a); renderDealer('dealerB', d);
     const settled = renderRegulator(r);
@@ -594,7 +600,9 @@ async function refresh() {
     if (!document.getElementById('view-bestexec')?.hidden) renderBestExec();
     setStats({ offset: off, rfqs: b.filter((c) => is(c, 'RFQ')).length,
       quotes: b.filter((c) => is(c, 'Quote')).length, settled });
-    setLedger('ok', 'ledger live · pkg ' + (PKG ? PKG.slice(0, 8) : '—'));
+    setLedger(stale ? 'warn' : 'ok',
+      (stale ? `ledger live · ${stale} column stale, retrying` : 'ledger live')
+      + ' · pkg ' + (PKG ? PKG.slice(0, 8) : '—'));
   } catch (e) {
     setLedger('err', 'ledger error: ' + e.message);
   } finally { busy = false; }

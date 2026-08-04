@@ -33,6 +33,7 @@ body {
 .ledger { margin-left: auto; font-size: 12px; color: var(--muted); }
 .ledger.ok { color: var(--accent); }
 .ledger.err { color: var(--dealerB); }
+.ledger.warn { color: var(--warn); }
 
 .desk {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;

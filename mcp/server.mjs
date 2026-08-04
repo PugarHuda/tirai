@@ -83,15 +83,32 @@ async function submit(actAs, command) {
 const createdCid = (tx, tplSuffix) => tx.transaction?.events?.map((e) => e.CreatedEvent)
   .find((e) => e && typeof e.templateId === 'string' && e.templateId.endsWith(tplSuffix))?.contractId;
 
+// The node refuses any active-contracts response over 200 elements, and a busy
+// party passed that — a wildcard read now fails outright. Reading in template
+// groups keeps every response well under the cap, and each group is one request.
+// Template filters take the package NAME, which is stable across versions.
+const TEMPLATE_GROUPS = [
+  ['Holding'],
+  ['TradeReport', 'BasketTradeReport', 'QuoteDisclosure'],
+  ['RFQ', 'Quote', 'TokenTrade', 'BasketRFQ', 'BasketQuote', 'EscrowedHolding'],
+];
+
 async function acsAs(party) {
   const end = await api('/v2/state/ledger-end');
   const off = end.data?.offset;
   if (typeof off !== 'number') throw new Error('ledger returned no offset');
-  const r = await api('/v2/state/active-contracts', { method: 'POST', body: JSON.stringify({
-    filter: { filtersByParty: { [party]: { cumulative: [] } } }, verbose: true, activeAtOffset: off }) });
-  if (!Array.isArray(r.data)) throw new Error('active-contracts returned no array');
-  return r.data.map((x) => x.contractEntry?.JsActiveContract?.createdEvent).filter(Boolean)
-    .map((e) => ({ tpl: e.templateId.split(':').slice(-1)[0], arg: e.createArgument }));
+  const out = [];
+  for (const group of TEMPLATE_GROUPS) {
+    const r = await api('/v2/state/active-contracts', { method: 'POST', body: JSON.stringify({
+      filter: { filtersByParty: { [party]: { cumulative: group.map((tpl) => ({ identifierFilter: {
+        TemplateFilter: { value: { templateId: `#tirai-desk:Tirai:${tpl}`, includeCreatedEventBlob: false } },
+      } })) } } },
+      verbose: true, activeAtOffset: off }) });
+    if (!Array.isArray(r.data)) throw new Error('active-contracts returned no array');
+    out.push(...r.data.map((x) => x.contractEntry?.JsActiveContract?.createdEvent).filter(Boolean)
+      .map((e) => ({ tpl: e.templateId.split(':').slice(-1)[0], arg: e.createArgument })));
+  }
+  return out;
 }
 
 // A configured role → its party id, or a full "id::namespace" passed through directly.
