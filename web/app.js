@@ -385,6 +385,7 @@ function showView(v) {
 // re-scopes to it. Rows come from contracts the party already has — no extra read.
 let rfqFilter = 'all';
 let selectedRfq = null;
+let lastLoaded = false; // the first ACS poll has landed
 
 // ---- identity ----------------------------------------------------------
 // A deployed desk authenticates one party per session. This switcher is the
@@ -442,10 +443,18 @@ function rfqRows() {
   const mine = actingAcs();
   const me = actingParty();
   const quotes = mine.filter((c) => is(c, 'Quote'));
+  const shortOf = (party) => (party ?? '').split('::')[0].replace(/^tirai-v\d+-/, '');
   const open = mine.filter((c) => is(c, 'RFQ')).map((r) => {
     const qs = quotes.filter((q) => q.arg.rfqId === r.cid);
     const invited = r.arg.invitedDealers ?? [];
+    // The best ask this identity can see: every sealed quote for the buy side, its
+    // own only for a dealer. Empty when nobody has quoted.
+    const best = qs.length ? Math.min(...qs.map((q) => Number(q.arg.price))) : null;
     return {
+      best,
+      counterparty: r.arg.buyer === me
+        ? esc(invited.map(shortOf).join(' + ')) || '—'
+        : esc(shortOf(r.arg.buyer)),
       kind: 'open', cid: r.cid, tpl: r.tpl,
       instrument: r.arg.instrument, quantity: r.arg.quantity, pay: r.arg.payInstrument,
       maker: r.arg.buyer, invited, quotes: qs.length,
@@ -456,6 +465,7 @@ function rfqRows() {
     };
   });
   const done = mine.filter((c) => is(c, 'TradeReport')).map((t) => ({
+    best: null, counterparty: esc(shortOf(t.arg.buyer === me ? t.arg.dealer : t.arg.buyer)),
     kind: 'filled', cid: t.cid, tpl: t.tpl,
     instrument: t.arg.instrument, quantity: t.arg.quantity, pay: '',
     maker: t.arg.buyer, invited: [], quotes: 0, myQuote: null,
@@ -491,8 +501,8 @@ function renderActive() {
   if (count) count.textContent = rows.length === all.length ? `${rows.length} shown` : `${rows.length} of ${all.length} shown`;
 
   table.innerHTML = rows.length ? '<table class="audit rfq-table"><thead><tr>'
-    + '<th>Request</th><th>Instrument</th><th class="num">Quantity</th><th>Mode</th><th>Maker</th>'
-    + '<th>Cash leg</th><th class="num">Cleared at</th><th class="num">Sealed quotes</th><th>Status</th><th></th>'
+    + '<th>Request</th><th>Instrument</th><th class="num">Quantity</th><th>Mode</th><th>Counterparty</th>'
+    + '<th>Cash leg</th><th class="num">Price</th><th class="num">Sealed quotes</th><th>Status</th><th></th>'
     + '</tr></thead><tbody>'
     + rows.map((r) => {
       const a = rowAction(r);
@@ -501,16 +511,18 @@ function renderActive() {
         <td class="hi">${esc(r.instrument)}</td>
         <td class="num">${fmt(r.quantity)}</td>
         <td class="mode">${esc(r.mode)}</td>
-        <td>${r.mine ? '<span class="pill wait">you</span>' : dealerLabel(r.maker)}</td>
+        <td>${r.counterparty}</td>
         <td>${esc(r.pay) || '—'}</td>
-        <td class="num">${r.price != null ? fmt(r.price) : '—'}</td>
+        <td class="num">${r.price != null ? `<span class="hi">${fmt(r.price)}</span>` : r.best != null ? `${fmt(r.best)} <span class="sub">best</span>` : '—'}</td>
         <td class="num">${r.kind === 'filled' ? '—' : r.quotes}</td>
         <td><span class="pill ${r.status === 'Filled' ? 'ok' : r.quotes ? 'live' : 'wait'}">${esc(r.status)}</span></td>
-        <td><button class="${a.primary ? '' : 'ghost'} rfq-act" data-act="${a.act}" data-rfq="${esc(r.cid)}">${esc(a.label)}</button></td>
+        <td><button class="ghost rfq-act" data-act="${a.act}" data-rfq="${esc(r.cid)}">${esc(a.label)}</button></td>
       </tr>`.replace('<tr ', `<tr data-row="${esc(r.cid)}" data-rowact="${a.act}" `);
     }).join('')
     + '</tbody></table>'
-    : `<div class="audit-empty">${all.length
+    : `<div class="audit-empty">${!P.buyer || !lastLoaded
+        ? 'Reading the book from the ledger…'
+        : all.length
         ? 'No request matches that filter.'
         : ACTING === 'buyer'
           ? 'No requests yet — open one with "New RFQ".'
@@ -721,7 +733,11 @@ function renderPortfolio() {
       + (rows.length ? rows.map(([inst, amt]) => `<div class="pf-row"><span>${esc(inst)}</span><span class="num">${fmt(amt)}</span></div>`).join('')
                      : '<div class="empty">no positions</div>') + '</div>';
   };
-  el.innerHTML = col('Buyer', P.buyer, lastAcs.buyer) + col('Dealer A', P.dealerA, lastAcs.dealerA) + col('Dealer B', P.dealerB, lastAcs.dealerB);
+  // Your own positions first, and named as yours — the rest stay for comparison.
+  const cols = [['Buyer', 'buyer'], ['Dealer A', 'dealerA'], ['Dealer B', 'dealerB']]
+    .sort(([, a], [, b]) => (a === ACTING ? -1 : b === ACTING ? 1 : 0));
+  el.innerHTML = cols.map(([label, role]) =>
+    col(role === ACTING ? `${label} — you` : label, P[role], lastAcs[role] ?? [])).join('');
   renderRegistryAssets();
 }
 
@@ -748,7 +764,12 @@ async function registryAssets() {
     });
     const by = {};
     for (const r of Array.isArray(rows) ? rows : []) {
-      const v = r.contractEntry?.JsActiveContract?.createdEvent?.interfaceViews?.[0]?.viewValue;
+      const ev = r.contractEntry?.JsActiveContract?.createdEvent;
+      // "Another registry" means exactly that: not a contract this application
+      // defines. Judging by the admin party alone fails on a local demo, where the
+      // desk's own issuers are not in the served config.
+      if (typeof ev?.templateId === 'string' && ev.templateId.includes(':Tirai:')) continue;
+      const v = ev?.interfaceViews?.[0]?.viewValue;
       if (!v || v.owner !== party || ours.has(v.instrumentId?.admin)) continue;
       const k = v.instrumentId.id + ' ' + v.instrumentId.admin;
       by[k] = (by[k] ?? 0) + Number(v.amount);
@@ -829,6 +850,7 @@ async function refresh() {
     renderBuyer(b); renderBasketBuyer(b); renderDealer('dealerA', a); renderDealer('dealerB', d);
     const settled = renderRegulator(r);
     lastReg = r; lastAcs = { buyer: b, dealerA: a, dealerB: d };
+    lastLoaded = true;
     renderIdentity();
     if (!document.getElementById('view-audit')?.hidden) renderAudit();
     if (!document.getElementById('view-rfqs')?.hidden) renderActive();

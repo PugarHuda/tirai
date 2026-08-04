@@ -240,6 +240,11 @@ table.audit td button.ghost { padding: 4px 10px; font-size: 12px; border-radius:
 .rfq-search:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
 /* The whole row is a target, not just its button. */
 .rfq-table tbody tr { cursor: pointer; }
+/* Ten columns do not fit a laptop in portrait or a phone at all: let the table
+   scroll inside its own box rather than pushing the page sideways. */
+#rfq-table, #audit-table { overflow-x: auto; }
+#rfq-table table, #audit-table table { min-width: 900px; }
+table.audit td .sub { font-size: 11px; color: var(--muted); }
 
 /* Status pills in the RFQ table. */
 .pill {
