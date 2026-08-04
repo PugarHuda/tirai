@@ -435,7 +435,7 @@ body.app .desk { min-height: 0; flex: 1; }
 
 /* ---- create page: execution mode cards ---- */
 .modes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-top: 20px; max-width: 900px; }
-.mode {
+#create-modes .mode {
   display: flex; flex-direction: column; align-items: stretch; gap: 8px;
   text-align: left; padding: 18px 20px;
   background: var(--panel); color: var(--ink);
@@ -455,9 +455,9 @@ body.app .desk { min-height: 0; flex: 1; }
    does not depend on colour alone. */
 #create-modes .mode.on { border-color: var(--accent); background: var(--accent-dim); }
 #create-modes .mode.on:hover:not(:disabled) { background: var(--accent-dim); border-color: var(--accent); }
-.mode.on h3 { font-weight: 700; }
+#create-modes .mode.on h3 { font-weight: 700; }
 #create-modes .mode.on .mode-n::after { content: " ✓ selected"; }
-.mode.on .mode-facts b { color: var(--accent-ink); }
+#create-modes .mode.on .mode-facts b { color: var(--accent-ink); }
 
 /* ---- create page: the terms form ---- */
 .create-form {

@@ -179,14 +179,16 @@ and addresses the operator-allocated parties directly.
 | Suite | Command | Result |
 |---|---|---|
 | Daml model | `cd test; daml test` | 36 / 36 |
-| Hosted QA, 3 browsers | `node scripts/e2e-hosted.mjs` | 66 / 66 |
+| Hosted QA, 3 browsers | `node scripts/e2e-hosted.mjs` | 87 / 87 |
 | MCP against live Devnet | `node scripts/e2e-mcp.mjs` | 25 / 25 — leaves one real RFQ on the ledger (it exercises the write tool); `devnet.mjs tidy` clears it |
 | Read-only proxy security | `node scripts/test-readonly-proxy.mjs` | 14 / 14 |
 | Deployer decision logic | `node scripts/test-devnet-logic.mjs` | 6 / 6 |
-| Local write-path UI | `npm run e2e` · `e2e:bestexec` · `e2e:actions` | 22 / 22 · 8 / 8 · 16 / 16 |
+| Product path, one identity | `npm run e2e:shell` | 14 / 14 |
+| Local write-path UI | `npm run e2e` · `e2e:bestexec` · `e2e:actions` | 28 / 28 · 8 / 8 · 16 / 16 |
 
-The three local suites drive the real ledger, so **restart `npm run demo` before
-each one**: a dealer can only quote while it still holds the exact RFQ quantity,
+The local suites drive the real ledger, so **restart `npm run demo` before
+each one** (and `PORT=8090 npm run demo` with `TIRAI_URL=http://localhost:8090/app`
+if something else on the machine already owns 8080): a dealer can only quote while it still holds the exact RFQ quantity,
 and a suite run against a used ledger dies waiting for the quote button.
 
 ## Run locally
