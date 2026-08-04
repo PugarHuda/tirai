@@ -159,6 +159,9 @@ table.audit td.mode { color: var(--accent); font-size: 12px; }
 .pf-row:last-child { border-bottom: 0; }
 .pf-row .num { font-family: ui-monospace, Menlo, monospace; }
 @media (max-width: 760px) { .pf-grid { grid-template-columns: 1fr; } }
+.pf-registry { margin-top: 30px; }
+.pf-reg-title { margin: 0 0 10px; font-size: 15px; color: var(--ink); }
+.pf-reg-title .hint { font-weight: 400; }
 
 /* Verify-privacy view: a live on-ledger proof. */
 .vf-verdict { font-size: 22px; font-weight: 700; color: var(--muted); margin-top: 22px; }

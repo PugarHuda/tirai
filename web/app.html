@@ -116,6 +116,9 @@
   <section class="audit-view" id="view-portfolio" hidden>
     <h2 class="audit-title">Portfolio <span class="hint">holdings per party — each sees only its own positions</span></h2>
     <div id="portfolio-body" class="pf-grid"></div>
+    <!-- Filled asynchronously: balances in assets issued by an external token
+         registry (Canton Coin today, cETH/CBTC on the same query). -->
+    <div id="pf-registry" class="pf-registry"></div>
   </section>
 
   <!-- Verify-privacy view: a live, on-ledger proof that each node only ever

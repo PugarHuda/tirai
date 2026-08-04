@@ -481,6 +481,57 @@ function renderPortfolio() {
                      : '<div class="empty">no positions</div>') + '</div>';
   };
   el.innerHTML = col('Buyer', P.buyer, lastAcs.buyer) + col('Dealer A', P.dealerA, lastAcs.dealerA) + col('Dealer B', P.dealerB, lastAcs.dealerB);
+  renderRegistryAssets();
+}
+
+// Positions in assets some OTHER registry issues, read through the Canton Token
+// Standard's own Holding interface — the same query answers for Canton Coin today
+// and for cETH or CBTC the day those registries grant tokens. Anything issued by
+// this desk's own parties is excluded: the point is what the desk does NOT control.
+const REGISTRY_HOLDING = '#splice-api-token-holding-v1:Splice.Api.Token.HoldingV1:Holding';
+let registryAt = 0, registryRows = null;
+
+async function registryAssets() {
+  if (registryRows && Date.now() - registryAt < 15000) return registryRows;
+  const off = await ledgerEnd();
+  const ours = new Set([P.buyer, P.dealerA, P.dealerB, P.regulator,
+    CFG_PARTIES.cashIssuer, CFG_PARTIES.bondIssuer, CFG_PARTIES.cashissuer, CFG_PARTIES.bondissuer].filter(Boolean));
+  const per = await Promise.all([['Buyer', P.buyer], ['Dealer A', P.dealerA], ['Dealer B', P.dealerB]].map(async ([label, party]) => {
+    if (!party) return [];
+    const rows = await api('/v2/state/active-contracts', 'POST', {
+      filter: { filtersByParty: { [party]: { cumulative: [{ identifierFilter: {
+        InterfaceFilter: { value: { interfaceId: REGISTRY_HOLDING, includeInterfaceView: true, includeCreatedEventBlob: false } },
+      } }] } } },
+      verbose: false,
+      activeAtOffset: off,
+    });
+    const by = {};
+    for (const r of Array.isArray(rows) ? rows : []) {
+      const v = r.contractEntry?.JsActiveContract?.createdEvent?.interfaceViews?.[0]?.viewValue;
+      if (!v || v.owner !== party || ours.has(v.instrumentId?.admin)) continue;
+      const k = v.instrumentId.id + ' ' + v.instrumentId.admin;
+      by[k] = (by[k] ?? 0) + Number(v.amount);
+    }
+    return Object.entries(by).map(([k, amount]) => {
+      const [id, admin] = k.split(' ');
+      return { label, id, admin, amount };
+    });
+  }));
+  registryRows = per.flat(); registryAt = Date.now();
+  return registryRows;
+}
+
+async function renderRegistryAssets() {
+  const host = document.getElementById('pf-registry'); if (!host) return;
+  try {
+    const rows = await registryAssets();
+    if (!rows.length) { host.innerHTML = ''; return; }
+    host.innerHTML = '<h3 class="pf-reg-title">Registry assets — Canton Token Standard '
+      + '<span class="hint">issued by another registry entirely; this is the cash these desks were paid in</span></h3>'
+      + '<table class="audit"><thead><tr><th>Party</th><th>Instrument</th><th>Issuer (registry admin)</th><th>Balance</th></tr></thead><tbody>'
+      + rows.map((r) => `<tr><td>${esc(r.label)}</td><td>${esc(r.id)}</td><td class="mode">${esc(r.admin.split('::')[0])}</td><td class="num">${fmt(r.amount)}</td></tr>`).join('')
+      + '</tbody></table>';
+  } catch { host.innerHTML = ''; } // a registry read failing must not break the view
 }
 function renderAudit() {
   const el = document.getElementById('audit-table'); if (!el) return;
