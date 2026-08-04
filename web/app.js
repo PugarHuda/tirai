@@ -399,6 +399,9 @@ function showView(v) {
   for (const name of VIEWS) document.getElementById('view-' + name).hidden = v !== name;
   const ht = document.getElementById('howto'); if (ht) ht.style.display = desk ? '' : 'none';
   document.querySelectorAll('.side-nav a[data-view]').forEach((a) => a.classList.toggle('on', a.dataset.view === v));
+  // Views that compare parties need nodes this identity's poll does not read.
+  // Fetch immediately rather than making the user wait for the next tick.
+  if (['desk', 'verify', 'audit', 'bestexec'].includes(v)) refresh();
   if (v === 'audit') renderAudit();
   if (v === 'rfqs') renderActive();
   if (v === 'create') renderCreate();

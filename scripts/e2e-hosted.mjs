@@ -114,9 +114,14 @@ async function runEngine(name) {
   ];
   for (const [view, sel] of views) {
     await page.click(`.side-nav a[data-view="${view}"]`).catch(() => {});
-    await page.waitForTimeout(2500);
+    // Wait for the content, not for a guessed delay: the views that compare
+    // parties read three more nodes on arrival, and say so while they do.
+    await page.waitForFunction(
+      (s) => { const t = document.querySelector(s)?.innerText?.trim() ?? ''; return t.length > 30 && !/Reading each/i.test(t); },
+      sel, { timeout: 20000 },
+    ).catch(() => {});
     const txt = (await page.locator(sel).innerText().catch(() => '')).trim();
-    ok(`view "${view}" renders content`, txt.length > 30, `${txt.length} chars`);
+    ok(`view "${view}" renders content`, txt.length > 30 && !/Reading each/i.test(txt), `${txt.length} chars`);
   }
 
   // The Active RFQs list is the index into the book: rows, working filters, and a
