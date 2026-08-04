@@ -150,9 +150,11 @@ To reproduce the frozen DARs: download `dars/` from the Splice release bundle
       that identity can see — instrument, quantity, mode, maker, cash leg, cleared price,
       sealed-quote count, status — with All / Mine / For me filters and one action per row.
       Sealing a quote, cancelling a request and reading a settlement receipt open as dialogs;
-      **Create RFQ** is its own page with two execution modes (RFQ auction, direct OTC).
-      Alongside: **My activity**, **Portfolio** (holdings, including balances issued by an
-      external registry), **Verify privacy**, **Audit trail**, **Best execution**, and
+      **Create RFQ** is its own page with two execution modes (RFQ auction, direct OTC) and
+      a choice of settlement rail. Alongside: **My activity**, **Portfolio** (holdings,
+      including balances issued by an external registry), **Settlement rails** (every cash
+      leg the desk can clear on, and who issues each one),
+      **Verify privacy**, **Audit trail**, **Best execution**, and
       **Side-by-side proof** — every party's own view at once, which no deployed venue would
       show you
 - [x] **Demo video — https://youtu.be/_iHMouFdNA4** (4:27, the desk driven for real)
