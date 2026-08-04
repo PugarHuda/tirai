@@ -13,6 +13,26 @@ with the command that would settle them.
 
 ---
 
+> **Updated after this inventory was written.** Four of the gaps below have been closed,
+> and the entries that describe them are kept so the history is legible:
+>
+> - **The fee claim (3.1) is fixed in the documents, not in the model.** The deck, the
+>   submission, the pitch and the reading script now say the fee is designed and not
+>   built. There is still no fee field in `daml/Tirai.daml`, and adding one costs a
+>   package bump, a redeploy and a reseed on two nodes.
+> - **cETH and USDCx (3.2) are corrected.** The submission no longer claims settlement in
+>   either. CBTC does settle: two trades through the DA Utility Registry.
+> - **The counts (3.3) agree.** Everything says 49 settled trades, which is what the
+>   ledger says.
+> - **The token rail is no longer invisible in the desk.** An awarded trade waiting on its
+>   allocation renders as "Awaiting allocation", and a rail-bound request offers "Settle ·
+>   token rail" with an explanation instead of an action that silently does nothing.
+>   Settling it from the browser is still not possible and is still the top item in §4.
+>
+> A `npm run e2e:paths` suite (27 checks) now covers the wrong paths: bad input, actions an
+> identity is not entitled to, a second quote from one dealer, filters that hide everything,
+> and the awaiting-allocation state. Every refusal asserts that no command was submitted.
+
 ## 1. Built and verified
 
 ### 1.1 Ledger model (`daml/Tirai.daml`, 687 lines, package `tirai-desk` 0.1.0)
