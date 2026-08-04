@@ -339,23 +339,24 @@ li::marker{ color:var(--accent) }
 <section class="slide">
   <div class="meta"><span class="blk">Block 4 · Demo &amp; team</span><span class="num">12 / 14</span></div>
   <p class="kicker">Your feedback asked for real external settlement</p>
-  <h2>The cash leg is real Canton Coin</h2>
-  <p class="lede">Settled through the <strong>DSO-run Canton Token Standard registry</strong> on
-    the DevNet validator. An external issuer I do not administer and cannot mint into.</p>
+  <h2>Two assets. Neither of them mine.</h2>
+  <p class="lede">The cash leg settles in <strong>real Canton Coin</strong> through the DSO's
+    registry and in <strong>real CBTC</strong> through the DA Utility Registry that BitSafe
+    issues on. Issuers I do not administer and cannot mint into.</p>
   <div class="cols-3 cols">
-    <div class="card"><span class="n">Off-ledger</span><h3>Registry factories</h3>
-      <p>My side calls the registry's transfer factory and allocation factory over HTTP and
-        forwards the choice context and disclosed contracts.</p></div>
-    <div class="card"><span class="n">On-ledger</span><h3>One atomic transaction</h3>
-      <p>The registry moves the cash, the desk delivers the bond, the regulator gets its
-        report. All three, or none. Collateral always returns.</p></div>
-    <div class="card"><span class="n">Next</span><h3>cETH and CBTC</h3>
-      <p>Identical code path — only the instrument administrator differs. Blocked on the
-        test-token grant, not on engineering.</p></div>
+    <div class="card"><span class="n">Canton Coin</span><h3>6 settlements</h3>
+      <p>Four reverse-Vickrey, two direct OTC. 60,900 CC moved to the dealers that won
+        them, each bond-against-cash in one transaction.</p></div>
+    <div class="card"><span class="n">CBTC</span><h3>0.34 + 0.22</h3>
+      <p>A faucet grant accepted on-ledger, then spent through the desk: cleared at the
+        Vickrey second price, and hit directly at the ask.</p></div>
+    <div class="card good"><span class="n">cETH</span><h3>One field away</h3>
+      <p>The instrument administrator is the only difference. The rail appears in the desk
+        the day the tokens land, with no release in between.</p></div>
   </div>
-  <p class="small">Live on the DevNet validator: <strong>six trades settled in real Canton
-    Coin</strong> — four reverse-Vickrey, two direct OTC — moving 60,900 CC to the winning
-    dealers, visible in the desk's Portfolio view as balances issued by <code>DSO</code>.</p>
+  <p class="small">Nothing in the model is per-asset: <code>cashInstrument</code> is any
+    <code>{admin, id}</code>, and each registry only differs in where it keeps its off-ledger
+    choice contexts. The desk's Settlement rails view lists every one it can clear on.</p>
 </section>
 
 <section class="slide">
