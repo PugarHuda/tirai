@@ -406,6 +406,7 @@ function setActing(role) {
   ACTING = role;
   try { localStorage.setItem('tirai.acting', role); } catch { /* ignore */ }
   selectedRfq = null;
+  closeModal();
   renderIdentity();
   renderActive();
   // The create page belongs to the buy side; leaving it selected as a dealer

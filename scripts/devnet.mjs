@@ -1058,7 +1058,19 @@ async function seedBook() {
         choice: 'SubmitQuote', choiceArgument: { dealer, price: asks[i], assetCid: lot } } });
       quoted++;
     }
-    console.log(` · ${asks.length} sealed`);
+    // Leave every invited dealer that has NOT quoted holding a matching lot, so the
+    // "Quote" action on the desk opens a real dialog instead of explaining why it
+    // cannot. A dealer can only back a quote with a lot of exactly the RFQ size.
+    const quoted = new Set((await ofTemplate(p.buyer, 'Quote'))
+      .filter((q) => optionalCid(q.arg.rfqId) === rfq).map((q) => q.arg.dealer));
+    let stocked = 0;
+    for (const d of panel) {
+      const dealer = partyOf[d];
+      if (!dealer || quoted.has(dealer)) continue;
+      const has = (await ofTemplate(dealer, 'Holding')).some((h) => h.arg.instrument === inst && h.arg.amount === qty);
+      if (!has) { await submit(p.bondIssuer, createHolding(p.bondIssuer, dealer, inst, qty)); stocked++; }
+    }
+    console.log(` · ${asks.length} sealed${stocked ? `, ${stocked} dealer(s) stocked to quote` : ''}`);
   }
   console.log(`\nbook: ${made} new request(s), ${quoted} new sealed quote(s).`);
   console.log('Open requests now:', (await ofTemplate(p.buyer, 'RFQ')).length, '(was', open.length + ')');
