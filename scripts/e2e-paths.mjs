@@ -139,6 +139,74 @@ await p.keyboard.press('Escape');
 await wait(600);
 say('escaping the confirmation submits nothing', submits - before === 0 && !(await p.locator('#modal-host').isVisible()));
 
+// ── happy path · a trade awarded but not yet allocated ──────────────────────
+// The award consumes the RFQ, so this is the one state where the money is
+// committed and not yet moved. It used to vanish from the desk entirely.
+console.log('── Happy path · awarded, waiting on the registry ──');
+await acting('buyer');
+const awaiting = await p.evaluate(async () => {
+  const api = async (path, body) => {
+    const r = await fetch('/api' + path, {
+      method: body ? 'POST' : 'GET',
+      headers: { 'content-type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    return r.json();
+  };
+  const cfg = await api('/config');
+  // The local server serves no party map (the desk discovers parties from the
+  // ledger), so resolve them the same way the app does rather than assuming.
+  const all = (await api('/v2/parties')).partyDetails?.map((d) => d.party) ?? [];
+  const find = (prefix) => cfg.parties?.[prefix]
+    ?? all.find((x) => x.toLowerCase().startsWith(prefix.toLowerCase()));
+  const buyer = find('buyer'), cashIssuer = find('cashIssuer');
+  if (!buyer || !cashIssuer) return { error: 'could not resolve the desk parties' };
+  const off = (await api('/v2/state/ledger-end')).offset;
+  const acs = await api('/v2/state/active-contracts', {
+    activeAtOffset: off, verbose: true,
+    filter: { filtersByParty: { [buyer]: { cumulative: [] } } },
+  });
+  const rows = (Array.isArray(acs) ? acs : []).map((x) => x.contractEntry?.JsActiveContract?.createdEvent).filter(Boolean);
+  const rfq = rows.find((c) => c.templateId.endsWith(':Tirai:RFQ') && c.createArgument.instrument === 'TBOND30');
+  const quotes = rows.filter((c) => c.templateId.endsWith(':Tirai:Quote') && (c.createArgument.rfqId === rfq?.contractId));
+  if (!rfq || !quotes.length) return { error: 'no quoted RFQ to award' };
+  const iso = (ms) => new Date(ms).toISOString().replace(/\.\d+Z$/, 'Z');
+  // The desk's own cash issuer is a perfectly good {admin, id}: the model does not
+  // care who the registrar is, which is exactly the property under test.
+  const out = await api('/v2/commands/submit-and-wait-for-transaction', {
+    commands: {
+      userId: cfg.userId, commandId: 'paths-award-' + Date.now(), actAs: [buyer],
+      commands: [{ ExerciseCommand: {
+        templateId: rfq.templateId, contractId: rfq.contractId, choice: 'AwardWithAllocation',
+        choiceArgument: {
+          quoteCids: quotes.map((q) => q.contractId),
+          cashInstrument: { admin: cashIssuer, id: 'USDC' },
+          allocateBefore: iso(Date.now() + 30 * 60000),
+          settleBefore: iso(Date.now() + 60 * 60000),
+        },
+      } }],
+    },
+  });
+  return { ok: !out.code, detail: out.code ?? '' };
+});
+say('a rail-bound award creates a token trade on the ledger', awaiting.ok === true, awaiting.error ?? awaiting.detail ?? '');
+
+if (awaiting.ok) {
+  await p.reload({ waitUntil: 'load' });
+  await p.waitForFunction(() => /\d/.test(document.getElementById('stat-offset')?.textContent ?? ''), null, { timeout: 30000 });
+  await wait(2500);
+  const row = p.locator('.rfq-table tbody tr', { hasText: 'Awaiting allocation' }).first();
+  say('the awarded trade is visible instead of vanishing', (await row.count()) === 1);
+  say('it is ranked above the settled history', (await p.locator('.rfq-table tbody tr').first().innerText()).includes('Awaiting allocation'));
+  say('its action offers the allocation step', /allocate/i.test(await row.locator('.rfq-act').innerText()));
+  await row.locator('.rfq-act').click();
+  await wait(800);
+  const dialog = await p.locator('#modal-body').innerText();
+  say('the dialog names the escrow and the clearing price', /escrow/i.test(dialog) && /cleared at/i.test(dialog));
+  await p.keyboard.press('Escape');
+  await wait(400);
+}
+
 say('no uncaught page errors across the whole run', errs.length === 0, errs[0] ?? '');
 
 await b.close();
