@@ -877,7 +877,7 @@ function renderVerify() {
         <thead><tr><th></th><th>Public L1 (Ethereum · Sui · Stellar…)</th><th>Canton — Tirai</th></tr></thead>
         <tbody>${cmp.map(([k, l, s]) => `<tr><td class="k">${k}</td><td class="leak">${l}</td><td class="safe">${s}</td></tr>`).join('')}</tbody>
       </table>
-      <div class="vf-note">We built this same confidential OTC desk four times before Canton — each time bolting on the exact cryptography that middle column names: a TEE (<b>Diam</b>), two ZK circuits (<b>Segel</b>), Seal threshold encryption (<b>Sealed&nbsp;Pair</b>), FHE (<b>Samar</b>). On Canton the privacy is a <code>signatory</code> / <code>observer</code> declaration — same product, zero cryptography.</div>
+      <div class="vf-note">Every row in the middle column is machinery a confidential desk has to bolt on and then keep proving correct: a trusted enclave, a ZK circuit per rule, threshold encryption, FHE. On Canton the privacy is a <code>signatory</code> / <code>observer</code> declaration in the template &mdash; same product, zero cryptography, nothing to audit or benchmark.</div>
     </div>`;
 }
 // Portfolio: each party's holdings, aggregated by instrument.

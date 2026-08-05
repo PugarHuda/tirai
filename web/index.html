@@ -231,17 +231,16 @@
 
 <section class="blk" id="lineage"><div class="wrap">
   <div class="kicker">Why Canton</div>
-  <h2>We built this product five times. This is the first native one.</h2>
-  <p class="sub">The same sealed-bid OTC thesis, fought against four chains' transparency with heavy machinery — then done on Canton, where sub-transaction privacy is the ledger model.</p>
+  <h2>The privacy machinery every other chain needs, and Canton does not.</h2>
+  <p class="sub">The same sealed-bid OTC thesis costs a different amount of cryptography depending on where you build it. This is what a confidential RFQ desk has to bolt on, chain by chain.</p>
   <div class="tbl">
-    <div class="tr th"><div>Project</div><div>Chain</div><div>Privacy machinery required</div></div>
-    <div class="tr"><div>Diam</div><div class="mut">Arbitrum (iExec Nox)</div><div class="mut">TEE confidential compute, encrypted handles</div></div>
-    <div class="tr"><div>Segel</div><div class="mut">Stellar (Soroban)</div><div class="mut">Two Circom/Groth16 ZK circuits, hand-rolled Poseidon</div></div>
-    <div class="tr"><div>Sealed Pair</div><div class="mut">Sui</div><div class="mut">Walrus blob commitments + Seal threshold encryption</div></div>
-    <div class="tr"><div>Samar</div><div class="mut">Ethereum (Zama fhEVM)</div><div class="mut">FHE, branchless FHE.select settlement</div></div>
-    <div class="tr now"><div class="p">Tirai</div><div class="p">Canton</div><div class="p">None. Sub-transaction privacy is the ledger model.</div></div>
+    <div class="tr th"><div>Chain</div><div>What it broadcasts</div><div>Privacy machinery required</div></div>
+    <div class="tr"><div>Ethereum</div><div class="mut">every quote, in the public mempool</div><div class="mut">FHE, or a ZK circuit per rule you want to keep private</div></div>
+    <div class="tr"><div>Stellar, Sui, Arbitrum</div><div class="mut">every quote, on a public ledger</div><div class="mut">ZK circuits, threshold encryption, or a trusted enclave</div></div>
+    <div class="tr now"><div class="p">Canton</div><div class="p">nothing off the parties</div><div class="p">None. Sub-transaction privacy is the ledger model.</div></div>
   </div>
-  <div class="cta"><a class="btn" href="app.html">Open the desk&nbsp;↗</a>
+  <p class="sub">A rival dealer's quote is not hidden from the screen. Its participant node never received the contract, so there is nothing to decrypt and nothing to leak &mdash; and no proving system to audit, benchmark or keep up to date.</p>
+  <div class="cta"><a class="btn" href="app.html">Open the desk&nbsp;&#8599;</a>
     <a class="btn ghost" href="https://github.com/PugarHuda/tirai" target="_blank" rel="noopener">Read the code</a></div>
 </div></section>
 
