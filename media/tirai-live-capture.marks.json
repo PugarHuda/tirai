@@ -1,0 +1,42 @@
+[
+  {
+    "at": 1.81,
+    "label": "The book. Signed in as the buy side."
+  },
+  {
+    "at": 3.22,
+    "label": "Open a request to a dealer panel"
+  },
+  {
+    "at": 11.66,
+    "label": "Sign in as Dealer A, one of the invited dealers"
+  },
+  {
+    "at": 16.95,
+    "label": "Its ask is sealed to the buyer alone"
+  },
+  {
+    "at": 22.48,
+    "label": "Now Dealer B, in its own session"
+  },
+  {
+    "at": 25.42,
+    "label": "Same request. No price. Its node never received the quote."
+  },
+  {
+    "at": 28.02,
+    "label": "Back to the buyer, who can now settle"
+  },
+  {
+    "at": 33.17,
+    "label": "The verifier counts what each node actually holds"
+  },
+  {
+    "at": 38.87,
+    "label": "And the assets it can settle in, issued by other registries"
+  },
+  {
+    "at": 47.59,
+    "label": "end"
+  }
+]

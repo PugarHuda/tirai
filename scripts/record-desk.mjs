@@ -8,7 +8,7 @@
 //   npm run demo                      (a FRESH ledger; PORT=8090 if 8080 is taken)
 //   TIRAI_URL=http://localhost:8090/app npm run record:desk
 import { chromium } from 'playwright';
-import { readdir, rename, rm, mkdir } from 'node:fs/promises';
+import { readdir, rename, rm, mkdir, writeFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -20,6 +20,12 @@ const OUT = join(ROOT, 'media', 'tirai-live-capture.mp4');
 
 await rm(RAW, { recursive: true, force: true });
 await mkdir(RAW, { recursive: true });
+
+// Marks: what is happening on screen, and when. Written next to the video so a
+// composition can caption the footage instead of guessing at its timeline.
+const marks = [];
+let t0 = 0;
+const mark = (label) => marks.push({ at: Number(((Date.now() - t0) / 1000).toFixed(2)), label });
 
 const browser = await chromium.launch();
 const ctx = await browser.newContext({
@@ -72,12 +78,15 @@ const sign = async (role) => { await point('#acting-as'); await p.selectOption('
 await p.goto(URL, { waitUntil: 'load' });
 await p.waitForFunction(() => /\d/.test(document.getElementById('stat-offset')?.textContent ?? ''), null, { timeout: 60000 });
 await p.evaluate(() => window.__cursor?.());
+t0 = Date.now();
 await beat(1800);
 
 // 1 · the book, as the buy side
+mark('The book. Signed in as the buy side.');
 await beat(1400);
 
 // 2 · open a request
+mark('Open a request to a dealer panel');
 await click('#btn-new-rfq');
 await type('#c-instrument', 'TBOND30');
 await type('#c-qty', '1000');
@@ -85,24 +94,31 @@ await click('#c-submit');
 await beat(2600);
 
 // 3 · the invited dealer answers
+mark('Sign in as Dealer A, one of the invited dealers');
 await sign('dealerA');
 await click('.rfq-act[data-act="quote"]');
 await beat(900);
+mark('Its ask is sealed to the buyer alone');
 await type('#modal-ask', '4210000');
 await click('#modal-submit');
 await beat(2600);
 
 // 4 · the rival's own session: the request is there, the number is not
+mark('Now Dealer B, in its own session');
 await sign('dealerB');
+mark('Same request. No price. Its node never received the quote.');
 await beat(2600);
 
 // 5 · back to the buy side, now settleable
+mark('Back to the buyer, who can now settle');
 await sign('buyer');
 await beat(2200);
 
 // 6 · the proof views
+mark('The verifier counts what each node actually holds');
 await click('.side-nav a[data-view="verify"]');
 await beat(4200);
+mark('And the assets it can settle in, issued by other registries');
 await click('.side-nav a[data-view="rails"]');
 await beat(3600);
 await click('.side-nav a[data-view="rfqs"]');
@@ -111,6 +127,7 @@ await beat(1600);
 await ctx.close();          // flushes the video file
 await browser.close();
 
+mark('end');
 const file = (await readdir(RAW)).find((f) => f.endsWith('.webm'));
 if (!file) { console.error('no capture was written'); process.exit(1); }
 const webm = join(RAW, file);
@@ -119,6 +136,9 @@ try {
     '-pix_fmt', 'yuv420p', '-movflags', '+faststart', OUT], { stdio: ['ignore', 'ignore', 'pipe'] });
   await rm(RAW, { recursive: true, force: true });
   console.log('wrote', OUT);
+  await writeFile(OUT.replace(/\.mp4$/, '.marks.json'), JSON.stringify(marks, null, 2));
+  console.log('wrote', OUT.replace(/\.mp4$/, '.marks.json'), `(${marks.length} marks)`);
+  for (const m of marks) console.log(`  ${String(m.at).padStart(6)}s  ${m.label}`);
 } catch {
   await rename(webm, OUT.replace(/\.mp4$/, '.webm'));
   console.log('ffmpeg not available; kept the webm at', OUT.replace(/\.mp4$/, '.webm'));
