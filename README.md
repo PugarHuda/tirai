@@ -103,7 +103,7 @@ issued and administered by the DSO** on the 5N Devnet validator.
 auction that charges, then reconciles what the venue holds against what the trade
 report says and fails if they disagree.) Nothing about the
 cash leg is mine: the desk reads the registry's instrument list, asks its factories for
-choice contexts, and hand the contracts it discloses to the ledger.
+choice contexts, and hands the contracts it discloses to the ledger.
 
 | Step | Registry endpoint (via the validator's scan proxy) | Ledger |
 |---|---|---|
