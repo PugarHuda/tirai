@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "license": "Apache-2.0",
-  "description": "Tirai — confidential multi-dealer RFQ OTC desk on Canton",
+  "description": "Tirai \u2014 confidential multi-dealer RFQ OTC desk on Canton",
   "scripts": {
     "demo": "node scripts/demo-local.mjs",
     "demo:full": "node scripts/demo-local.mjs --full",
@@ -27,7 +27,9 @@
     "devnet:book": "node scripts/devnet.mjs seed-book",
     "social": "node scripts/make-social.mjs",
     "e2e:paths": "node scripts/e2e-paths.mjs",
-    "record:desk": "node scripts/record-desk.mjs"
+    "record:desk": "node scripts/record-desk.mjs",
+    "e2e:fee": "node scripts/e2e-fee.mjs",
+    "devnet:fee": "node scripts/devnet.mjs seed-fee"
   },
   "devDependencies": {
     "playwright": "^1.48.0"
