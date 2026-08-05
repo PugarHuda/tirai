@@ -1,5 +1,12 @@
-import React from 'react';
-import {Img, interpolate, staticFile, useCurrentFrame} from 'remotion';
+import React, {useCallback, useEffect, useState} from 'react';
+import {
+  continueRender,
+  delayRender,
+  Img,
+  interpolate,
+  staticFile,
+  useCurrentFrame,
+} from 'remotion';
 import {
   ACCENT_HI,
   MONO,
@@ -11,6 +18,24 @@ import {
   SHOTS,
   ShotName,
 } from './theme';
+
+export const FONT_CSS = `@font-face{font-family:'Manrope';font-style:normal;font-weight:200 800;font-display:block;src:url(${staticFile(
+  'manrope.woff2'
+)}) format('woff2');}`;
+
+/** Holds the render back until Manrope is actually rasterised. */
+export const useManrope = () => {
+  const [handle] = useState(() => delayRender('manrope'));
+  const ready = useCallback(() => continueRender(handle), [handle]);
+  useEffect(() => {
+    document.fonts
+      .load("800 74px 'Manrope'")
+      .then(() => document.fonts.load("400 25px 'Manrope'"))
+      .then(() => document.fonts.ready)
+      .then(ready)
+      .catch(ready);
+  }, [ready]);
+};
 
 export const clampFade = (
   frame: number,
@@ -155,7 +180,9 @@ export const Caption: React.FC<{
   lead: string;
   sub?: string;
   opacity?: number;
-}> = ({lead, sub, opacity = 1}) => (
+  /** Lets the second line arrive on its own beat, later than the first. */
+  subOpacity?: number;
+}> = ({lead, sub, opacity = 1, subOpacity = 1}) => (
   <div style={{opacity}}>
     <div
       style={{
@@ -173,6 +200,7 @@ export const Caption: React.FC<{
           color: RAIL_MUTED,
           marginTop: 12,
           maxWidth: 1500,
+          opacity: subOpacity,
         }}
       >
         {sub}

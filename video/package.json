@@ -5,6 +5,7 @@
   "description": "Remotion source for the Tirai Grand Final trailer",
   "scripts": {
     "render": "remotion render src/index.ts Tirai ../media/tirai-remotion.mp4 --codec=h264 --crf=20",
+    "render:demo": "remotion render src/index.ts TiraiDemo ../media/tirai-demo.mp4 --codec=h264 --crf=21",
     "studio": "remotion studio src/index.ts"
   },
   "dependencies": {

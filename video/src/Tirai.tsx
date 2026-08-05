@@ -1,14 +1,14 @@
-import React, {useCallback, useEffect, useState} from 'react';
+import React from 'react';
+import {AbsoluteFill, interpolate, Sequence, useCurrentFrame} from 'remotion';
 import {
-  AbsoluteFill,
-  continueRender,
-  delayRender,
-  interpolate,
-  Sequence,
-  staticFile,
-  useCurrentFrame,
-} from 'remotion';
-import {Caption, clampFade, Eyebrow, PanelLabel, Shot} from './parts';
+  Caption,
+  clampFade,
+  Eyebrow,
+  FONT_CSS,
+  PanelLabel,
+  Shot,
+  useManrope,
+} from './parts';
 import {ACCENT_HI, MONO, RAIL, RAIL_INK, RAIL_LINE, RAIL_MUTED, SANS} from './theme';
 
 // ---- timeline (30 fps) ------------------------------------------------------
@@ -18,10 +18,6 @@ const S3 = 305; // the proof
 const S4 = 345; // the settlement
 const S5 = 260; // the numbers and the close
 export const DURATION = S1 + S2 + S3 + S4 + S5; // 1710 frames = 57s
-
-const FONT_CSS = `@font-face{font-family:'Manrope';font-style:normal;font-weight:200 800;font-display:block;src:url(${staticFile(
-  'manrope.woff2'
-)}) format('woff2');}`;
 
 /**
  * One shot of the film. Beats overlap by design: the outgoing one fades over
@@ -113,7 +109,7 @@ const STATS: [string, string][] = [
   ['16', 'attestations'],
 ];
 
-const StatCell: React.FC<{n: string; label: string; at: number; first: boolean}> = ({
+export const StatCell: React.FC<{n: string; label: string; at: number; first: boolean}> = ({
   n,
   label,
   at,
@@ -196,16 +192,7 @@ const C = S1 + S2 + S3;
 const D = S1 + S2 + S3 + S4;
 
 export const Tirai: React.FC = () => {
-  const [handle] = useState(() => delayRender('manrope'));
-  const ready = useCallback(() => continueRender(handle), [handle]);
-  useEffect(() => {
-    document.fonts
-      .load("800 74px 'Manrope'")
-      .then(() => document.fonts.load("400 25px 'Manrope'"))
-      .then(() => document.fonts.ready)
-      .then(ready)
-      .catch(ready);
-  }, [ready]);
+  useManrope();
 
   return (
     <AbsoluteFill style={{backgroundColor: RAIL}}>
