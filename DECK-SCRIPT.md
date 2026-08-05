@@ -114,10 +114,13 @@ menarik itu apa yang dihapus Canton, bukan berapa kali kamu mencoba.*
 > the settlement transaction. If the trade settles, the fee settled with it. No invoice,
 > no collection risk.
 >
-> That part is designed and not built. It's a field in the contract and a day of work,
-> and I'd rather add it once a design partner has argued about the number.
+> That runs. One settlement on Devnet cleared at four and a quarter million, twenty five
+> basis points, ten thousand six hundred and twenty five to the venue. What I haven't got
+> is the rate. Blank charges nothing, and I'd rather a design partner argued the number
+> than pick one myself.
 
-*Kalau ada yang menekan soal angka bps, jawab jujur seperti kalimat terakhir itu. Jangan mengarang.*
+*Kalau ada yang menekan soal angka bps, jawab persis kalimat terakhir itu: mekanismenya jalan,
+angkanya belum diputuskan. Kalau ditanya pendapatan, jawab nol — ini test asset di Devnet.*
 
 ---
 
@@ -134,7 +137,7 @@ menarik itu apa yang dihapus Canton, bukan berapa kali kamu mencoba.*
 ## Slide 10 · Not a mock-up
 **3:00 to 3:15**
 
-> This is all live. Two DevNet participants, same package id.
+> This is all live. Two DevNet participants, the same package.
 >
 > Fifty settled trades. Five atomic baskets. Sixteen best execution attestations.
 > Thirty six Daml test scripts.

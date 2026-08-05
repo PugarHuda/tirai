@@ -6,8 +6,10 @@ plan, a target, or an assumption — and assumptions are marked as such. The
 numbers in the tables are thresholds to be tested against, not measurements.
 
 What is real and checkable today: the ledger model (41 Daml scripts green), the
-CIP-0056 settlement path against the frozen Splice v1 interfaces, two Canton
-DevNet deployments under one package id, a read-only hosted desk at
+CIP-0056 settlement path against the frozen Splice v1 interfaces, a venue fee
+collected inside the settlement transaction (one settlement, 25 bps, on the
+validator — mechanism proven, rate unset, revenue zero), two Canton DevNet
+deployments of the same package, a read-only hosted desk at
 https://tirai.vercel.app over live DevNet state, and `scripts/devnet.mjs verify`
 asserting on the live network that no dealer sees a rival quote and the
 regulator sees zero pre-trade contracts. Live cETH/CBTC transactions remain

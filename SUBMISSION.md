@@ -60,12 +60,17 @@ asset managers, and prop shops that trade in size and cannot afford to signal;
 plus the venues (Temple, Bron, Console, Canton Loop) that would host the desk.
 
 **Who pays, and how.** A per-trade venue fee in the settlement asset, basis
-points of notional. The design is to take it inside the settlement transaction,
-which is what makes it uncollectable-by-accident rather than invoiced: if the
-trade settles, the fee settled with it. **It is not in the model yet** — there is
-no fee field in `daml/Tirai.daml` today, and the rate is deliberately unset until
-a design partner argues about it. Featured-app activity markers (CIP-0047) are the
-intended second line, also not yet implemented.
+points of notional, taken inside the settlement transaction — which is what makes
+it uncollectable-by-accident rather than invoiced: if the trade settles, the fee
+settled with it. **That is in the model and it has collected on Devnet**: one
+auction cleared 4,250,000 at 25 bps, 10,625 to the venue party and 4,239,375 to
+the winning dealer, with the buyer paying exactly the clearing price. What is
+still open is the **rate**, deliberately — blank charges nothing, and the number
+should come out of a design partner arguing about it rather than out of our heads.
+Two gaps we would rather state than have found: the registry rail (Canton Coin,
+CBTC) takes no fee, because that cash moves through the issuer's allocation and
+never becomes a holding this desk can split; and featured-app activity markers
+(CIP-0047) are the intended second revenue line and are **not** implemented.
 
 **Why Canton, specifically.** Sub-transaction privacy makes sealed quotes native —
 no ZK circuits, no TEEs, no FHE (we built this thesis four other ways on four other
@@ -101,8 +106,9 @@ together.
    live Devnet state and put it in front of one fixed-income and one crypto-native
    trading desk for feedback on the quote/award/settle flow and the audit view.
 3. **Mainnet pilot (4–8 weeks).** Deploy `tirai-desk` to a hosting venue (Temple /
-   Bron / Console), add the fee field and the featured-app markers to the model, and
-   run a supervised pilot with a small dealer panel on a single instrument class.
+   Bron / Console), set the fee rate with that partner and extend the collection to
+   the registry rail, add the featured-app markers, and run a supervised pilot with a
+   small dealer panel on a single instrument class.
 
 **Required integrations:** onRails cETH registry (allocation API + faucet),
 BitSafe CBTC registry, a validator/hosting venue, and wallet support (Canton Loop
@@ -129,6 +135,21 @@ BitSafe CBTC registry, a validator/hosting venue, and wallet support (Canton Loo
   Each is bond-against-cash in one atomic transaction, and nothing in the model is
   per-asset: `cashInstrument` is any `{admin, id}`. **cETH differs by one field**,
   the `InstrumentId` admin, and waits only on its token grant.
+- **The venue fee is collected by the settlement, not invoiced** (`seed-fee`) — an RFQ
+  can name a venue and a rate in basis points; the cut is split off the cleared amount
+  before the winning dealer is paid, so if the trade settles the fee settled with it and
+  there is nothing to chase. All three cash settlement paths go through one function, so
+  a settlement route cannot skip the fee by being written later, and the trade report
+  records the amount, so an auditor reads the fee off the trade rather than off somebody's
+  wallet. Live on the validator: **4,250,000 cleared at 25 bps → 10,625 to the venue,
+  4,239,375 to the dealer**, and the buyer paid exactly the clearing price. Three limits,
+  stated rather than buried: the rate is unset by default (blank charges nothing), the
+  registry rail takes no fee because that cash moves through the issuer's allocation, and
+  revenue is zero — test assets, our own parties, no paying customer.
+- **Upgraded in place, with the compiler checking** — `daml.yaml` declares the deployed
+  0.1.0 DAR as the upgrade base, so a change that would strand an existing contract fails
+  the build. 0.1.0, 0.2.0 and 0.3.0 are vetted side by side on the validator; contracts
+  written under the first still read under the last.
 - **Deployed & privacy-verified on Devnet** — `node scripts/devnet.mjs verify`
   asserts on the live network that dealers see only their own quotes and the
   regulator sees zero pre-trade.

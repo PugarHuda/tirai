@@ -97,7 +97,10 @@ against an impostor registry (`testWrongInstrumentRejected`).
 ### This is not a mock — it runs against a registry we do not control
 
 `node scripts/devnet.mjs seed-cc` settles the desk's auctions in **Canton Coin
-issued and administered by the DSO** on the 5N Devnet validator. Nothing about the
+issued and administered by the DSO** on the 5N Devnet validator.
+(`node scripts/devnet.mjs seed-fee 25` is the venue-fee counterpart: it runs one
+auction that charges, then reconciles what the venue holds against what the trade
+report says and fails if they disagree.) Nothing about the
 cash leg is ours: we read the registry's instrument list, ask its factories for
 choice contexts, and hand the contracts it discloses to the ledger.
 
@@ -140,6 +143,13 @@ To reproduce the frozen DARs: download `dars/` from the Splice release bundle
 - [x] Ledger model + **41 Daml test scripts green** (`test/`)
 - [x] **CIP-0056 cETH / CBTC settlement leg** (Splice v1 interfaces, DvP tested)
 - [x] **Deployed on two Canton Devnet participants** (privacy verified on both)
+- [x] **Venue fee collected inside the settlement** — an RFQ can name a venue and a rate in
+      basis points; the cut leaves the same atomic transaction as the trade, the dealer is
+      paid its proceeds less the fee, and the buyer pays exactly what it cleared at. The
+      trade report records the amount, so the audit trail states the fee rather than the
+      venue having to claim it. Live: 4,250,000 cleared at 25 bps → 10,625 to the venue,
+      4,239,375 to the winning dealer. **Not** on the registry rail — Canton Coin and CBTC
+      move through the issuer's allocation, which is not a holding this desk can split.
 - [x] Web desk over the JSON Ledger API — one signed-in identity per session
       (buyer / either dealer / regulator)
 - [x] MCP server + agent scripts
@@ -190,7 +200,7 @@ and addresses the operator-allocated parties directly.
 
 | Suite | Command | Result |
 |---|---|---|
-| Daml model | `cd test; daml test` | 36 / 36 |
+| Daml model | `cd test; daml test` | 41 / 41 |
 | Hosted QA, 3 browsers | `node scripts/e2e-hosted.mjs` | 87 / 87 |
 | MCP against live Devnet | `node scripts/e2e-mcp.mjs` | 25 / 25 — leaves one real RFQ on the ledger (it exercises the write tool); `devnet.mjs tidy` clears it |
 | Read-only proxy security | `node scripts/test-readonly-proxy.mjs` | 14 / 14 |
@@ -198,6 +208,8 @@ and addresses the operator-allocated parties directly.
 | Product path, one identity | `npm run e2e:shell` | 23 / 23 (incl. the front-end audit's regression checks) |
 | Happy path and wrong path | `npm run e2e:paths` | 27 / 27 — bad input, actions an identity is not entitled to, a second quote from the same dealer, filters that hide everything. Every refusal is checked to have submitted **nothing**, not merely to have looked refused. Also awards a real `TokenTrade` and checks the awaiting-allocation state renders |
 | Local write-path UI | `npm run e2e` · `e2e:bestexec` · `e2e:actions` | 28 / 28 · 8 / 8 · 16 / 16 |
+| Venue fee, through the UI | `npm run e2e:fee` | 12 / 12 — the audit trail's fee column and revenue line against live Devnet numbers, a dash on trades that predate the fee, and a rate above the ceiling refused without submitting. Needs a desk pointed at Devnet: `cd web && LEDGER_ENV_FILE=../scripts/.env.devnet PORT=8091 node server.mjs` |
+| Upgrade safety | rehearsed per upload, see `daml.yaml` | 13 / 13, twice — an old-version client still creates, package-name queries still answer, existing contracts stay visible |
 
 The local suites drive the real ledger, so **restart `npm run demo` before
 each one** (and `PORT=8090 npm run demo` with `TIRAI_URL=http://localhost:8090/app`
@@ -213,12 +225,25 @@ npm run demo        # sandbox + seed + web desk on http://localhost:8080
 cd test; daml test  # 41 scripts
 ```
 
+### Upgrades
+
+`daml.yaml` names the DAR this package upgrades (`dars/tirai-desk-0.1.0.dar`, a rebuild of
+what is live, byte-identical down to the package id). `damlc` then checks every change
+against the ledger's own contracts instead of against nothing: new template fields must be
+`Optional` and appended, and a change that would strand an existing contract fails the build.
+The validator runs 0.1.0, 0.2.0 and 0.3.0 side by side; contracts written under the first
+still read under the last, and a trade report from before the fee existed shows a dash rather
+than a zero.
+
+Writes address the package by **name** (`#tirai-desk:Tirai:RFQ`), so the node picks the newest
+vetted version. Pin one with `TIRAI_PKG` if you need the old template.
+
 ## Layout
 
 | Path | What |
 |---|---|
 | `daml/Tirai.daml` | ledger model — RFQ, sealed quotes, escrow, DvP rails, `TokenTrade` |
-| `dars/` | frozen Splice CIP-0056 interface DARs (data-dependencies) |
+| `dars/` | frozen Splice CIP-0056 interface DARs (data-dependencies) + `tirai-desk-0.1.0.dar`, the upgrade base `daml.yaml` checks against |
 | `test/` | 41 Daml test scripts (incl. `MockRegistry` implementing the real interfaces) |
 | `web/` | the desk — one signed-in identity, plus the side-by-side proof view — + Node proxy |
 | `api/` | read-only serverless proxy (hosted deployment) |

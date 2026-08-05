@@ -242,3 +242,39 @@ Two findings worth passing on, both of which cost time:
 
 cETH and CBTC remain the same code path with a different `InstrumentId` admin.
 The blocker there was never the engineering.
+
+## 5 August — the fee stops being a slide
+
+The judges' feedback named the business model, and slide 08 claimed a fee the
+contract could collect while the contract could not. Two honest options: soften
+the slide, or build it. Building it was small, because settlement was already one
+atomic transaction — the fee is one more leg of a transaction that existed.
+
+`venue` and `feeBps` on the RFQ, both `Optional` and appended so the template stays
+upgrade-compatible. The interesting part was not the arithmetic but the plumbing:
+there were three cash payout sites (Vickrey, Vickrey partial, direct-OTC partial)
+and the third had its own copy of the payment line, so a fee added to the first two
+would have been silently skippable by hitting a quote directly. All three now go
+through one `payDealer`. `TradeReport.feePaid` records the amount, so an auditor
+reads the fee off the trade instead of inferring it from a stranger's wallet.
+
+Shipped as an upgrade, not a redeploy. `daml.yaml` now names the deployed 0.1.0 DAR
+as the upgrade base — rebuilt from `main` and byte-identical down to the package id
+`4b1e408f…`, which is the only reason the check means anything. `damlc` then refuses
+a change that would strand an existing contract. Before each upload I rehearsed the
+whole thing against a sandbox that already held the old version and submitted the
+*old* client's payload: 13 checks, twice, both green. The hosted desk was re-checked
+after the upload, 87/87.
+
+Two things this exposed that had nothing to do with fees. Writes were addressing a
+frozen package id discovered from whatever contract happened to be read first, so
+after any upgrade the desk would have quietly kept creating on the old template —
+now they name the package and let the node pick the newest vetted version. And
+`demo-local.mjs` booted the sandbox from a hard-coded `tirai-desk-0.1.0.dar`, which
+the version bump deleted; `npm run demo` would have failed for the next person to
+clone. Both were found by asking what breaks on merge rather than by anything
+failing.
+
+The limit worth stating: on the registry rail the fee is not taken. Canton Coin and
+CBTC move through the issuer's allocation and never become a holding this desk can
+split. That is in the deck now, not buried in a commit message.

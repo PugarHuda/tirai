@@ -231,18 +231,30 @@ a test in the suite, not a claim.
 
 **Answer (EN).** A per-trade venue fee, basis points of notional, in the settlement asset,
 collected inside the settlement transaction. If the trade settles, the fee is paid — no
-invoicing and no collection risk. On top, CIP-0047 featured-app markers accrue network rewards
-on every settlement. Two honest points. The basis-point number is not set, deliberately: it
-should come out of the design-partner conversation, not out of my head. And the fee is
-designed, not built — there is no fee field in the ledger model today, and revenue is zero.
+invoicing and no collection risk. That is built and it has collected: the RFQ carries a venue
+and a rate, the cut is split off before the dealer is paid, and the trade report records the
+amount, so the audit trail states it rather than the venue having to claim it. One settlement
+on DevNet cleared 4,250,000 at 25 bps: 10,625 to the venue, 4,239,375 to the winning dealer,
+and the buyer paid exactly what it cleared at. On top, CIP-0047 featured-app markers would
+accrue network rewards on every settlement — those are *not* in the code.
+
+Three honest points. The rate is not set, deliberately: blank charges nothing, and 25 bps is
+the number that settlement used, not a price list. On the registry rail — Canton Coin, CBTC —
+no fee is taken, because that cash moves through the issuer's allocation rather than a holding
+this desk can split. And revenue is zero: test assets, my own parties, no paying customer.
 
 **Jawaban (ID).** Venue fee per trade, dalam basis point dari notional, dibayar dalam
 settlement asset dan dipungut di dalam transaksi settlement itu sendiri. Kalau trade-nya
 settle, fee-nya terbayar — tanpa invoice, tanpa risiko penagihan. Di atas itu, featured-app
-marker CIP-0047 mengakumulasi network reward di setiap settlement. Dua hal yang jujur harus
-saya sampaikan. Angka basis point-nya sengaja belum saya tetapkan: itu harus keluar dari
-percakapan dengan design partner, bukan dari kepala saya. Dan fee-nya baru dirancang, belum
-dibangun — belum ada field fee di ledger model, dan pendapatannya nol.
+marker CIP-0047 seharusnya mengakumulasi network reward di setiap settlement — bagian itu
+belum dibangun. Dua hal yang jujur harus
+saya sampaikan. Mekanismenya sudah jalan dan sudah memungut: satu settlement di Devnet cleared
+4.250.000 pada 25 bps, 10.625 ke venue, 4.239.375 ke dealer pemenang, dan buyer tetap membayar
+persis harga clearing-nya. Tapi tarifnya sengaja belum saya tetapkan — kosong berarti tidak
+memungut apa pun, dan 25 bps itu angka di settlement tersebut, bukan daftar harga. Di rail
+registry (Canton Coin, CBTC) fee tidak diambil, karena kas-nya bergerak lewat alokasi issuer,
+bukan lewat holding yang bisa dipecah desk ini. Marker CIP-0047 belum ada di kode. Dan
+pendapatannya nol: test asset, party milik saya sendiri.
 
 **If they push back:** I would rather be caught with an unset price than with an invented one.
 

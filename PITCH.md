@@ -130,10 +130,12 @@ Keep it simple — this block is spoken, not shown.
 > leakage is the whole cost. And alongside the desks, the venues that would host Tirai as an
 > embedded app: Temple, Bron, Console, Canton Loop.
 >
-> How it would make money. A per-trade venue fee, basis points of notional, in the settlement
+> How it makes money. A per-trade venue fee, basis points of notional, in the settlement
 > asset — collected atomically inside the settlement transaction. If the trade settles, the
-> fee is paid. No invoicing, no collection risk. On top, CIP-0047 featured-app markers accrue
-> network rewards on every settlement.
+> fee is paid. No invoicing, no collection risk. That runs: one settlement on Devnet cleared
+> at four and a quarter million, twenty five basis points, ten thousand six hundred and
+> twenty five to the venue. What I haven't set is the rate. On top, CIP-0047 featured-app
+> markers would accrue network rewards on every settlement — that part is not built.
 >
 > How big. Fee on notional means one desk clearing institutional size is a real business,
 > and tokenised bond issuance is the growth curve underneath it.
@@ -145,11 +147,16 @@ Keep it simple — this block is spoken, not shown.
 - ICP (desks at banks, asset managers, prop shops) and the hosting venues (Temple, Bron,
   Console, Canton Loop): grounded, `SUBMISSION.md`.
 - Fee = bps of notional in the settlement asset, taken inside the settlement transaction:
-  that is the **design**, and it is not in the model. There is no fee field in
-  `daml/Tirai.daml` and no CIP-0047 marker in the code. Say "designed, not built, a field
-  and a day of work" if anyone asks whether it runs today. Do not imply it does.
-- **The bps number itself is deliberately not stated — it is not set.** If asked, say so:
-  it comes out of the design-partner conversation, not out of your head.
+  **built and settling on DevNet.** `venue` and `feeBps` on the RFQ, the cut split inside
+  `SettleQuote`/`SettleQuotePartial`/`AcceptPartial`, `feePaid` on the trade report, a
+  column in the audit trail. One settlement: 4,250,000 at 25 bps → 10,625 to the venue.
+  CIP-0047 markers are still **not** in the code — do not conflate the two.
+- **The bps number itself is deliberately not set — blank charges nothing.** 25 bps is what
+  the DevNet settlement used, not a price list. The rate comes out of the design-partner
+  conversation.
+- **The registry rail takes no fee.** Canton Coin and CBTC settle through the issuer's
+  allocation, not through a holding the desk can split, so `feePaid` is empty there. Say
+  so if asked; it is a real limit.
 - **[assumption]** Any total-market or revenue figure. There is no TAM number in this repo.
   Do not invent one live. If a judge presses for market size, give the shape, not a figure:
   "fee on notional, institutional ticket sizes, and I would rather size that with a design
@@ -169,7 +176,7 @@ table is the settlement proof; you no longer need the terminal for it.
 > I am a solo builder. This is the fifth time I have built this product — and the first time
 > the chain did the hard part for me.
 >
-> What is already live. Deployed on two Canton DevNet participants, same package id —
+> What is already live. Deployed on two Canton DevNet participants from the same package —
 > including HackCanton's own node. Forty-seven settled trades and five atomic baskets. Thirty-
 > six Daml test scripts green.
 >
@@ -268,11 +275,13 @@ Say these out loud if a judge probes — volunteering them is stronger than bein
 - **No live cETH transaction yet** (CBTC and Canton Coin both settle for real). The path is identical to the Canton Coin
   path that now works; only the instrument administrator differs. It is blocked on the
   onRails and BitSafe test-token grants, not on engineering.
-- **No mainnet.** DevNet only. Two participants, same package id.
+- **No mainnet.** DevNet only. Two participants, one package — three vetted versions of it on the
+  validator, because the venue fee shipped as an upgrade rather than a redeploy.
 - **The hosted desk is read-only.** Writes are deliberately rejected with 403. To see an
   award or a settlement you run it locally, or watch the demo video.
-- **No paying customer and no signed design partner.** Zero revenue. The fee model is
-  designed and priced, not collected.
+- **No paying customer and no signed design partner.** Zero revenue. The fee mechanism is
+  built and has collected on DevNet, in test assets, from parties I control. That is a
+  working collection path, not a business.
 - **No continuous market, no liquidity provision, no matching engine.** Tirai does not make
   markets. It is request-driven only.
 - **No credit or netting layer.** Every trade is fully collateralised at quote time. That is
@@ -297,10 +306,12 @@ assumption or a performance ceiling. On Canton, "dealer B cannot see dealer A's 
 README says "none" for Canton, and that is the whole thesis.
 
 **Q2. What is real, and what is a demo?**
-Real: the Daml model, the 41 test scripts, two DevNet deployments under the same package id
-`4b1e408f…`, the on-network privacy verifier, 50 settled trades and 5 atomic baskets on the
-5N validator, 16 best-execution attestations, the hosted read-only desk, and settlement in
-two assets neither of which this project issues: Canton Coin through the DSO's registry and
+Real: the Daml model, the 41 test scripts, two DevNet deployments of the same package
+(`4b1e408f…` is 0.1.0, still what HackCanton's node runs; the validator has been upgraded
+through 0.2.0 to 0.3.0 for the venue fee), the on-network privacy verifier, 50 settled trades
+and 5 atomic baskets on the 5N validator, 16 best-execution attestations, the venue fee
+collecting inside settlement, the hosted read-only desk, and settlement in two assets neither
+of which this project issues: Canton Coin through the DSO's registry and
 CBTC through BitSafe's. Demo-only: nothing is faked, but the parties are
 mine, the bonds are desk-issued, and the volumes are seeded, not customer flow. The
 `MockRegistry` in the test suite is a test double for the *registry*, not for the standard —
@@ -326,13 +337,17 @@ distribution of asks improves. The buyer also has the direct-OTC rail — `Settl
 live and both are covered by tests.
 
 **Q5. Who pays, and how much?**
-The design is a per-trade venue fee, in basis points of notional, taken in the settlement
-asset inside the settlement transaction: the same economics as any OTC venue, except that
-if the trade settles the fee settled with it, so there is nothing to invoice and nothing to
-chase. Be precise if pressed: that is designed, not built. There is no fee field in the
-Daml model today and no CIP-0047 marker in the code, and I have deliberately not set the
-bps, because that number should come out of the design-partner conversation. Zero revenue
-today, by construction.
+A per-trade venue fee, in basis points of notional, taken in the settlement asset inside
+the settlement transaction: the same economics as any OTC venue, except that if the trade
+settles the fee settled with it, so there is nothing to invoice and nothing to chase. It
+runs: `venue` and `feeBps` on the RFQ, the cut split off before the dealer is paid, the
+amount written onto the trade report, and one settlement on DevNet that cleared 4,250,000
+at 25 bps — 10,625 to the venue party, 4,239,375 to the winning dealer, and the buyer paid
+exactly what it cleared at. Be precise about the three things that are still not true: the
+rate is not set (blank charges nothing, and 25 bps was that settlement, not a price list),
+the registry rail takes no fee because that cash moves through the issuer's allocation
+rather than a holding the desk can split, and there is no CIP-0047 marker in the code.
+Revenue is zero, by construction: test assets, my own parties.
 
 **Q6. What is the regulatory posture? A private venue sounds like the opposite of what
 regulators want.**

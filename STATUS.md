@@ -16,10 +16,15 @@ with the command that would settle them.
 > **Updated after this inventory was written.** Four of the gaps below have been closed,
 > and the entries that describe them are kept so the history is legible:
 >
-> - **The fee claim (3.1) is fixed in the documents, not in the model.** The deck, the
->   submission, the pitch and the reading script now say the fee is designed and not
->   built. There is still no fee field in `daml/Tirai.daml`, and adding one costs a
->   package bump, a redeploy and a reseed on two nodes.
+> - **The fee claim (3.1) is closed in the model, not just in the documents.** `RFQ` and
+>   `Quote` carry `venue` and `feeBps`; the cut is split off inside `SettleQuote`,
+>   `SettleQuotePartial` and `AcceptPartial`, all three through one `payDealer`; and
+>   `TradeReport.feePaid` records the amount so the audit trail states it. Shipped as an
+>   upgrade rather than a redeploy: `daml.yaml` declares the deployed 0.1.0 DAR as the
+>   upgrade base, and 0.1.0/0.2.0/0.3.0 are vetted side by side on the validator. One real
+>   settlement — 4,250,000 at 25 bps, 10,625 to the venue. Three things are still true and
+>   are said out loud in the deck: the rate is unset by default, the registry rail takes no
+>   fee (that cash moves through the issuer's allocation), and revenue is zero.
 > - **cETH and USDCx (3.2) are corrected.** The submission no longer claims settlement in
 >   either. CBTC does settle: two trades through the DA Utility Registry.
 > - **The counts (3.3) agree.** Everything says 50 settled trades, which is what the
@@ -302,12 +307,14 @@ Claims that state or imply otherwise:
 | `PITCH.md:327-331` | the long-form answer, same claim |
 | `PITCH-QA.md:232-234` | the same, though `PITCH-QA.md:236-237` immediately corrects it |
 
-Only two documents state the truth: `PITCH-QA.md:237` ("there is no fee field in
-the ledger model today, and revenue is zero") and `PITCH-QA-DECK.md:249` ("No. It
-is designed, not built."). The deck itself, its script, `PITCH.md`'s scripted
-lines and `SUBMISSION.md` all read as though it ships. A judge reading
-`SUBMISSION.md` alone would be misled; a judge who asks the follow-up gets an
-honest answer. That asymmetry is the single biggest gap in the repository.
+**Closed.** When this inventory was written, only two documents stated the truth and every
+other one read as though the fee shipped — a judge reading `SUBMISSION.md` alone would have
+been misled. The gap was closed the direct way: the fee was built, deployed as an upgrade,
+and settled once on the validator. The rows above are kept because the reasoning that found
+the gap is worth more than the gap. What replaced it is a smaller and more specific
+limitation, now stated in the deck and in both Q&A documents: the fee is not taken on the
+registry rail, because Canton Coin and CBTC move through the issuer's allocation and never
+become a holding this desk can split.
 
 ### 3.2 cETH and USDCx settlement
 

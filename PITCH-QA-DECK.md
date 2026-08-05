@@ -167,8 +167,8 @@ Turn to the slide. Point. One sentence. Then stop talking.
 **ID —** Apa yang benar-benar sudah live sekarang?
 **Slide —** 10 · Not a mock-up
 **Point —** the four stat tiles, then the `tirai.vercel.app` line under them.
-**Say —** Two DevNet participants under one package id including HackCanton's own node, the settled trades and five atomic baskets on that tile, sixteen best-execution attestations, thirty-six Daml scripts green, and a hosted read-only desk over live ledger state.
-**Katakan —** Dua participant DevNet dengan package id yang sama termasuk node milik HackCanton sendiri, settled trade dan lima basket atomik di tile itu, enam belas attestation best execution, tiga puluh enam Daml script hijau, dan hosted desk read-only di atas state ledger yang hidup.
+**Say —** Two DevNet participants running the same package including HackCanton's own node, the settled trades and five atomic baskets on that tile, sixteen best-execution attestations, forty-one Daml scripts green, and a hosted read-only desk over live ledger state.
+**Katakan —** Dua participant DevNet menjalankan package yang sama termasuk node milik HackCanton sendiri, settled trade dan lima basket atomik di tile itu, enam belas attestation best execution, empat puluh satu Daml script hijau, dan hosted desk read-only di atas state ledger yang hidup.
 
 > Read the settled-trade number **off the tile**, not from memory, until the deck, the
 > README and `PITCH.md` agree. See "Before Wednesday", and Part B1.
@@ -238,16 +238,16 @@ No slide will save you. Answer, then stop. Every one of these is a question I wo
 ## B1. Your slide says one settled-trade count and your README says another. Which is it?
 **ID —** Slide Anda menyebut satu angka settled trade, README Anda angka lain. Yang mana yang benar?
 **Slide —** not in the deck
-**Say —** The deck tile is stale, and that is a housekeeping failure on my side rather than a data one. The README and the submission both say forty-seven settled trades on the shared validator; my own Q&A notes drifted to forty-nine and the tile still reads forty-one. Every one of those trades is on the ledger and countable, which is why the disagreement is embarrassing rather than dangerous. I will pin the deck, the README and the notes to one number read straight off the validator. I would rather correct myself than defend a stale slide.
-**Katakan —** Tile di deck itu basi, dan itu kelalaian administrasi saya, bukan soal datanya. README dan submission sama-sama menyebut empat puluh tujuh settled trade di shared validator; catatan Q&A saya sendiri bergeser ke empat puluh sembilan, dan tile-nya masih empat puluh satu. Semua trade itu ada di ledger dan bisa dihitung, jadi ketidakcocokan ini memalukan, bukan berbahaya. Saya akan menyamakan deck, README, dan catatan ke satu angka yang dibaca langsung dari validator. Lebih baik saya mengoreksi diri daripada membela slide yang basi.
+**Say —** They agree now: fifty settled trades and five atomic baskets on the shared validator, sixteen attestations, forty-one Daml scripts. They did not always, and the drift was real — the deck, the README and my own notes each carried a different count for a while, because every one of them was hand-written from a ledger that kept moving. Every trade is on the ledger and countable, which is why the disagreement was embarrassing rather than dangerous. If you find one that still disagrees, the validator is the answer and the document is wrong; I would rather correct myself than defend a stale slide.
+**Katakan —** Sekarang sudah sama: lima puluh settled trade dan lima basket atomik di shared validator, enam belas attestation, empat puluh satu Daml script. Dulu memang tidak sama, dan pergeserannya nyata — deck, README, dan catatan saya sempat membawa angka yang berbeda-beda, karena semuanya ditulis tangan dari ledger yang terus bergerak. Semua trade-nya ada di ledger dan bisa dihitung, jadi ketidakcocokan itu memalukan, bukan berbahaya. Kalau Anda menemukan satu yang masih berbeda, validator-nya yang benar dan dokumennya yang salah; lebih baik saya mengoreksi diri daripada membela slide yang basi.
 
 ---
 
 ## B2. The deck says the contract collects the fee. Is there a fee in the ledger model?
 **ID —** Deck Anda bilang contract-nya memungut fee sendiri. Apakah fee itu benar ada di ledger model?
 **Slide —** not in the deck
-**Say —** No. It is designed, not built. There is no fee field in the templates today and revenue is zero. Adding it is not hard, because settlement is already one atomic transaction, so the fee is simply another leg of that same transaction. But I will not claim a line of code that does not exist. It stays unbuilt on purpose until a partner tells me the number, because building the collection before knowing the rate is the wrong order of work.
-**Katakan —** Belum. Itu baru dirancang, belum dibangun. Sampai hari ini tidak ada field fee di template-nya dan pendapatannya nol. Menambahkannya tidak sulit, karena settlement-nya sudah satu transaksi atomik, jadi fee itu cukup jadi satu leg lagi di transaksi yang sama. Tapi saya tidak akan mengklaim baris kode yang tidak ada. Ini sengaja belum dibangun sampai ada partner yang menyebut angkanya, karena membangun pemungutannya sebelum tahu tarifnya itu urutan kerja yang keliru.
+**Say —** Yes. The RFQ carries a venue and a rate in basis points, and the cut is split off the cleared amount before the dealer is paid — all three cash settlement paths go through one function, so a new path cannot quietly skip it. The trade report records the amount, which matters: the auditor reads the fee off the trade rather than inferring it from someone's wallet. One settlement on DevNet cleared 4,250,000 at 25 bps — 10,625 to the venue, 4,239,375 to the dealer, and the buyer paid exactly the clearing price, because the fee comes out of the dealer's proceeds and not on top of the trade. What is still not true: the rate is unset by default, the registry rail takes no fee because that cash moves through the issuer's allocation, and revenue is zero.
+**Katakan —** Ada. RFQ-nya membawa venue dan tarif dalam basis point, dan potongannya dipisahkan dari jumlah yang cleared sebelum dealer dibayar — ketiga jalur settlement kas lewat satu fungsi yang sama, jadi jalur baru tidak bisa diam-diam melewatinya. Trade report mencatat nominalnya, dan itu yang penting: auditor membaca fee-nya dari trade, bukan menyimpulkannya dari saldo dompet orang. Satu settlement di Devnet cleared 4.250.000 pada 25 bps — 10.625 ke venue, 4.239.375 ke dealer, dan buyer membayar persis harga clearing, karena fee-nya keluar dari hasil dealer, bukan ditambahkan di atas trade. Yang belum benar: tarifnya default kosong, rail registry tidak memungut fee karena kas-nya lewat alokasi issuer, dan pendapatannya nol.
 
 ---
 
@@ -310,8 +310,8 @@ No slide will save you. Answer, then stop. Every one of these is a question I wo
 ## B10. Has the Daml model been audited, and what is the worst bug you know about?
 **ID —** Apakah model Daml-nya sudah diaudit, dan bug terburuk yang Anda tahu apa?
 **Slide —** not in the deck
-**Say —** No third-party audit, and that is not optional before real money. What exists is thirty-six Daml scripts covering the two privacy guarantees, the award logic, wrong-instrument and forged-allocation rejection, plus the verifier running on the live network. The place I would look first is the award path, because it takes an explicit list of quote contract ids from the buyer. Omitting a quote only ever raises the price the buyer pays, so it is safe, but it is where a mistake would hurt most.
-**Katakan —** Belum ada audit pihak ketiga, dan sebelum uang sungguhan itu bukan pilihan. Yang ada adalah tiga puluh enam Daml script yang mencakup dua jaminan privasi, logika award, penolakan instrument yang salah dan allocation palsu, plus verifier yang berjalan di jaringan yang hidup. Tempat pertama yang akan saya periksa adalah jalur award, karena dia menerima daftar contract id quote secara eksplisit dari buyer. Menghilangkan satu quote hanya menaikkan harga yang dibayar buyer, jadi aman, tapi di situlah kesalahan paling menyakitkan.
+**Say —** No third-party audit, and that is not optional before real money. What exists is forty-one Daml scripts covering the two privacy guarantees, the award logic, wrong-instrument and forged-allocation rejection, plus the verifier running on the live network. The place I would look first is the award path, because it takes an explicit list of quote contract ids from the buyer. Omitting a quote only ever raises the price the buyer pays, so it is safe, but it is where a mistake would hurt most.
+**Katakan —** Belum ada audit pihak ketiga, dan sebelum uang sungguhan itu bukan pilihan. Yang ada adalah empat puluh satu Daml script yang mencakup dua jaminan privasi, logika award, penolakan instrument yang salah dan allocation palsu, plus verifier yang berjalan di jaringan yang hidup. Tempat pertama yang akan saya periksa adalah jalur award, karena dia menerima daftar contract id quote secara eksplisit dari buyer. Menghilangkan satu quote hanya menaikkan harga yang dibayar buyer, jadi aman, tapi di situlah kesalahan paling menyakitkan.
 
 ---
 
@@ -374,8 +374,8 @@ No slide will save you. Answer, then stop. Every one of these is a question I wo
 ## B18. You are one person. What happens to a live desk if you stop?
 **ID —** Anda sendirian. Apa jadinya desk yang sudah live kalau Anda berhenti?
 **Slide —** not in the deck
-**Say —** For a venue that is a genuine risk and I will not talk it away: no SLA, no support rota, no third-party audit, no operational cover. Two things reduce it. The model is Daml in a public MIT repository with thirty-six tests, so it is readable and forkable rather than a black box. And my ask is a DevNet design partner, where one person is not the binding constraint. Before real flow this needs a team or an owner, not a solo builder.
-**Katakan —** Bagi sebuah venue itu risiko nyata dan tidak akan saya putar-putar: tidak ada SLA, tidak ada rota dukungan, tidak ada audit pihak ketiga, tidak ada cadangan operasional. Dua hal menguranginya. Model-nya adalah Daml di repo publik berlisensi MIT dengan tiga puluh enam test, jadi bisa dibaca dan di-fork, bukan kotak hitam. Dan permintaan saya adalah design partner di DevNet, di mana satu orang bukan kendala yang mengikat. Sebelum flow sungguhan, ini butuh tim atau pemilik, bukan solo builder.
+**Say —** For a venue that is a genuine risk and I will not talk it away: no SLA, no support rota, no third-party audit, no operational cover. Two things reduce it. The model is Daml in a public MIT repository with forty-one tests, so it is readable and forkable rather than a black box. And my ask is a DevNet design partner, where one person is not the binding constraint. Before real flow this needs a team or an owner, not a solo builder.
+**Katakan —** Bagi sebuah venue itu risiko nyata dan tidak akan saya putar-putar: tidak ada SLA, tidak ada rota dukungan, tidak ada audit pihak ketiga, tidak ada cadangan operasional. Dua hal menguranginya. Model-nya adalah Daml di repo publik berlisensi MIT dengan empat puluh satu test, jadi bisa dibaca dan di-fork, bukan kotak hitam. Dan permintaan saya adalah design partner di DevNet, di mana satu orang bukan kendala yang mengikat. Sebelum flow sungguhan, ini butuh tim atau pemilik, bukan solo builder.
 
 ---
 
@@ -392,3 +392,35 @@ No slide will save you. Answer, then stop. Every one of these is a question I wo
 **Slide —** not in the deck
 **Say —** I do not know yet, and my plan is written so that ninety days answers it rather than my preference. If a design partner names a price and the gate list is reachable, it is a venue product. If the gate list needs a licence, custody permissions or a capitalised entity, then the honest conclusion is that this is infrastructure to be sold to a venue that already has the panel and the compliance. I would rather find that out early than defend the wrong shape for a year.
 **Katakan —** Saya belum tahu, dan rencana saya ditulis supaya sembilan puluh hari yang menjawabnya, bukan selera saya. Kalau design partner menyebut harga dan daftar gate-nya terjangkau, ini produk venue. Kalau daftar gate-nya menuntut lisensi, izin custody, atau entitas bermodal, maka kesimpulan jujurnya adalah ini infrastruktur yang dijual ke venue yang sudah punya panel dan compliance-nya. Saya lebih memilih tahu itu lebih awal daripada membela bentuk yang salah selama setahun.
+
+---
+
+# Added after the venue fee shipped
+
+*Three questions that did not exist this morning. The fee went from a design to a
+settlement on DevNet on pitch day, and a judge who read the repo yesterday will
+notice. Answer them before they have to ask.*
+
+---
+
+## B21. You shipped the revenue model on the day of the final. Is that not building for the judges?
+**ID —** Anda mengirim model pendapatannya tepat di hari final. Bukankah itu membangun demi juri?
+**Slide —** not in the deck
+**Say —** Fair challenge, and the honest answer is: partly. The judges' feedback named the business model, and I had a slide claiming a fee the contract could collect while the contract could not. Two ways to fix that — soften the slide, or build the thing. I built it, and it is a small change because settlement was already one atomic transaction, so the fee is one more leg of a transaction that already existed. What I did not do is dress it up: the rate is still unset, the registry rail still takes nothing, revenue is still zero, and the deck says all three. If it had needed a week of work I would have softened the slide instead.
+**Katakan —** Pertanyaan yang adil, dan jawaban jujurnya: sebagian ya. Umpan balik juri menyebut model bisnis, dan saya punya slide yang mengklaim fee yang bisa dipungut contract padahal contract-nya belum bisa. Ada dua cara memperbaikinya — melunakkan slide-nya, atau membangunnya. Saya membangunnya, dan itu perubahan kecil karena settlement-nya memang sudah satu transaksi atomik, jadi fee-nya cuma satu leg tambahan di transaksi yang sudah ada. Yang tidak saya lakukan adalah mempercantiknya: tarifnya masih kosong, rail registry masih tidak memungut apa pun, pendapatannya masih nol, dan deck-nya menyebut ketiganya. Kalau butuh kerja seminggu, saya akan melunakkan slide-nya saja.
+
+---
+
+## B22. There are three versions of your package on that validator. What happened to the contracts created under the first one?
+**ID —** Ada tiga versi package Anda di validator itu. Apa yang terjadi pada contract yang dibuat di versi pertama?
+**Slide —** not in the deck
+**Say —** They are still there and still readable, which is the whole point of Canton's smart-contract upgrades. Both new fields are `Optional` and appended, so an RFQ written under 0.1.0 reads under 0.3.0 with no venue and no fee, and a trade report from last week shows a dash rather than a zero — "settled free" and "written before the fee existed" are different claims and the desk does not blur them. I did not take that on trust: `daml.yaml` declares the deployed 0.1.0 DAR as the upgrade base, so the compiler checks every change against what the ledger actually holds, and before each upload I rehearsed it on a sandbox that already had the old version, submitting the *old* client's payload and confirming it still created. Thirteen checks, twice.
+**Katakan —** Semuanya masih ada dan masih terbaca, dan itulah inti smart-contract upgrade di Canton. Kedua field barunya `Optional` dan ditambahkan di akhir, jadi RFQ yang ditulis di 0.1.0 terbaca di 0.3.0 tanpa venue dan tanpa fee, dan trade report minggu lalu tampil sebagai strip, bukan nol — "settle tanpa biaya" dan "ditulis sebelum fee-nya ada" itu dua klaim berbeda dan desk-nya tidak mengaburkannya. Saya tidak menerimanya begitu saja: `daml.yaml` mendeklarasikan DAR 0.1.0 yang ter-deploy sebagai basis upgrade, jadi compiler memeriksa setiap perubahan terhadap apa yang benar-benar dipegang ledger, dan sebelum tiap upload saya menggeladinya di sandbox yang sudah memegang versi lama, mengirim payload klien *lama* dan memastikan masih bisa create. Tiga belas pemeriksaan, dua kali.
+
+---
+
+## B23. Your fee works on desk cash but not on Canton Coin. Is the revenue model real, then?
+**ID —** Fee Anda jalan di kas desk tapi tidak di Canton Coin. Kalau begitu model pendapatannya nyata atau tidak?
+**Slide —** not in the deck
+**Say —** It is real on the path where the desk holds the cash leg, and it is genuinely missing on the registry path. On Canton Coin or CBTC the payment moves through the issuer's own allocation and transfer instruction; the desk never holds a splittable position, so there is nothing to take a cut from at that moment. Two ways out, and both need the partner conversation rather than more code from me: a second allocation for the fee in the same settlement, or the venue invoicing off-ledger, which is exactly the collection risk I built this to avoid. I would rather show you the edge than let you find it.
+**Katakan —** Nyata di jalur ketika desk memegang leg kas-nya, dan memang benar-benar tidak ada di jalur registry. Di Canton Coin atau CBTC, pembayarannya bergerak lewat alokasi dan transfer instruction milik issuer; desk-nya tidak pernah memegang posisi yang bisa dipecah, jadi tidak ada yang bisa dipotong pada saat itu. Ada dua jalan keluar, dan keduanya butuh percakapan dengan partner alih-alih kode tambahan dari saya: alokasi kedua khusus fee di settlement yang sama, atau venue menagih di luar ledger — yang justru risiko penagihan yang ingin saya hindari sejak awal. Saya lebih baik menunjukkan sisi lemahnya daripada membiarkan Anda menemukannya sendiri.
