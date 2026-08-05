@@ -58,6 +58,7 @@ openTokenRfq te dealers = submit te.e.buyer do
     instrument = "TBOND30"; quantity = 1000.0; payInstrument = "cETH"
     assetIssuer = Some te.e.bondIssuer; payIssuer = Some te.registry
     deadline = Some farFuture
+    venue = None; feeBps = None
 
 -- Award a two-dealer auction into a TokenTrade and hand back the trade + payload.
 awardedTrade : TokenEnv -> Script (ContractId TokenTrade, TokenTrade)
@@ -125,6 +126,7 @@ testCbtcDvp = do
       buyer = e.buyer; regulator = e.regulator; invitedDealers = [dealerA]
       instrument = "TBOND30"; quantity = 1000.0; payInstrument = "CBTC"
       assetIssuer = Some e.bondIssuer; payIssuer = Some bitsafe; deadline = Some farFuture
+      venue = None; feeBps = None
   quoteA <- submit dealerA do
     exerciseCmd rfq SubmitQuote with dealer = dealerA; price = 3.0; assetCid = bondA
   trade <- submit e.buyer do

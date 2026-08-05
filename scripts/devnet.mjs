@@ -285,7 +285,7 @@ async function seed() {
     buyer: p.buyer, regulator: p.regulator, invitedDealers: [p.dealerA, p.dealerB],
     instrument: 'TBOND30', quantity: '1000.0', payInstrument: 'USDC',
     assetIssuer: p.bondIssuer, payIssuer: p.cashIssuer,
-    deadline: '2030-01-01T00:00:00Z' } } }));
+    deadline: '2030-01-01T00:00:00Z', venue: null, feeBps: null } } }));
   console.log('RFQ live:', rfq.slice(0, 24) + '…');
 
   const quote = (dealer, price, assetCid) => ({ ExerciseCommand: { templateId: `${PKG}:Tirai:RFQ`,
@@ -371,7 +371,7 @@ async function settleDemo() {
   const rfq = cidOf(await submit(p.buyer, { CreateCommand: { templateId: `${PKG}:Tirai:RFQ`, createArguments: {
     buyer: p.buyer, regulator: p.regulator, invitedDealers: [p.dealerA, p.dealerB],
     instrument: inst, quantity: '100.0', payInstrument: 'USDC',
-    assetIssuer: p.bondIssuer, payIssuer: p.cashIssuer, deadline: '2030-01-01T00:00:00Z' } } }));
+    assetIssuer: p.bondIssuer, payIssuer: p.cashIssuer, deadline: '2030-01-01T00:00:00Z', venue: null, feeBps: null } } }));
   const quote = (dealer, price, assetCid) => ({ ExerciseCommand: { templateId: `${PKG}:Tirai:RFQ`,
     contractId: rfq, choice: 'SubmitQuote', choiceArgument: { dealer, price, assetCid } } });
   const qA = cidOfTpl(await submit(p.dealerA, quote(p.dealerA, '190000.0', gA)), ':Tirai:Quote');
@@ -442,7 +442,7 @@ async function seedCases() {
   const mkRfq = async (inst, qty) => cidOf(await submit(p.buyer, { CreateCommand: { templateId: `${PKG}:Tirai:RFQ`, createArguments: {
     buyer: p.buyer, regulator: p.regulator, invitedDealers: [p.dealerA, p.dealerB],
     instrument: inst, quantity: qty, payInstrument: 'USDC', assetIssuer: p.bondIssuer, payIssuer: p.cashIssuer,
-    deadline: '2030-01-01T00:00:00Z' } } }));
+    deadline: '2030-01-01T00:00:00Z', venue: null, feeBps: null } } }));
   const quote = async (dealer, rfq, price, assetCid) => cidOfTpl(await submit(dealer, { ExerciseCommand: {
     templateId: `${PKG}:Tirai:RFQ`, contractId: rfq, choice: 'SubmitQuote', choiceArgument: { dealer, price, assetCid } } }), ':Tirai:Quote');
   const onQuote = (qCid, choice, arg) => submit(p.buyer, { ExerciseCommand: { templateId: `${PKG}:Tirai:Quote`, contractId: qCid, choice, choiceArgument: arg } });
@@ -458,7 +458,7 @@ async function seedCases() {
     const c = await cash(cashAmt); const bA = await bond(p.dealerA, inst, qty); const bB = await bond(p.dealerB, inst, qty); const bC = await bond(dealerC, inst, qty);
     const rfq = cidOf(await submit(p.buyer, { CreateCommand: { templateId: `${PKG}:Tirai:RFQ`, createArguments: {
       buyer: p.buyer, regulator: p.regulator, invitedDealers: [p.dealerA, p.dealerB, dealerC],
-      instrument: inst, quantity: qty, payInstrument: 'USDC', assetIssuer: p.bondIssuer, payIssuer: p.cashIssuer, deadline: '2030-01-01T00:00:00Z' } } }));
+      instrument: inst, quantity: qty, payInstrument: 'USDC', assetIssuer: p.bondIssuer, payIssuer: p.cashIssuer, deadline: '2030-01-01T00:00:00Z', venue: null, feeBps: null } } }));
     const qA = await quote(p.dealerA, rfq, pA, bA); const qB = await quote(p.dealerB, rfq, pB, bB); const qC = await quote(dealerC, rfq, pC, bC);
     await submit(p.buyer, { ExerciseCommand: { templateId: `${PKG}:Tirai:RFQ`, contractId: rfq, choice: 'Award', choiceArgument: { quoteCids: [qA, qB, qC], cashCid: c } } });
   };
@@ -652,7 +652,7 @@ async function seedBestExec() {
     const rfq = cidOf(await submit(p.buyer, { CreateCommand: { templateId: `${PKG}:Tirai:RFQ`, createArguments: {
       buyer: p.buyer, regulator: p.regulator, invitedDealers: [p.dealerA, p.dealerB],
       instrument: inst, quantity: qty, payInstrument: 'USDC', assetIssuer: p.bondIssuer, payIssuer: p.cashIssuer,
-      deadline: '2030-01-01T00:00:00Z' } } }));
+      deadline: '2030-01-01T00:00:00Z', venue: null, feeBps: null } } }));
     const q = async (dealer, price, asset) => cidOfTpl(await submit(dealer, { ExerciseCommand: { templateId: `${PKG}:Tirai:RFQ`,
       contractId: rfq, choice: 'SubmitQuote', choiceArgument: { dealer, price, assetCid: asset } } }), ':Tirai:Quote');
     const qA = await q(p.dealerA, pA, bA);
@@ -670,7 +670,7 @@ async function seedBestExec() {
     const rfq = cidOf(await submit(p.buyer, { CreateCommand: { templateId: `${PKG}:Tirai:RFQ`, createArguments: {
       buyer: p.buyer, regulator: p.regulator, invitedDealers: [p.dealerA, p.dealerB],
       instrument: inst, quantity: qty, payInstrument: 'USDC', assetIssuer: p.bondIssuer, payIssuer: p.cashIssuer,
-      deadline: '2030-01-01T00:00:00Z' } } }));
+      deadline: '2030-01-01T00:00:00Z', venue: null, feeBps: null } } }));
     const q = async (dealer, price, asset) => cidOfTpl(await submit(dealer, { ExerciseCommand: { templateId: `${PKG}:Tirai:RFQ`,
       contractId: rfq, choice: 'SubmitQuote', choiceArgument: { dealer, price, assetCid: asset } } }), ':Tirai:Quote');
     const qA = await q(p.dealerA, pA, bA);
@@ -1113,7 +1113,7 @@ async function seedBook() {
       rfq = cidOf(await submit(p.buyer, { CreateCommand: { templateId: `${PKG}:Tirai:RFQ`, createArguments: {
         buyer: p.buyer, regulator: p.regulator, invitedDealers: panel.map((d) => partyOf[d]),
         instrument: inst, quantity: qty, payInstrument: 'USDC',
-        assetIssuer: p.bondIssuer, payIssuer: p.cashIssuer, deadline: '2030-01-01T00:00:00Z' } } }));
+        assetIssuer: p.bondIssuer, payIssuer: p.cashIssuer, deadline: '2030-01-01T00:00:00Z', venue: null, feeBps: null } } }));
       made++;
       process.stdout.write(`· ${inst.padEnd(9)} ${panel.length > 1 ? 'auction' : 'direct '} ${panel.join('+')}`);
     } else {

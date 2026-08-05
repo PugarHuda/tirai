@@ -132,7 +132,7 @@ async function demo() {
   // A human/other system posts the RFQ, inviting both market-maker agents.
   const rfq = cidOf(await submit(buyer, { CreateCommand: { templateId: `${pkg}:Tirai:RFQ`, createArguments: {
     buyer, regulator, invitedDealers: [dealerA, dealerB], instrument: 'TBOND30', quantity: '1000.0', payInstrument: 'USDC',
-    assetIssuer: bondIssuer, payIssuer: cashIssuer, deadline: '2030-01-01T00:00:00Z' } } }));
+    assetIssuer: bondIssuer, payIssuer: cashIssuer, deadline: '2030-01-01T00:00:00Z', venue: null, feeBps: null } } }));
   console.log('· a buyer posted an RFQ (TBOND30 ×1000), inviting two market-maker agents\n');
 
   console.log('agents watching…');

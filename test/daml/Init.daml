@@ -64,6 +64,7 @@ rfqFor p dealers inst qty = submit p.buyer do
     buyer = p.buyer; regulator = p.regulator; invitedDealers = dealers
     instrument = inst; quantity = qty; payInstrument = "USDC"
     assetIssuer = Some p.bondIssuer; payIssuer = Some p.cashIssuer; deadline = Some farFut
+    venue = None; feeBps = None
 
 qOn : ContractId RFQ -> Party -> Decimal -> ContractId Holding -> Script (ContractId Quote)
 qOn rfq dealer price asset = submit dealer do
@@ -161,6 +162,8 @@ initialize = do
       instrument = "GILT10"; quantity = 100.0; payInstrument = "USDC"
       assetIssuer = Some p.bondIssuer; payIssuer = Some p.cashIssuer
       deadline = Some (time (date 2030 Jan 1) 0 0 0)
+      venue = None
+      feeBps = None
   gqA <- submit p.dealerA do
     exerciseCmd giltRfq SubmitQuote with dealer = p.dealerA; price = 190000.0; assetCid = giltA
   gqB <- submit p.dealerB do
@@ -177,6 +180,8 @@ initialize = do
       instrument = "TBOND30"; quantity = 1000.0; payInstrument = "USDC"
       assetIssuer = Some p.bondIssuer; payIssuer = Some p.cashIssuer
       deadline = Some (time (date 2030 Jan 1) 0 0 0)
+      venue = None
+      feeBps = None
   _ <- submit p.dealerA do
     exerciseCmd rfq SubmitQuote with dealer = p.dealerA; price = 4210000.0; assetCid = bondA
   _ <- submit p.dealerB do

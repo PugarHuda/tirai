@@ -1137,7 +1137,7 @@ async function createRFQ(btn) {
         payIssuer: (rail?.admin ?? CFG_PARTIES.cashIssuer) ?? null,
         // Daml Time as RFC3339 without fractional seconds (the form the ledger's
         // codec is known to accept everywhere else); open for 24h.
-        deadline: new Date(Date.now() + 86400000).toISOString().replace(/\.\d+Z$/, 'Z') } } });
+        deadline: new Date(Date.now() + 86400000).toISOString().replace(/\.\d+Z$/, 'Z'), venue: null, feeBps: null } } });
       toast(panel.length > 1 ? 'RFQ sent to the dealer panel' : 'Request sent to the counterparty');
       logActivity('Opened a request', `${instrument} x ${quantity}`); // inside the try: only on acceptance
       await refresh();

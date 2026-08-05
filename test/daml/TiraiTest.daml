@@ -47,6 +47,8 @@ openRfq e dealers = submit e.buyer do
     instrument = "TBOND30"; quantity = 1000.0; payInstrument = "USDC"
     assetIssuer = Some e.bondIssuer; payIssuer = Some e.cashIssuer
     deadline = Some farFuture
+    venue = None
+    feeBps = None
 
 ownedBy : Party -> [(a, Holding)] -> [(Text, Decimal)]
 ownedBy p hs = sort [(h.instrument, h.amount) | (_, h) <- hs, h.owner == p]
@@ -318,6 +320,8 @@ testQuoteAfterDeadlineRejected = do
       instrument = "TBOND30"; quantity = 1000.0; payInstrument = "USDC"
       assetIssuer = Some e.bondIssuer; payIssuer = Some e.cashIssuer
       deadline = Some (time (date 1970 Jan 2) 0 0 0)
+      venue = None
+      feeBps = None
   passTime (days 2) -- now past the deadline
   submitMustFail dealerA do
     exerciseCmd rfq SubmitQuote with dealer = dealerA; price = 4210000.0; assetCid = bondA
@@ -408,3 +412,107 @@ testRejectBasketQuote = do
   submit e.buyer do exerciseCmd bq RejectBasketQuote
   ownedBy dealerA <$> query @Holding dealerA >>= \h -> h === [("GILT10", 100.0), ("TBOND30", 1000.0)]
   (isNone <$> queryContractId dealerA bq) >>= assertMsg "rejected basket quote is archived"
+
+-- ── Venue fee ────────────────────────────────────────────────────────────────
+-- The desk takes its cut out of the same atomic settlement as the trade, not out
+-- of a monthly invoice. Below: the cut is exact, it comes out of the DEALER's
+-- proceeds (never on top of what the buyer agreed to pay), and a desk that
+-- charges nothing behaves exactly as it did before the fee existed.
+
+openRfqFee : Env -> Party -> [Party] -> Decimal -> Script (ContractId RFQ)
+openRfqFee e venue dealers bps = submit e.buyer do
+  createCmd RFQ with
+    buyer = e.buyer; regulator = e.regulator; invitedDealers = dealers
+    instrument = "TBOND30"; quantity = 1000.0; payInstrument = "USDC"
+    assetIssuer = Some e.bondIssuer; payIssuer = Some e.cashIssuer
+    deadline = Some farFuture
+    venue = Some venue
+    feeBps = Some bps
+
+-- Vickrey clears at B's 4.25M. 25 bps of that is 10,625 to the venue, and the
+-- winner is paid the remaining 4,239,375. The buyer still pays exactly 4.25M.
+testVenueFee : Script ()
+testVenueFee = do
+  e <- setupEnv
+  venue <- allocateParty "Venue"
+  [dealerA, dealerB] <- mapA allocateParty ["DealerA", "DealerB"]
+  cash <- mintCash e 5000000.0
+  bondA <- mintBond e dealerA
+  bondB <- mintBond e dealerB
+  rfq <- openRfqFee e venue [dealerA, dealerB] 25.0
+  qA <- submit dealerA do exerciseCmd rfq SubmitQuote with dealer = dealerA; price = 4210000.0; assetCid = bondA
+  qB <- submit dealerB do exerciseCmd rfq SubmitQuote with dealer = dealerB; price = 4250000.0; assetCid = bondB
+  submit e.buyer do exerciseCmd rfq Award with quoteCids = [qA, qB]; cashCid = cash
+  ownedBy venue <$> query @Holding venue >>= \h -> h === [("USDC", 10625.0)]
+  ownedBy dealerA <$> query @Holding dealerA >>= \h -> h === [("USDC", 4239375.0)]
+  -- The buyer is untouched by the fee: 5.00M less the 4.25M it cleared at.
+  ownedBy e.buyer <$> query @Holding e.buyer >>= \h -> h === [("TBOND30", 1000.0), ("USDC", 750000.0)]
+
+-- The fee follows a partial bilateral fill down to the filled amount, so the
+-- direct-OTC path cannot be used to route around the desk.
+testVenueFeeOnPartialFill : Script ()
+testVenueFeeOnPartialFill = do
+  e <- setupEnv
+  venue <- allocateParty "Venue"
+  dealerA <- allocateParty "DealerA"
+  cash <- mintCash e 5000000.0
+  bondA <- mintBond e dealerA
+  rfq <- openRfqFee e venue [dealerA] 25.0
+  qA <- submit dealerA do exerciseCmd rfq SubmitQuote with dealer = dealerA; price = 4250000.0; assetCid = bondA
+  -- 400 of 1000 at 4.25M prorates to 1,700,000; 25 bps of that is 4,250.
+  submit e.buyer do exerciseCmd qA AcceptPartial with cashCid = cash; fillQuantity = 400.0
+  ownedBy venue <$> query @Holding venue >>= \h -> h === [("USDC", 4250.0)]
+  ownedBy dealerA <$> query @Holding dealerA >>= \h -> h === [("TBOND30", 600.0), ("USDC", 1695750.0)]
+  ownedBy e.buyer <$> query @Holding e.buyer >>= \h -> h === [("TBOND30", 400.0), ("USDC", 3300000.0)]
+
+-- No fee configured: the settlement is byte-for-byte the old one, and no third
+-- holding is created for a venue that does not exist.
+testNoFeeUnchanged : Script ()
+testNoFeeUnchanged = do
+  e <- setupEnv
+  dealerA <- allocateParty "DealerA"
+  cash <- mintCash e 5000000.0
+  bondA <- mintBond e dealerA
+  rfq <- openRfq e [dealerA]
+  qA <- submit dealerA do exerciseCmd rfq SubmitQuote with dealer = dealerA; price = 4210000.0; assetCid = bondA
+  submit e.buyer do exerciseCmd rfq Award with quoteCids = [qA]; cashCid = cash
+  ownedBy dealerA <$> query @Holding dealerA >>= \h -> h === [("USDC", 4210000.0)]
+  ownedBy e.buyer <$> query @Holding e.buyer >>= \h -> h === [("TBOND30", 1000.0), ("USDC", 790000.0)]
+
+-- A payee with no rate, a rate with no payee, and a rate above 10 per cent are
+-- misconfigurations. Reject them at creation rather than discovering them when
+-- somebody's money moves.
+testFeeMisconfigRejected : Script ()
+testFeeMisconfigRejected = do
+  e <- setupEnv
+  venue <- allocateParty "Venue"
+  dealerA <- allocateParty "DealerA"
+  let base = RFQ with
+        buyer = e.buyer; regulator = e.regulator; invitedDealers = [dealerA]
+        instrument = "TBOND30"; quantity = 1000.0; payInstrument = "USDC"
+        assetIssuer = Some e.bondIssuer; payIssuer = Some e.cashIssuer
+        deadline = Some farFuture; venue = None; feeBps = None
+  submitMustFail e.buyer do createCmd base with venue = Some venue          -- payee, no rate
+  submitMustFail e.buyer do createCmd base with feeBps = Some 25.0          -- rate, no payee
+  submitMustFail e.buyer do createCmd base with venue = Some venue; feeBps = Some 1001.0
+  submitMustFail e.buyer do createCmd base with venue = Some venue; feeBps = Some (-1.0)
+  -- and the edges that ARE allowed
+  _ <- submit e.buyer do createCmd base with venue = Some venue; feeBps = Some 0.0
+  _ <- submit e.buyer do createCmd base with venue = Some venue; feeBps = Some 1000.0
+  pure ()
+
+-- The venue is paid, so it learns the trade happened. It must not thereby learn
+-- what anyone else quoted: a fee payee is not an observer of the sealed book.
+testVenueSeesNoQuotes : Script ()
+testVenueSeesNoQuotes = do
+  e <- setupEnv
+  venue <- allocateParty "Venue"
+  [dealerA, dealerB] <- mapA allocateParty ["DealerA", "DealerB"]
+  cash <- mintCash e 5000000.0
+  bondA <- mintBond e dealerA
+  bondB <- mintBond e dealerB
+  rfq <- openRfqFee e venue [dealerA, dealerB] 25.0
+  _ <- submit dealerA do exerciseCmd rfq SubmitQuote with dealer = dealerA; price = 4210000.0; assetCid = bondA
+  _ <- submit dealerB do exerciseCmd rfq SubmitQuote with dealer = dealerB; price = 4250000.0; assetCid = bondB
+  query @Quote venue >>= \qs -> qs === []
+  query @RFQ venue >>= \rs -> rs === []

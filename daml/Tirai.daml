@@ -126,10 +126,19 @@ template RFQ
     assetIssuer : Optional Party -- if set, the asset leg must be issued by this party
     payIssuer : Optional Party   -- if set, the cash leg must be issued by this party
     deadline : Optional Time     -- if set, quotes are rejected once the ledger passes it
+    -- The venue that hosts the desk, and its cut in basis points of the cleared
+    -- notional. Both Optional so the template stays upgrade-compatible and so a
+    -- desk that charges nothing keeps working exactly as before.
+    venue : Optional Party
+    feeBps : Optional Decimal
   where
     signatory buyer
     observer invitedDealers
     ensure quantity > 0.0 && not (null invitedDealers)
+      && optional True (\b -> b >= 0.0 && b <= 1000.0) feeBps  -- 0 to 10 per cent
+      -- A fee with nobody to pay it, or a payee with no fee, is a misconfiguration
+      -- rather than a free trade: reject it at creation instead of at settlement.
+      && (optional False (const True) venue == optional False (const True) feeBps)
 
     -- A dealer answers with a sealed quote, locking the asset into escrow.
     -- The created Quote is visible to this dealer and the buyer ONLY - other
@@ -154,6 +163,7 @@ template RFQ
          -- never cross-settle into another RFQ that shares instrument/size.
          create Quote with buyer; regulator; dealer; instrument; quantity
                            payInstrument; price; escrowCid; rfqId = Some self; payIssuer
+                           venue; feeBps
 
     -- Buyer settles against the submitted quotes: cheapest ask wins, but is
     -- paid the SECOND-cheapest price (reverse Vickrey), atomically DvP.
@@ -252,6 +262,26 @@ template RFQ
 
 -- Sealed quote. Signatories: dealer + buyer (both bound). No observers:
 -- competing dealers and the regulator cannot see it - by ledger model, not policy.
+-- What the venue takes out of a cleared amount. Rounded to the cent, and zero
+-- when the desk charges nothing. The fee is not an invoice: it leaves the same
+-- transaction as the trade, or the trade does not happen.
+venueCut : Optional Decimal -> Decimal -> Decimal
+venueCut feeBps cleared = optional 0.0 (\bps -> roundBankers 2 (cleared * bps / 10000.0)) feeBps
+
+-- Pay the dealer, less the venue's cut. Every cash settlement on a quote goes
+-- through here: a payout path that forgets the fee is the bug this prevents.
+payDealer : Optional Party -> Optional Decimal -> Party -> Decimal -> ContractId Holding -> Update ()
+payDealer venue feeBps dealer cleared payCid = do
+  let fee = venueCut feeBps cleared
+  dealerCid <-
+    if fee <= 0.0 then pure payCid
+    else do
+      (feePart, rest) <- exercise payCid Split with splitAmount = fee
+      forA_ venue (\v -> exercise feePart Transfer with newOwner = v)
+      pure rest
+  _ <- exercise dealerCid Transfer with newOwner = dealer
+  pure ()
+
 template Quote
   with
     buyer : Party
@@ -264,6 +294,10 @@ template Quote
     escrowCid : ContractId EscrowedHolding
     rfqId : Optional (ContractId RFQ) -- Optional so the template stays upgrade-compatible
     payIssuer : Optional Party        -- expected issuer of the cash leg, from the RFQ
+    -- Copied from the RFQ when the quote is sealed: the dealer priced knowing what
+    -- the venue takes, and settlement cannot be handed different terms afterwards.
+    venue : Optional Party
+    feeBps : Optional Decimal
   where
     signatory dealer, buyer
 
@@ -287,7 +321,7 @@ template Quote
              else do
                (part, _rest) <- exercise cashCid Split with splitAmount = clearingPrice
                pure part
-         _ <- exercise payCid Transfer with newOwner = dealer
+         payDealer venue feeBps dealer clearingPrice payCid
          _ <- exercise escrowCid DeliverTo with recipient = buyer
          create TradeReport with
            buyer; dealer; regulator; instrument; quantity; clearingPrice
@@ -316,7 +350,7 @@ template Quote
              else do
                (part, _rest) <- exercise cashCid Split with splitAmount = fillPay
                pure part
-         _ <- exercise payCid Transfer with newOwner = dealer
+         payDealer venue feeBps dealer fillPay payCid
          _ <- exercise escrowCid DeliverSplit with toBuyer = fillQuantity
          create TradeReport with
            buyer; dealer; regulator; instrument; quantity = fillQuantity; clearingPrice = fillPay
@@ -345,7 +379,7 @@ template Quote
              else do
                (part, _rest) <- exercise cashCid Split with splitAmount = fillPrice
                pure part
-         _ <- exercise payCid Transfer with newOwner = dealer
+         payDealer venue feeBps dealer fillPrice payCid
          _ <- exercise escrowCid DeliverSplit with toBuyer = fillQuantity
          create TradeReport with
            buyer; dealer; regulator; instrument; quantity = fillQuantity; clearingPrice = fillPrice
