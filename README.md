@@ -19,24 +19,25 @@ Built for **HackCanton Season #2** (Noders / AppsFactory, Jul 2026).
 > [Bisik](https://github.com/PugarHuda/bisik), our entry to Encode's Build on
 > Canton hackathon (deployed and verified live on Canton Devnet). Tirai is the
 > productionisation pass: rebrand, and — the core of this build — settlement in
-> **real Canton Token Standard (CIP-56) assets, targeting cETH and CBTC**,
-> instead of desk-minted mock cash.
+> **real Canton Token Standard (CIP-56) assets** instead of desk-minted mock cash.
+> CBTC settles today; cETH is the same code path and waits only on its token grant.
 
-## The fifth implementation — and the first native one
+## Why Canton, and not the chain you already use
 
-We have built this exact product thesis four times, on four chains, each time
-fighting the chain's transparency with heavy machinery:
+The same sealed-bid OTC thesis costs a different amount of cryptography depending on
+where it is built. This is what a confidential RFQ desk has to bolt on and then keep
+proving correct, chain by chain:
 
-| Project | Chain | Privacy machinery we had to build |
+| Chain | What it broadcasts | Privacy machinery required |
 |---|---|---|
-| [Diam](https://github.com/PugarHuda/diam) | Arbitrum (iExec Nox) | TEE-based confidential compute, encrypted handles |
-| [Segel](https://github.com/PugarHuda/segel) | Stellar (Soroban) | Two Circom/Groth16 ZK circuits, hand-rolled Poseidon |
-| [Sealed Pair](https://github.com/PugarHuda/sealed-pair) | Sui | Walrus blob commitments + Seal threshold encryption |
-| [Samar](https://github.com/PugarHuda/samar-confidential-otc) | Ethereum (Zama fhEVM) | FHE, branchless `FHE.select` settlement |
-| **Tirai** | **Canton** | **None. Sub-transaction privacy is the ledger model.** |
+| Ethereum | every quote, in the public mempool | FHE, or a ZK circuit per rule you want kept private |
+| Sui, Stellar, Arbitrum | every quote, on a public ledger | ZK circuits, threshold encryption, or a trusted enclave |
+| **Canton** | **nothing off the parties** | **None. Sub-transaction privacy is the ledger model.** |
 
 On Canton, "dealer B cannot see dealer A's quote" is not a cryptographic
-achievement — it is a `signatory`/`observer` declaration.
+achievement — it is a `signatory`/`observer` declaration. There is no proving
+system to audit, benchmark, or keep up to date, and the quote is not hidden from
+a screen: the rival's participant node never received the contract.
 
 ## What it does
 
@@ -94,14 +95,14 @@ escrowed bond shows up as a *locked* position in any standard wallet. Instrument
 identity is bound end-to-end — a quote priced in cETH cannot settle in CBTC, nor
 against an impostor registry (`testWrongInstrumentRejected`).
 
-### This is not a mock — it runs against a registry we do not control
+### This is not a mock — it runs against a registry I do not control
 
 `node scripts/devnet.mjs seed-cc` settles the desk's auctions in **Canton Coin
 issued and administered by the DSO** on the 5N Devnet validator.
 (`node scripts/devnet.mjs seed-fee 25` is the venue-fee counterpart: it runs one
 auction that charges, then reconciles what the venue holds against what the trade
 report says and fails if they disagree.) Nothing about the
-cash leg is ours: we read the registry's instrument list, ask its factories for
+cash leg is mine: the desk reads the registry's instrument list, asks its factories for
 choice contexts, and hand the contracts it discloses to the ledger.
 
 | Step | Registry endpoint (via the validator's scan proxy) | Ledger |
@@ -176,9 +177,12 @@ To reproduce the frozen DARs: download `dars/` from the Splice release bundle
 
 ### Live on Devnet
 
-Same package id on both participants: `tirai-desk`
-`4b1e408f6eda27364a55da076d9251ee117f0641f03aaf20883995f1e507a7e3`, parties
-`tirai-v1-*` (Canton 3.5.x).
+One package, `tirai-desk`, on both participants, parties `tirai-v1-*` (Canton 3.5.x).
+`hackcanton-01` runs 0.1.0
+(`4b1e408f6eda27364a55da076d9251ee117f0641f03aaf20883995f1e507a7e3`); the shared
+validator has been upgraded through 0.2.0 to 0.3.0 for the venue fee, with all three
+vetted side by side — see [Upgrades](#upgrades) for why contracts written under the
+first still read under the last.
 
 | Participant | Namespace | Live state |
 |---|---|---|
@@ -226,6 +230,7 @@ cd test; daml test  # 41 scripts
 ```
 
 ### Upgrades
+<a id="upgrades"></a>
 
 `daml.yaml` names the DAR this package upgrades (`dars/tirai-desk-0.1.0.dar`, a rebuild of
 what is live, byte-identical down to the package id). `damlc` then checks every change
@@ -249,16 +254,22 @@ vetted version. Pin one with `TIRAI_PKG` if you need the old template.
 | `api/` | read-only serverless proxy (hosted deployment) |
 | `scripts/` | Devnet deployer, local demo, e2e suites, recorder, PDF/logo generators |
 | `mcp/` | MCP server — 6 tools: 5 read-only + `post_rfq`, which writes a real RFQ |
-| `media/` | demo video + subtitles, logo variants, submission PDFs |
+| `deck/` | the pitch deck — 15 slides, keyboard/click/swipe, full screen, and the film on slide 14. Served at [`/deck`](https://tirai.vercel.app/deck); `deck/NOTES.md` is the per-slide speaker guide |
+| `video/` | Remotion source for the film, and `video/vo/` — the narration script and the mixer that places each line inside the shot it belongs to |
+| `media/` | the film (narrated `tirai-demo.mp4` + its silent master), deck screenshots, logo variants, submission PDFs |
 | [`SUBMISSION.md`](SUBMISSION.md) | tracks, business brief, pilot plan |
 | [`JOURNAL.md`](JOURNAL.md) | daily build journal (what was built, what broke) |
+| [`DECK-SCRIPT.md`](DECK-SCRIPT.md) | what to say over each slide, timed to the four-minute slot |
+| [`PITCH-QA.md`](PITCH-QA.md) · [`PITCH-QA-DECK.md`](PITCH-QA-DECK.md) | 20 long-form answers, and 44 short ones keyed to the slide they point at |
 | [`DEMO-VO.md`](DEMO-VO.md) | demo video script, for a human read of the same walkthrough |
 
 Submission documents are generated, not hand-maintained binaries:
 `npm run pdf` (or `node scripts/make-pdf.mjs value|icp|gtm|metrics|pitch` for
 one) renders them to `media/`, and `npm run logo` renders the logo variants.
-The raw silent screen capture is gitignored — the narrated `.mp4` is the
-artefact that ships.
+The film ships narrated. `media/tirai-demo-silent.mp4` is the Remotion render and
+`media/tirai-demo.mp4` is the same picture with the voice track mixed onto it, so the
+narration can be redone (`video/vo/say.mjs` then `mix.mjs`) without re-rendering. Only
+the raw browser capture, `media/*.webm`, is gitignored.
 
 ## License
 
