@@ -1,10 +1,11 @@
 // Tirai DevNet deploy/seed against the shared 5N hackathon validator.
 // Reads scripts/.env.devnet (gitignored). Node >= 20.
 //   node scripts/devnet.mjs probe
-//   node scripts/devnet.mjs upload .daml/dist/tirai-desk-0.1.0.dar
+//   node scripts/devnet.mjs upload            (the newest DAR the build produced)
 //   node scripts/devnet.mjs allocate
 //   node scripts/devnet.mjs seed
 import { readFile, writeFile } from 'node:fs/promises';
+import { readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -105,6 +106,16 @@ async function probe() {
   console.log(`user ${USER}:`, me.status, JSON.stringify(me.data).slice(0, 200));
   const rights = await api('/v2/users/' + USER + '/rights');
   console.log(`user ${USER} rights:`, rights.status, JSON.stringify(rights.data).slice(0, 400));
+}
+
+// The DAR the build just produced. Hard-coding a version means the next version
+// bump silently boots the sandbox on a file that is no longer there.
+function latestDeskDar(dir = join(ROOT, '.daml', 'dist')) {
+  const dars = readdirSync(dir).filter((f) => /^tirai-desk-\d+\.\d+\.\d+\.dar$/.test(f));
+  if (!dars.length) throw new Error(`no tirai-desk DAR in ${dir} — run \`daml build\` first`);
+  const key = (f) => f.match(/(\d+)\.(\d+)\.(\d+)/).slice(1).map(Number);
+  dars.sort((a, b) => { const [x, y] = [key(a), key(b)]; return x[0] - y[0] || x[1] - y[1] || x[2] - y[2]; });
+  return join(dir, dars[dars.length - 1]);
 }
 
 async function upload(darPath) {
@@ -1300,7 +1311,7 @@ if (cmd !== null) (async () => {
   ENV = await loadEnv();
   if (cmd === 'probe') await probe();
   else if (cmd === 'cleanup') await cleanup();
-  else if (cmd === 'upload') await upload(process.argv[3] ?? '.daml/dist/tirai-desk-0.1.0.dar');
+  else if (cmd === 'upload') await upload(process.argv[3] ?? latestDeskDar());
   else if (cmd === 'allocate-one') console.log(await allocateOne(process.argv[3] ?? 'tirai-probe-1'));
   else if (cmd === 'allocate') await allocate();
   else if (cmd === 'seed') await seed();

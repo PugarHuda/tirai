@@ -1,34 +1,40 @@
-// Voice-over for media/tirai-remotion.mp4. Cues are placed at the second the
-// picture changes, so the words land on the beat they belong to rather than
-// drifting across it.
+// Voice-over for media/tirai-demo.mp4 — the film embedded in the deck.
+//
+// Windows are absolute seconds in the FINISHED film, taken from the composition
+// rather than guessed: a caption written at recording-second t appears at frame
+// COLD + at(t), and at() stretches 22.4s–28.6s by 1/0.6 for the slow push-in on
+// Dealer B's empty PRICE cell. Retime TiraiDemo.tsx and these must move with it.
 import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
 import { mkdir, rm } from 'node:fs/promises';
 
 const VOICE = process.env.VOICE ?? 'en-GB-RyanNeural';
 const OUT = new URL('./cues/', import.meta.url).pathname.replace(/^\//, '');
 
-// Each line belongs to a scene of the film. Placement is computed from the real
-// audio lengths rather than guessed, so nothing overlaps and nothing runs past
-// the picture: [scene, text].
+// [start, end] of the picture each line belongs to.
 export const SCENES = {
-  problem:    [0.9, 10.6],
-  privacy:    [11.2, 26.6],
-  proof:      [27.2, 36.8],
-  settlement: [37.4, 48.3],
-  close:      [48.6, 56.6],
+  cold:     [0.35, 5.0],   // the title card, which is up from the first frames
+  book:     [5.3, 14.6],   // the book, then the request going out
+  dealerA:  [15.2, 20.0],  // Dealer A invited
+  sealed:   [20.5, 25.5],  // its ask, sealed
+  dealerB:  [26.0, 30.3],  // the rival's own session
+  noprice:  [30.9, 35.0],  // the thesis shot: no number in the cell
+  settle:   [35.3, 40.3],  // back to the buy side
+  verify:   [40.8, 46.0],  // the privacy verifier
+  rails:    [46.5, 54.1],  // registry-issued assets
+  close:    [55.3, 59.8],  // the closing card
 };
+
 export const CUES = [
-  ['problem',    'A desk asks dealers for a price. The question moves the market.'],
-  ['problem',    'Privacy, or proof. Never both.'],
-  ['privacy',    'Tirai gives you both. One request, two dealers, their own sessions.'],
-  ['privacy',    'Dealer A sees its sealed ask. Dealer B sees no price.'],
-  ['privacy',    'Its node never received the contract.'],
-  ['proof',      'The desk counts what each node actually holds.'],
-  ['proof',      'And proves best execution, with no public order book.'],
-  ['settlement', 'Six trades settled in Canton Coin. Two more in C B T C.'],
-  ['settlement', 'Issuers I do not control.'],
-  ['close',      'Forty nine settled trades, seeded by me.'],
-  ['close',      'Tirai. Price discovery behind the curtain.'],
+  ['cold',    'A desk asks for a price. The question moves the market.'],
+  ['book',    'Signed in as the buy side. One request goes out to a panel of dealers.'],
+  ['dealerA', 'Now Dealer A, one of the invited dealers, seals its ask.'],
+  ['sealed',  'Sealed to the buyer alone. Nobody else on the network sees the number.'],
+  ['dealerB', 'Here is Dealer B, in its own session.'],
+  ['noprice', 'Same request. No price.'],
+  ['settle',  'Back to the buy side, which can now settle.'],
+  ['verify',  "The verifier counts what each party's node actually holds."],
+  ['rails',   'And the assets it settles in. Canton Coin, and C B T C, issued by registries I do not control.'],
+  ['close',   'Tirai. Price discovery behind the curtain.'],
 ];
 
 if (process.argv[1]?.endsWith('say.mjs')) {
@@ -41,7 +47,7 @@ if (process.argv[1]?.endsWith('say.mjs')) {
     // v2 writes <dir>/audio.mp3 and expects the directory to exist.
     const dir = `${OUT}/cue-${String(i).padStart(2, '0')}`;
     await mkdir(dir, { recursive: true });
-    const { audioFilePath } = await tts.toFile(dir, text);
+    await tts.toFile(dir, text);
     console.log(`  cue-${String(i).padStart(2, '0')}  ${text.slice(0, 54)}`);
   }
   console.log(`\n${CUES.length} cues written to ${OUT}`);

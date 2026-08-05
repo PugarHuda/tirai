@@ -82,6 +82,16 @@ function cleanup() {
   }
 }
 process.on('SIGINT', () => { console.log('\nshutting down…'); cleanup(); process.exit(0); });
+// The DAR the build just produced. Hard-coding a version means the next version
+// bump silently boots the sandbox on a file that is no longer there.
+function latestDeskDar(dir = '.daml/dist') {
+  const dars = readdirSync(dir).filter((f) => /^tirai-desk-\d+\.\d+\.\d+\.dar$/.test(f));
+  if (!dars.length) throw new Error(`no tirai-desk DAR in ${dir} — run \`daml build\` first`);
+  const key = (f) => f.match(/(\d+)\.(\d+)\.(\d+)/).slice(1).map(Number);
+  dars.sort((a, b) => { const [x, y] = [key(a), key(b)]; return x[0] - y[0] || x[1] - y[1] || x[2] - y[2]; });
+  return `${dir}/${dars[dars.length - 1]}`;
+}
+
 process.on('exit', cleanup);
 
 (async () => {
@@ -93,7 +103,7 @@ process.on('exit', cleanup);
 
   console.log('· starting Canton sandbox (this takes ~1–2 min)…');
   spawnKid('sandbox', damlCmd, ['sandbox', '--port', '6865', '--json-api-port', '7575',
-    '--dar', '.daml/dist/tirai-desk-0.1.0.dar', '--json-api-port-file', portFile,
+    '--dar', latestDeskDar(), '--json-api-port-file', portFile,
     '--no-legacy-assistant-warning']);
   await waitFor(() => existsSync(portFile));
   // JSON API port opens before the participant connects to the synchronizer;
