@@ -137,7 +137,7 @@ To reproduce the frozen DARs: download `dars/` from the Splice release bundle
 
 ## Status
 
-- [x] Ledger model + **36 Daml test scripts green** (`test/`)
+- [x] Ledger model + **41 Daml test scripts green** (`test/`)
 - [x] **CIP-0056 cETH / CBTC settlement leg** (Splice v1 interfaces, DvP tested)
 - [x] **Deployed on two Canton Devnet participants** (privacy verified on both)
 - [x] Web desk over the JSON Ledger API — one signed-in identity per session
@@ -173,7 +173,7 @@ Same package id on both participants: `tirai-desk`
 | Participant | Namespace | Live state |
 |---|---|---|
 | **`hackcanton-01`** (HackCanton's own node) | `122003aa7c49…` | 20 settled trades + 1 atomic basket, 16 best-execution attestations, 32 quote disclosures, 3 open RFQs |
-| **Shared 5N validator** | `1220a14ca128…` | 49 settled trades (6 in real Canton Coin, 2 in real CBTC) + 5 atomic baskets, 16 attestations — this is what the hosted desk reads |
+| **Shared 5N validator** | `1220a14ca128…` | 50 settled trades (6 in real Canton Coin, 2 in real CBTC) + 5 atomic baskets, 16 attestations — this is what the hosted desk reads |
 
 `node scripts/devnet.mjs verify` (add `ENV_FILE=.env.hackcanton` for the
 HackCanton node) asserts **on the real network** that each dealer sees only its
@@ -210,7 +210,7 @@ and a suite run against a used ledger dies waiting for the quote button.
 # prerequisites: Daml SDK 3.4.11, JDK 21, Node
 daml build --all
 npm run demo        # sandbox + seed + web desk on http://localhost:8080
-cd test; daml test  # 36 scripts
+cd test; daml test  # 41 scripts
 ```
 
 ## Layout
@@ -219,7 +219,7 @@ cd test; daml test  # 36 scripts
 |---|---|
 | `daml/Tirai.daml` | ledger model — RFQ, sealed quotes, escrow, DvP rails, `TokenTrade` |
 | `dars/` | frozen Splice CIP-0056 interface DARs (data-dependencies) |
-| `test/` | 36 Daml test scripts (incl. `MockRegistry` implementing the real interfaces) |
+| `test/` | 41 Daml test scripts (incl. `MockRegistry` implementing the real interfaces) |
 | `web/` | the desk — one signed-in identity, plus the side-by-side proof view — + Node proxy |
 | `api/` | read-only serverless proxy (hosted deployment) |
 | `scripts/` | Devnet deployer, local demo, e2e suites, recorder, PDF/logo generators |

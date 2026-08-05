@@ -297,8 +297,8 @@ assumption or a performance ceiling. On Canton, "dealer B cannot see dealer A's 
 README says "none" for Canton, and that is the whole thesis.
 
 **Q2. What is real, and what is a demo?**
-Real: the Daml model, the 36 test scripts, two DevNet deployments under the same package id
-`4b1e408f…`, the on-network privacy verifier, 49 settled trades and 5 atomic baskets on the
+Real: the Daml model, the 41 test scripts, two DevNet deployments under the same package id
+`4b1e408f…`, the on-network privacy verifier, 50 settled trades and 5 atomic baskets on the
 5N validator, 16 best-execution attestations, the hosted read-only desk, and settlement in
 two assets neither of which this project issues: Canton Coin through the DSO's registry and
 CBTC through BitSafe's. Demo-only: nothing is faked, but the parties are
@@ -372,7 +372,7 @@ that order.
 **Q10. If the hosted desk is read-only, how do I know the write path works?**
 Three ways. The demo video shows the desk driven end to end for real — RFQ, sealed quotes
 with the rival column visibly empty, disclosure, Vickrey award, atomic settlement. The
-49 settled trades on the validator were all written by that same write path. And the MCP
+50 settled trades on the validator were all written by that same write path. And the MCP
 suite's `post_rfq` tool writes a real RFQ to DevNet on every run; the deployer's `tidy`
 command clears it afterwards.
 
@@ -494,7 +494,7 @@ speaking too slowly for a four-minute slot — cut a sentence, do not speed up.
 | If this fails | Do this |
 |---|---|
 | Hosted desk will not load | Switch to the demo video tab, paused at 1:43. Say: "the hosted desk is read-only over live DevNet state — here is the same thing recorded, on an earlier layout of the desk." Keep going. Do not debug on camera. |
-| Desk loads but shows stale or zero state | Speak over the README "Live on Devnet" table instead: two participants, same package id, 49 settled trades and 5 baskets on the validator. |
+| Desk loads but shows stale or zero state | Speak over the README "Live on Devnet" table instead: two participants, same package id, 50 settled trades and 5 baskets on the validator. |
 | Verify privacy shows an error | Say it plainly — "the live query is not responding right now" — and go to the video's 2:41–3:07 privacy verification chapter. Never claim green if it is not green. |
 | Canton Coin settlement demo will not run live | Show the scrollback of the last successful run, and `TokenTrade_Settle` in `daml/Tirai.daml`. The code plus a prior successful run is credible; a failing live run is not. |
 | Your internet drops entirely | Reconnect on the hotspot. If you cannot, the whole pitch is deliverable from the demo video plus the repo — say so and carry on. Do not apologise more than once. |

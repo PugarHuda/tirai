@@ -481,7 +481,7 @@ sendiri. Satu-satunya yang bukan buatan saya adalah Canton Coin-nya, yang datang
 yang tidak saya kendalikan. Belum ada customer yang membayar, belum ada design partner yang
 tanda tangan.
 
-**If they push back:** What is verifiable rather than seeded: 36 Daml scripts, e2e 28/28,
+**If they push back:** What is verifiable rather than seeded: 41 Daml scripts, e2e 28/28,
 actions 16/16, best-exec 8/8, shell 14/14, hosted QA 87/87 across three engines, MCP 25/25,
 proxy self-test 14/14 — and `verify` green on both participants.
 

@@ -101,7 +101,7 @@ chain would leak”).*
 
 *Screen: `daml/Tirai.daml` — `TokenTrade`, `TokenTrade_Settle`; then
 `test/daml/TokenSettlementTest.daml`; then `cd test; daml test` scrolling to
-**36 scripts ok**.*
+**41 scripts ok**.*
 
 ## 3:15 – 4:05 · Driving it for real (local run, write path)
 
@@ -132,7 +132,7 @@ the “Provable best execution” view.*
 > `signatory` and `observer` declaration.
 >
 > What is live today: the model deployed on Canton Devnet with privacy verified
-> on-ledger, 36 test scripts green, and the full CIP-56 settlement path built
+> on-ledger, 41 test scripts green, and the full CIP-56 settlement path built
 > against the real Splice interfaces and tested against a mock registry. What is
 > not done yet: transactions in real cETH and CBTC on Devnet — that is waiting
 > on the test-token grant, and it is the first thing that happens when it lands.

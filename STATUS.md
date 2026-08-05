@@ -22,7 +22,7 @@ with the command that would settle them.
 >   package bump, a redeploy and a reseed on two nodes.
 > - **cETH and USDCx (3.2) are corrected.** The submission no longer claims settlement in
 >   either. CBTC does settle: two trades through the DA Utility Registry.
-> - **The counts (3.3) agree.** Everything says 49 settled trades, which is what the
+> - **The counts (3.3) agree.** Everything says 50 settled trades, which is what the
 >   ledger says.
 > - **The token rail is no longer invisible in the desk.** An awarded trade waiting on its
 >   allocation renders as "Awaiting allocation", and a rail-bound request offers "Settle ·
@@ -335,7 +335,7 @@ honest answer. That asymmetry is the single biggest gap in the repository.
   (`Tirai.daml:558`), but no wallet has ever been pointed at it. `[unverified]`:
   open a `TokenTrade` in Canton Loop or Console against the 5N deployment and see
   what renders.
-- `README.md:140`, `README.md:193`, `VALIDATION.md:9`: "36 Daml test scripts".
+- `README.md:140`, `README.md:193`, `VALIDATION.md:9`: "41 Daml test scripts".
   Thirty-six scripts execute; six of them are seed and helper scripts with no
   assertions.
 - `README.md:191-199`: the test matrix omits `npm run e2e:paths`, which exists in
@@ -481,7 +481,7 @@ What this repository does record as deliberately dropped or refused:
 ## Verification cheat sheet
 
 ```
-cd test; daml test                                # the model, 36 scripts
+cd test; daml test                                # the model, 41 scripts
 node scripts/test-readonly-proxy.mjs              # 14, no network needed
 node scripts/test-devnet-logic.mjs                # 6, no network needed
 node scripts/devnet.mjs verify                    # privacy, on the live 5N node

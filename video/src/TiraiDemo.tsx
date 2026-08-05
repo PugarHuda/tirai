@@ -251,9 +251,9 @@ const ColdOpen: React.FC = () => {
 // validator state, test/daml for the script count, scripts/devnet.mjs for the
 // attestations and the two cash rails.
 const STATS: [string, string][] = [
-  ['49', 'settled trades'],
+  ['50', 'settled trades'],
   ['5', 'atomic baskets'],
-  ['36', 'Daml test scripts'],
+  ['41', 'Daml test scripts'],
   ['16', 'best execution attestations'],
 ];
 

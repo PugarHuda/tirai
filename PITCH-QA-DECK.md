@@ -27,9 +27,9 @@ repository is marked `[assumption]` / `[asumsi]`.
    the answer if you are caught.
 2. **"Shell 23/23" is not in this repo.** `README.md` records `npm run e2e:shell` at
    **14 / 14**, and the read-only proxy self-test separately at 14 / 14. The other suite
-   numbers check out: 36 Daml scripts, e2e 28/28, actions 16/16, best-exec 8/8, hosted
+   numbers check out: 41 Daml scripts, e2e 28/28, actions 16/16, best-exec 8/8, hosted
    87/87 across three browsers, MCP 25/25.
-3. **Slide 10 undersells what is verified.** The tile says 36 Daml scripts; the full
+3. **Slide 10 undersells what is verified.** The tile says 41 Daml scripts; the full
    suite table in `README.md` is stronger. Keep it in your pocket for Part B10.
 
 **Also on screen but not given its own entry below:** the three execution rails and atomic

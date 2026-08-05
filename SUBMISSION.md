@@ -110,7 +110,7 @@ BitSafe CBTC registry, a validator/hosting venue, and wallet support (Canton Loo
 
 ## What's built (verifiable now)
 
-- **36 Daml test scripts green** (`cd test; daml test`) — happy path, the two
+- **41 Daml test scripts green** (`cd test; daml test`) — happy path, the two
   privacy guarantees, Vickrey across 1/2/3 quotes, direct OTC, partial fills,
   baskets, selective disclosure, provable best execution, and the full CIP-0056
   DvP rail (cETH + CBTC, cancel, expiry, forged-allocation rejection, instrument
@@ -151,7 +151,7 @@ verify` asserts there that **each dealer sees only its own quotes and the
 regulator sees zero pre-trade contracts**.
 
 **The shared 5N validator** — same package id, parties `tirai-v1-*`, carrying
-the richer history: 49 settled trades (6 of them settled in real Canton
+the richer history: 50 settled trades (6 of them settled in real Canton
 Coin through the DSO's registry), 5 atomic baskets, 16 best-execution
 attestations. The hosted desk at https://tirai.vercel.app reads this deployment,
 because its proxy holds a long-lived machine credential; `hackcanton-01` issues

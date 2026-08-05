@@ -136,7 +136,7 @@ menarik itu apa yang dihapus Canton, bukan berapa kali kamu mencoba.*
 
 > This is all live. Two DevNet participants, same package id.
 >
-> Forty nine settled trades. Five atomic baskets. Sixteen best execution attestations.
+> Fifty settled trades. Five atomic baskets. Sixteen best execution attestations.
 > Thirty six Daml test scripts.
 >
 > One honest note. I generated that trading history myself. It shows the product works.
