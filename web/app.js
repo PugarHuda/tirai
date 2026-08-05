@@ -4,7 +4,7 @@
 // ledger never sends it to Dealer B's node.
 
 const T = (t) => `Tirai:${t}`; // template-name suffix matcher
-let PKG = null;                // discovered model package id (for fresh creates)
+let PKG = '#tirai-desk';       // creates name the package; the node picks the newest vetted version
 let USER_ID = 'participant_admin';
 let CFG_PARTIES = {};          // issuer party ids from server config (DevNet)
 const P = {};                  // role -> full party id
@@ -760,6 +760,7 @@ function renderCreate() {
       <label>Quantity <input id="c-qty" type="number" value="1000" /></label>
       <label>Cash leg <select id="c-rail">${railOptions()}</select></label>
       <label>Dealer panel <span class="sub">${createMode === 'auction' ? 'Dealer A and Dealer B' : 'Dealer A only'}</span></label>
+      ${CFG_PARTIES.venue ? `<label>Desk fee <input id="c-fee" type="number" min="0" max="1000" step="1" placeholder="0" /> <span class="sub">basis points, taken from the dealer's proceeds inside the settlement. Leave blank to charge nothing.</span></label>` : ''}
       <button id="c-submit">${createMode === 'auction' ? 'Open the auction' : 'Send to the counterparty'}</button>
       <p class="sub" id="c-rail-note"></p>
       <p class="sub">${createMode === 'auction'
@@ -1013,13 +1014,17 @@ async function renderRegistryAssets() {
 function renderAudit() {
   const el = document.getElementById('audit-table'); if (!el) return;
   const rows = [
-    ...lastReg.filter((c) => is(c, 'TradeReport')).map((c) => ({ inst: esc(c.arg.instrument), qty: fmt(c.arg.quantity), price: fmt(c.arg.clearingPrice), kind: 'single-instrument' })),
-    ...lastReg.filter((c) => is(c, 'BasketTradeReport')).map((c) => ({ inst: 'basket [' + c.arg.legs.map((l) => esc(l.instrument)).join(' + ') + ']', qty: c.arg.legs.map((l) => fmt(l.quantity)).join(' / '), price: fmt(c.arg.clearingPrice), kind: 'basket' })),
+    ...lastReg.filter((c) => is(c, 'TradeReport')).map((c) => ({ inst: esc(c.arg.instrument), qty: fmt(c.arg.quantity), price: fmt(c.arg.clearingPrice), fee: c.arg.feePaid, kind: 'single-instrument' })),
+    ...lastReg.filter((c) => is(c, 'BasketTradeReport')).map((c) => ({ inst: 'basket [' + c.arg.legs.map((l) => esc(l.instrument)).join(' + ') + ']', qty: c.arg.legs.map((l) => fmt(l.quantity)).join(' / '), price: fmt(c.arg.clearingPrice), fee: null, kind: 'basket' })),
   ];
+  // The desk's own cut, taken inside the settlement. A dash means this trade was
+  // settled free — not that the fee is invoiced somewhere the auditor cannot see.
+  const feeTotal = rows.reduce((n, r) => n + Number(r.fee ?? 0), 0);
   const trades = rows.length
-    ? '<table class="audit"><thead><tr><th>Instrument</th><th>Quantity</th><th>Clearing price</th><th>Type</th></tr></thead><tbody>'
-      + rows.map((r) => `<tr><td>${r.inst}</td><td class="num">${r.qty}</td><td class="num">${r.price}</td><td class="mode">${r.kind}</td></tr>`).join('')
+    ? '<table class="audit"><thead><tr><th>Instrument</th><th>Quantity</th><th>Clearing price</th><th>Desk fee</th><th>Type</th></tr></thead><tbody>'
+      + rows.map((r) => `<tr><td>${r.inst}</td><td class="num">${r.qty}</td><td class="num">${r.price}</td><td class="num">${r.fee ? fmt(r.fee) : '<span class="hint">—</span>'}</td><td class="mode">${r.kind}</td></tr>`).join('')
       + '</tbody></table>'
+      + (feeTotal > 0 ? `<p class="sub">Desk revenue across these trades: <b>${fmt(feeTotal)}</b>, taken inside each settlement rather than invoiced afterwards.</p>` : '')
     : '<div class="audit-empty">No settled trades yet — the regulator sees nothing pre-trade.</div>';
   // Selective disclosures: sealed quotes the buyer revealed to the regulator on demand.
   const disc = lastReg.filter((c) => is(c, 'QuoteDisclosure'));
@@ -1069,7 +1074,6 @@ async function refresh() {
     const [b, a, d, r] = settledReads.map((s, i) =>
       (s.status === 'fulfilled' && s.value !== null) ? s.value : (prev[i] ?? []));
     const stale = settledReads.filter((s) => s.status === 'rejected').length;
-    if (!PKG) { const any = [...b, ...a, ...d].find((c) => typeof c.tpl === 'string' && c.tpl.includes(':Tirai:')); if (any) PKG = any.tpl.split(':')[0]; }
     renderBuyer(b); renderBasketBuyer(b); renderDealer('dealerA', a); renderDealer('dealerB', d);
     const settled = renderRegulator(r);
     lastReg = r; lastAcs = { buyer: b, dealerA: a, dealerB: d };
@@ -1124,6 +1128,10 @@ async function createRFQ(btn) {
   const payInstrument = (fromPage ? (rail?.id ?? 'USDC') : val('rfq-pay')).trim();
   const quantity = posDec(fromPage ? val('c-qty') : val('rfq-qty'));
   const panel = fromPage && createMode === 'direct' ? [P.dealerA] : [P.dealerA, P.dealerB];
+  // Blank, zero, or a desk with no venue party: charge nothing.
+  const feeRaw = fromPage && CFG_PARTIES.venue ? Number(val('c-fee')) : 0;
+  if (feeRaw < 0 || feeRaw > 1000) return toast('desk fee must be between 0 and 1000 basis points', true);
+  const feeBps = feeRaw > 0 ? feeRaw.toFixed(1) : null;
   if (!instrument || !payInstrument) return toast('instrument and pay currency are required', true);
   if (!quantity) return toast('quantity must be a positive number', true);
   await guarded(btn ?? document.getElementById('btn-create-rfq'), async () => {
@@ -1137,7 +1145,11 @@ async function createRFQ(btn) {
         payIssuer: (rail?.admin ?? CFG_PARTIES.cashIssuer) ?? null,
         // Daml Time as RFC3339 without fractional seconds (the form the ledger's
         // codec is known to accept everywhere else); open for 24h.
-        deadline: new Date(Date.now() + 86400000).toISOString().replace(/\.\d+Z$/, 'Z'), venue: null, feeBps: null } } });
+        deadline: new Date(Date.now() + 86400000).toISOString().replace(/\.\d+Z$/, 'Z'),
+        // The desk's cut. Both fields travel together or not at all — the model
+        // rejects a payee with no rate and a rate with no payee.
+        venue: feeBps ? (CFG_PARTIES.venue ?? null) : null,
+        feeBps: feeBps || null } } });
       toast(panel.length > 1 ? 'RFQ sent to the dealer panel' : 'Request sent to the counterparty');
       logActivity('Opened a request', `${instrument} x ${quantity}`); // inside the try: only on acceptance
       await refresh();

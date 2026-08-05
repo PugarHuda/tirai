@@ -270,7 +270,7 @@ venueCut feeBps cleared = optional 0.0 (\bps -> roundBankers 2 (cleared * bps / 
 
 -- Pay the dealer, less the venue's cut. Every cash settlement on a quote goes
 -- through here: a payout path that forgets the fee is the bug this prevents.
-payDealer : Optional Party -> Optional Decimal -> Party -> Decimal -> ContractId Holding -> Update ()
+payDealer : Optional Party -> Optional Decimal -> Party -> Decimal -> ContractId Holding -> Update (Optional Decimal)
 payDealer venue feeBps dealer cleared payCid = do
   let fee = venueCut feeBps cleared
   dealerCid <-
@@ -280,7 +280,7 @@ payDealer venue feeBps dealer cleared payCid = do
       forA_ venue (\v -> exercise feePart Transfer with newOwner = v)
       pure rest
   _ <- exercise dealerCid Transfer with newOwner = dealer
-  pure ()
+  pure (if fee > 0.0 then Some fee else None)
 
 template Quote
   with
@@ -321,10 +321,10 @@ template Quote
              else do
                (part, _rest) <- exercise cashCid Split with splitAmount = clearingPrice
                pure part
-         payDealer venue feeBps dealer clearingPrice payCid
+         feePaid <- payDealer venue feeBps dealer clearingPrice payCid
          _ <- exercise escrowCid DeliverTo with recipient = buyer
          create TradeReport with
-           buyer; dealer; regulator; instrument; quantity; clearingPrice
+           buyer; dealer; regulator; instrument; quantity; clearingPrice; feePaid
 
     -- Like SettleQuote but fills only `fillQuantity` of the lot at the prorated
     -- clearing price. AwardPartial uses this to settle a winner partially at the
@@ -350,10 +350,10 @@ template Quote
              else do
                (part, _rest) <- exercise cashCid Split with splitAmount = fillPay
                pure part
-         payDealer venue feeBps dealer fillPay payCid
+         feePaid <- payDealer venue feeBps dealer fillPay payCid
          _ <- exercise escrowCid DeliverSplit with toBuyer = fillQuantity
          create TradeReport with
-           buyer; dealer; regulator; instrument; quantity = fillQuantity; clearingPrice = fillPay
+           buyer; dealer; regulator; instrument; quantity = fillQuantity; clearingPrice = fillPay; feePaid
 
     -- Partial bilateral fill: the buyer takes `fillQuantity` (≤ the quote's size)
     -- from this one dealer at its ask, prorated, in one atomic DvP. The unfilled
@@ -379,10 +379,10 @@ template Quote
              else do
                (part, _rest) <- exercise cashCid Split with splitAmount = fillPrice
                pure part
-         payDealer venue feeBps dealer fillPrice payCid
+         feePaid <- payDealer venue feeBps dealer fillPrice payCid
          _ <- exercise escrowCid DeliverSplit with toBuyer = fillQuantity
          create TradeReport with
-           buyer; dealer; regulator; instrument; quantity = fillQuantity; clearingPrice = fillPrice
+           buyer; dealer; regulator; instrument; quantity = fillQuantity; clearingPrice = fillPrice; feePaid
 
     -- Convert this sealed quote into a TokenTrade: the cash leg becomes a
     -- CIP-0056 instrument the buyer will fund through its wallet. Used directly
@@ -455,6 +455,10 @@ template TradeReport
     instrument : Text
     quantity : Decimal
     clearingPrice : Decimal
+    -- What the venue took out of this settlement. None on a report written before
+    -- the desk charged anything, and on the token rail, where the cash moves
+    -- through the registry rather than through a Holding this desk can split.
+    feePaid : Optional Decimal
   where
     signatory buyer, dealer
     observer regulator
@@ -560,7 +564,7 @@ template TokenTrade
          cash <- exercise allocCid Allocation_ExecuteTransfer with extraArgs
          _ <- exercise escrowCid DeliverTo with recipient = buyer
          report <- create TradeReport with
-           buyer; dealer; regulator; instrument; quantity; clearingPrice
+           buyer; dealer; regulator; instrument; quantity; clearingPrice; feePaid = None
          pure (cash, report)
 
     -- Buyer aborts: release the buyer's allocation (if any) and return the

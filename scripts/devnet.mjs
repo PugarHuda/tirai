@@ -124,6 +124,9 @@ const USER = process.env.LEDGER_USER_ID ?? '6';
 const HINTS = {
   buyer: 'tirai-v1-buyer', dealerA: 'tirai-v1-dealerA', dealerB: 'tirai-v1-dealerB',
   regulator: 'tirai-v1-regulator', cashIssuer: 'tirai-v1-cashissuer', bondIssuer: 'tirai-v1-bondissuer',
+  // The desk itself, as a payee. It is a party like any other: it holds what it
+  // charged, and it is not an observer of anything it did not settle.
+  venue: 'tirai-v1-venue',
 };
 
 async function namespace() {
@@ -194,7 +197,10 @@ async function allocate() {
 
 // Main package id of .daml/dist/tirai-desk-0.1.0.dar. Regenerate after a model change
 // with: daml damlc inspect-dar --json .daml/dist/tirai-desk-0.1.0.dar  (or set TIRAI_PKG).
-const PKG = process.env.TIRAI_PKG ?? '4b1e408f6eda27364a55da076d9251ee117f0641f03aaf20883995f1e507a7e3';
+// The package NAME, not a version id: the participant resolves it to the newest
+// vetted version, so a submit written today keeps working after the next upgrade.
+// Pin a version with TIRAI_PKG when you deliberately want the old template.
+const PKG = process.env.TIRAI_PKG ?? '#tirai-desk';
 let CID = 0;
 // `disclosed` carries a registry's off-ledger contracts (token-standard choice
 // contexts); `effects` asks for the ledger-effects shape, the only one whose
@@ -431,6 +437,50 @@ async function seedBasket() {
 // modes (Vickrey, direct OTC, partial fill, basket), so the regulator's on-chain
 // audit trail on the hosted desk looks like a real desk's post-trade record.
 // Idempotent per instrument. Institutional tickers, block-size notionals in USD.
+// One auction that pays the desk. The venue's cut leaves the same transaction as
+// the trade, so what lands in the venue's wallet and what the trade report says
+// are the same number by construction — check it here rather than trusting it.
+//
+//   node scripts/devnet.mjs seed-fee [bps]
+async function seedFee() {
+  const p = await partyMap();
+  if (!p.venue) throw new Error('no venue party: run `node scripts/devnet.mjs allocate` first');
+  const bps = Number(process.argv[3] ?? 25);
+  if (!(bps > 0 && bps <= 1000)) throw new Error('bps must be between 0 and 1000');
+  const inst = 'TBOND30-FEE';
+  const qty = '1000.0', ask = 4210000.0, second = 4250000.0;
+
+  const c = cidOf(await submit(p.cashIssuer, createHolding(p.cashIssuer, p.buyer, 'USDC', 5000000.0)));
+  const bA = cidOf(await submit(p.bondIssuer, createHolding(p.bondIssuer, p.dealerA, inst, qty)));
+  const bB = cidOf(await submit(p.bondIssuer, createHolding(p.bondIssuer, p.dealerB, inst, qty)));
+  const rfq = cidOf(await submit(p.buyer, { CreateCommand: { templateId: `${PKG}:Tirai:RFQ`, createArguments: {
+    buyer: p.buyer, regulator: p.regulator, invitedDealers: [p.dealerA, p.dealerB],
+    instrument: inst, quantity: qty, payInstrument: 'USDC', assetIssuer: p.bondIssuer, payIssuer: p.cashIssuer,
+    deadline: '2030-01-01T00:00:00Z', venue: p.venue, feeBps: String(bps.toFixed(1)) } } }));
+  const q = async (dealer, price, asset) => cidOfTpl(await submit(dealer, { ExerciseCommand: {
+    templateId: `${PKG}:Tirai:RFQ`, contractId: rfq, choice: 'SubmitQuote',
+    choiceArgument: { dealer, price: String(price), assetCid: asset } } }), ':Tirai:Quote');
+  const qA = await q(p.dealerA, ask, bA);
+  const qB = await q(p.dealerB, second, bB);
+  await submit(p.buyer, { ExerciseCommand: { templateId: `${PKG}:Tirai:RFQ`, contractId: rfq,
+    choice: 'Award', choiceArgument: { quoteCids: [qA, qB], cashCid: c } } });
+
+  const expected = Math.round(second * bps / 10000 * 100) / 100;
+  const held = (await acsAs(p.venue))
+    .filter((e) => e.templateId.endsWith(':Tirai:Holding'))
+    .reduce((n, e) => n + Number(e.createArgument.amount), 0);
+  const report = (await acsAs(p.regulator))
+    .filter((e) => e.templateId.endsWith(':Tirai:TradeReport') && e.createArgument.instrument === inst)
+    .pop();
+  const said = Number(report?.createArgument?.feePaid ?? 0);
+  console.log(`cleared ${second.toLocaleString()} at ${bps} bps`);
+  console.log(`  venue holds   ${held.toLocaleString()} USDC (all fees to date)`);
+  console.log(`  report says   ${said.toLocaleString()} USDC on this trade`);
+  console.log(`  dealer keeps  ${(second - expected).toLocaleString()} USDC`);
+  if (said !== expected) throw new Error(`the report says ${said}, the arithmetic says ${expected}`);
+  console.log('ok: the fee in the report is the fee that moved.');
+}
+
 async function seedCases() {
   const p = await partyMap();
   const reg = await acsAs(p.regulator);
@@ -1257,6 +1307,7 @@ if (cmd !== null) (async () => {
   else if (cmd === 'settle-demo') await settleDemo();
   else if (cmd === 'seed-basket') await seedBasket();
   else if (cmd === 'seed-cases') await seedCases();
+  else if (cmd === 'seed-fee') await seedFee();
   else if (cmd === 'seed-bestexec') await seedBestExec();
   else if (cmd === 'seed-cc') await seedCc();
   else if (cmd === 'seed-book') await seedBook();
@@ -1264,5 +1315,5 @@ if (cmd !== null) (async () => {
   else if (cmd === 'seed-foreign') await seedForeign();
   else if (cmd === 'tidy') await tidy();
   else if (cmd === 'verify') await verify();
-  else console.log('usage: probe | upload <dar> | allocate | seed | settle-demo | seed-basket | seed-cases | seed-bestexec | seed-cc | seed-book | accept-incoming | seed-foreign <ID> | tidy | verify');
+  else console.log('usage: probe | upload <dar> | allocate | seed | settle-demo | seed-basket | seed-cases | seed-bestexec | seed-cc | seed-book | seed-fee [bps] | accept-incoming | seed-foreign <ID> | tidy | verify');
 })().catch((e) => { console.error('ERR', e.message); process.exit(1); });

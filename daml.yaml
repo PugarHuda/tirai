@@ -1,7 +1,11 @@
 sdk-version: 3.4.11
 name: tirai-desk
-version: 0.1.0
+version: 0.3.0
 source: daml
+# The package this one upgrades: 4b1e408f, the version live on DevNet. damlc
+# checks every change against it, so an edit that would strand existing contracts
+# fails the build instead of the ledger.
+upgrades: dars/tirai-desk-0.1.0.dar
 # `tirai-desk` defines NO interfaces of its own — the token interfaces it deals in
 # are the frozen Canton Token Standard (CIP-0056) packages below — so the package
 # upgrades cleanly forever (no in-package-interface SCU wall).

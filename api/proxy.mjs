@@ -31,7 +31,8 @@ const PARTIES = (() => {
   try { return JSON.parse(process.env.DEVNET_PARTIES); } catch {}
   const s = '::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8';
   return { buyer: 'tirai-v1-buyer' + s, dealerA: 'tirai-v1-dealerA' + s, dealerB: 'tirai-v1-dealerB' + s,
-    regulator: 'tirai-v1-regulator' + s, cashIssuer: 'tirai-v1-cashissuer' + s, bondIssuer: 'tirai-v1-bondissuer' + s };
+    regulator: 'tirai-v1-regulator' + s, cashIssuer: 'tirai-v1-cashissuer' + s, bondIssuer: 'tirai-v1-bondissuer' + s,
+    venue: 'tirai-v1-venue' + s };
 })();
 
 // The exact read endpoints the desk needs. Anything else — above all the write
