@@ -21,8 +21,8 @@ somewhere else. Rehearse it once with a timer, then trim whatever you keep stumb
 you stumble on twice is the sentence to cut.
 
 **On the day.** Tech check opens 13:30 UTC; you are sixth on the running order, so join
-early and be warm. The deck is a real deck: arrow keys or click, `f` for fullscreen, and it
-remembers position in the URL. Have `tirai.vercel.app/deck` open in a second tab in case the
+early and be warm. The deck is a real deck: arrow keys or click to move, the button beside the
+slide counter (or `f`) to go full screen, Escape to come back, and it Have `tirai.vercel.app/deck` open in a second tab in case the
 share dies.
 
 ---

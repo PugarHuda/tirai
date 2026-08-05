@@ -149,10 +149,19 @@ li::marker{ color:var(--accent) }
 #rail i{ display:block; height:100%; background:var(--accent); transition:width .22s ease }
 #hint{ position:fixed; right:2.1rem; bottom:1.4rem; z-index:40; font-size:.9rem; letter-spacing:.1em;
   text-transform:uppercase; font-weight:700; color:#5e6b7a; user-select:none }
+#fs{ position:fixed; right:5.6rem; bottom:1.05rem; z-index:41; width:2rem; height:2rem;
+  display:grid; place-items:center; padding:0; color:#5e6b7a; background:transparent;
+  border:.11rem solid #232b36; border-radius:.35rem; cursor:pointer; opacity:.55;
+  transition:opacity .18s ease, color .18s ease, border-color .18s ease }
+#fs:hover, #fs:focus-visible{ opacity:1; color:var(--accent); border-color:var(--accent-dim); outline:none }
+#fs svg{ width:1rem; height:1rem; fill:currentColor; display:block }
+/* Once you are full screen the control has done its job — findable, not loud. */
+:fullscreen #fs{ opacity:.22 }
+:fullscreen #fs:hover{ opacity:1 }
 @media print{
   /* Printing wants every slide, stacked, one per page. */
   .slide{ position:relative; opacity:1; visibility:visible; inset:auto }
-  #rail, #hint{ display:none }
+  #rail, #hint, #fs{ display:none }
   html{ font-size:12.8px }
   body{ background:#0b0d10 }
   .slide{ width:1280px; height:720px; break-after:page; page-break-after:always; min-height:0 }
@@ -424,7 +433,33 @@ li::marker{ color:var(--accent) }
   const slides = [...document.querySelectorAll('.slide')];
   const rail = document.createElement('div'); rail.id = 'rail'; rail.innerHTML = '<i></i>';
   const hint = document.createElement('div'); hint.id = 'hint';
-  document.body.append(rail, hint);
+
+  // Full screen. `f` has always worked, but a shortcut nobody is told about is not a
+  // feature — so there is a button, it says which key does the same thing, and it
+  // toggles rather than only entering (Escape already exits; this makes it symmetric).
+  const fs = document.createElement('button');
+  fs.id = 'fs'; fs.type = 'button';
+  const ICON_IN = '<svg viewBox="0 0 24 24"><path d="M4 9V4h5v2H6v3H4zm11-5h5v5h-2V6h-3V4zM4 15h2v3h3v2H4v-5zm14 0h2v5h-5v-2h3v-3z"/></svg>';
+  const ICON_OUT = '<svg viewBox="0 0 24 24"><path d="M9 4v5H4V7h3V4h2zm6 0h2v3h3v2h-5V4zM4 15h5v5H7v-3H4v-2zm11 0h5v2h-3v3h-2v-5z"/></svg>';
+  const paint = () => {
+    const on = !!document.fullscreenElement;
+    fs.innerHTML = on ? ICON_OUT : ICON_IN;
+    const label = on ? 'Leave full screen (F)' : 'Present full screen (F)';
+    fs.setAttribute('aria-label', label);
+    fs.title = label;
+  };
+  const toggleFs = () => {
+    // Safari and older WebKit still only have the webkit-prefixed pair.
+    const el = document.documentElement;
+    if (document.fullscreenElement) (document.exitFullscreen ?? document.webkitExitFullscreen)?.call(document);
+    else (el.requestFullscreen ?? el.webkitRequestFullscreen)?.call(el);
+  };
+  fs.addEventListener('click', (e) => { e.stopPropagation(); toggleFs(); });
+  addEventListener('fullscreenchange', paint);
+  addEventListener('webkitfullscreenchange', paint);
+  paint();
+
+  document.body.append(rail, hint, fs);
   let i = 0;
 
   const show = (n, push = true) => {
@@ -443,12 +478,12 @@ li::marker{ color:var(--accent) }
     else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) { e.preventDefault(); move(-1); }
     else if (e.key === 'Home') { e.preventDefault(); show(0); }
     else if (e.key === 'End') { e.preventDefault(); show(slides.length - 1); }
-    else if (e.key === 'f') document.documentElement.requestFullscreen?.();
+    else if (e.key === 'f' || e.key === 'F') { e.preventDefault(); toggleFs(); }
   });
 
   // Click to advance, but never when the click was meant for something on the slide.
   addEventListener('click', (e) => {
-    if (e.target.closest('a, button, video, input, select')) return;
+    if (e.target.closest('a, button, video, input, select, #fs')) return;
     move(e.clientX < innerWidth * 0.22 ? -1 : 1);
   });
 
