@@ -24,14 +24,14 @@ it still navigates with JavaScript disabled.
 | 03 | Privacy, or proof. Never both. | 1 | 0:32 | 0:28 |
 | 04 | The dealer terminal, on the ledger | 2 | 1:00 | 0:26 |
 | 05 | Dealer B's node never received it | 2 | 1:26 | 0:18 |
-| 06 | Fifth build. First one the chain did for me. | 2 | 1:44 | 0:16 |
+| 06 | The chain did the hard part. | 2 | 1:44 | 0:16 |
 | 07 | Desks whose tickets are big enough to leak | 3 | 2:00 | 0:22 |
 | 08 | A venue fee the contract collects itself | 3 | 2:22 | 0:22 |
 | 09 | Not a DEX. Not a chat room. | 3 | 2:44 | 0:16 |
 | 10 | Not a mock-up | 4 | 3:00 | 0:14 |
 | 11 | Checked against the live ledger | 4 | 3:14 | 0:16 |
 | 12 | The cash leg is real Canton Coin | 4 | 3:30 | 0:18 |
-| 13 | One person. Fifth implementation. | 4 | 3:48 | 0:06 |
+| 13 | One person. Five days. | 4 | 3:48 | 0:06 |
 | 14 | Price discovery happens behind it — the ask | 4 | 3:54 | 0:06 |
 
 **The rule that matters:** blocks 1–3 must not eat block 4. If a block starts to
@@ -116,13 +116,17 @@ non-zero if a quote ever leaks. Selective disclosure runs both ways — the buye
 can open a quote to the regulator, and a dealer can open its own to defend its
 pricing.
 
-### Slide 06 — Fifth build. First one the chain did for me. (1:44, 16s)
+### Slide 06 — The chain did the hard part. (1:44, 16s)
 
-Do not read the table. Say: *"I have built this product four times before — TEEs,
-Groth16 circuits, threshold encryption, fully homomorphic encryption. On Canton I
-wrote none of it."* Let the eye do the rest, then land the last line: it is a
-`signatory` and `observer` declaration. Privacy is the ledger model, not
-cryptography bolted on.
+Do not read the table. Say: *"To hide one number on another chain you need an
+enclave, or circuits, or threshold encryption, or FHE. On Canton I wrote none of
+it."* Let the eye do the rest, then land the last line: it is a `signatory` and
+`observer` declaration. Privacy is the ledger model, not cryptography bolted on.
+
+The table deliberately names techniques rather than projects. If a judge asks
+whether you have built this before, answer honestly and briefly, then return to
+the point: the interesting thing is what Canton removed, not how many times you
+have tried.
 
 That is the superpower sentence. Stop there and change block.
 
@@ -215,12 +219,16 @@ rather than say it: the desk's **Portfolio** view has a *Registry assets* table
 listing each party's Canton Coin balance and the issuer (`DSO`). Buyer 39,100,
 Dealer A 45,350, Dealer B 15,550. One clause spoken, the table does the rest.
 
-### Slide 13 — One person. Fifth implementation. (3:48, 6s)
+### Slide 13 — One person. Five days. (3:48, 6s)
 
-Six seconds, two clauses: *"I am a solo builder, and this is the fifth
-implementation of this thesis — repo created 22 July, the settlement leg landed
-on 23 July, second participant verified on 26 July."* Speed argument, not an
-apology.
+Six seconds, two clauses: *"That is me, building solo, and this took five days:
+repo created 22 July, settlement leg on 23 July, second participant verified on
+26 July."* Speed argument, not an apology.
+
+The gaps are deliberately not on this slide any more. They have not gone away,
+and a judge may well ask: no signed design partner, no customer conversation
+yet, DevNet only, no third-party audit, and no cETH transaction. Answer plainly
+if asked. Part B of `PITCH-QA-DECK.md` has each of those written out.
 
 If a judge probes the gaps, the right-hand card is the answer and there is a
 written 90-day plan with the stop criteria set in advance — see

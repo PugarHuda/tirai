@@ -81,18 +81,18 @@ stumbling on. The sentence you stumble on twice is the sentence to cut.
 
 ---
 
-## Slide 6 · Fifth build. First one the chain did for me.
+## Slide 6 · The chain did the hard part.
 **1:45 to 2:00**
 
-> I've built this same product five times now.
->
-> The first four needed a trusted enclave, or zero knowledge circuits, or homomorphic
-> encryption. Heavy machinery, all of it, just to keep one number secret.
+> To keep one number secret on another chain, you need a trusted enclave, or zero knowledge
+> circuits, or threshold encryption, or homomorphic encryption. Heavy machinery, all of it.
 >
 > On Canton it's a signatory and an observer declaration. About forty lines. That's the
 > whole trick.
 
-*Kalau kamu tidak mau menyebut proyek lain, cukup bilang "on four other chains" tanpa nama.*
+*Slide ini sengaja menyebut tekniknya, bukan proyeknya. Kalau ada yang bertanya apakah kamu
+pernah membangun ini sebelumnya, jawab singkat dan jujur, lalu kembali ke poinnya: yang
+menarik itu apa yang dihapus Canton, bukan berapa kali kamu mencoba.*
 
 ---
 
@@ -174,15 +174,15 @@ stumbling on. The sentence you stumble on twice is the sentence to cut.
 
 ---
 
-## Slide 13 · One person. Fifth implementation.
+## Slide 13 · One person. Five days.
 **3:50 to 4:00**
 
-> I'm one person, and I'd rather tell you what's missing than have you find it.
+> That's me. Pugar. Final year student, building this on my own.
 >
-> No cETH transaction yet, that's a token grant. No design partner signed, that's a
-> ninety day plan I've written and not run. The hosted desk is read only.
+> Repo created on the twenty second of July. Settlement leg the next day. Second participant
+> deployed and verified by the twenty sixth.
 >
-> Everything else is real and checkable.
+> And there's a written ninety day validation plan, with the stop criteria set in advance.
 
 ---
 

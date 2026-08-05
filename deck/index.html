@@ -241,14 +241,14 @@ li::marker{ color:var(--accent) }
 <section class="slide">
   <div class="meta"><span class="blk">Block 2 · Solution &amp; product</span><span class="num">06 / 14</span></div>
   <p class="kicker">The superpower</p>
-  <h2>Fifth build. First one the chain did for me.</h2>
+  <h2>The chain did the hard part.</h2>
   <table>
-    <tr><th>Build</th><th>Chain</th><th>Privacy machinery I had to write</th></tr>
-    <tr><td class="hi">Diam</td><td>Arbitrum (iExec)</td><td>TEE confidential compute, encrypted handles</td></tr>
-    <tr><td class="hi">Segel</td><td>Stellar (Soroban)</td><td>Two Groth16 circuits, hand-rolled Poseidon</td></tr>
-    <tr><td class="hi">Sealed Pair</td><td>Sui</td><td>Walrus commitments + Seal threshold encryption</td></tr>
-    <tr><td class="hi">Samar</td><td>Ethereum (Zama)</td><td>FHE, branchless encrypted settlement</td></tr>
-    <tr class="on"><td class="hi">Tirai</td><td>Canton</td><td><strong>None. Sub-transaction privacy is the ledger model.</strong></td></tr>
+    <tr><th>To hide one number</th><th>What it costs you</th></tr>
+    <tr><td class="hi">A trusted execution enclave</td><td>Hardware trust, attestation, encrypted handles to manage</td></tr>
+    <tr><td class="hi">Zero-knowledge circuits</td><td>Circuits to write and audit, a trusted setup, proving time</td></tr>
+    <tr><td class="hi">Threshold encryption</td><td>A committee to run, key shares to hold, liveness to guarantee</td></tr>
+    <tr><td class="hi">Homomorphic encryption</td><td>Every branch computed blind, and the performance that implies</td></tr>
+    <tr class="on"><td class="hi">Canton</td><td><strong>None. Sub-transaction privacy is the ledger model.</strong></td></tr>
   </table>
   <p class="punch">"Dealer B cannot see dealer A's quote" is a<br><em>signatory / observer</em> declaration.</p>
 </section>
@@ -362,19 +362,19 @@ li::marker{ color:var(--accent) }
 <section class="slide">
   <div class="meta"><span class="blk">Block 4 · Demo &amp; team</span><span class="num">13 / 14</span></div>
   <p class="kicker">The team</p>
-  <h2>One person. Fifth implementation. Five days.</h2>
+  <h2>One person. Five days.</h2>
   <div class="cols">
-    <div class="card"><span class="n">Why it moved this fast</span><h3>The hard part is behind me</h3>
-      <p>Repo created 22 July. The whole CIP-0056 settlement leg landed 23 July. Hosted desk
-        live 24 July. Second participant deployed and privacy-verified 26 July. The product
-        design and the auction mechanics stopped being hypotheses four builds ago.</p></div>
-    <div class="card bad"><span class="n">What I will not dress up</span><h3>The honest gaps</h3>
-      <p>No signed design partner and no customer conversation yet. No live cETH or CBTC
-        transaction. DevNet only, no mainnet. No credit or netting layer. One person, so no
-        SLA and no third-party audit.</p></div>
+    <div class="card"><span class="n">Who</span><h3>Pugar Huda Mantoro</h3>
+      <p>Final-year undergraduate, building solo. Everything on the previous slides is my
+        own work: the ledger model, the deployer, the desk, the tests, and the two registry
+        integrations.</p></div>
+    <div class="card"><span class="n">Why it moved this fast</span><h3>Five days, start to deployed</h3>
+      <p>Repo created 22 July. The CIP-0056 settlement leg landed 23 July. Hosted desk live
+        24 July. Second participant deployed and privacy-verified 26 July. Since the
+        feedback: real Canton Coin and real CBTC settlement on the ledger.</p></div>
   </div>
-  <p class="lede">Since the feedback there is a written 90-day validation plan with the stop
-    criteria set <em>in advance</em> — a plan that cannot fail is not a plan.</p>
+  <p class="lede">And a written 90-day validation plan with the stop criteria set
+    <em>in advance</em>, because a plan that cannot fail is not a plan.</p>
 </section>
 
 <!-- ===================== CLOSING / ASK ================================== -->
