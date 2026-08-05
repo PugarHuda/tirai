@@ -158,7 +158,10 @@ li::marker{ color:var(--accent) }
 /* Once you are full screen the control has done its job — findable, not loud. */
 :fullscreen #fs{ opacity:.22 }
 :fullscreen #fs:hover{ opacity:1 }
+.print-only{ display:none }
 @media print{
+  .print-only{ display:block }
+  #clip{ display:none }
   /* Printing wants every slide, stacked, one per page. */
   .slide{ position:relative; opacity:1; visibility:visible; inset:auto }
   #rail, #hint, #fs{ display:none }
@@ -407,6 +410,8 @@ li::marker{ color:var(--accent) }
     <span class="small" style="margin:0">Dealer A seals its ask, then the rival's session comes up with no
       price. Stops itself. Press again to replay.</span>
   </p>
+  <p class="small print-only" style="margin-top:.7rem">This page is a still. The film is at
+    <b>tirai.vercel.app/deck</b> (slide 14) and <b>tirai.vercel.app</b>.</p>
   <p class="small" style="margin-top:.7rem">A request opened, a dealer's sealed quote, the rival's own
     session without it, then the privacy verifier and the settlement rails. Screen recording against a
     live ledger; the only edit is a slow push on the rival's empty price cell.</p>
