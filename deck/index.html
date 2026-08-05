@@ -232,20 +232,12 @@ li::marker{ color:var(--accent) }
 </section>
 
 <section class="slide">
-  <div class="meta"><span class="blk">Block 2 · Solution &amp; product</span><span class="num">05 / 15</span></div>
+  <div class="meta"><span class="blk">Block 2 &middot; Solution &amp; product</span><span class="num">05 / 15</span></div>
   <p class="kicker">Not hidden by the interface</p>
   <h2>Dealer B's node <em>never received</em> dealer A's quote</h2>
-  <p class="lede">On Canton a contract is delivered only to its signatories and observers.
-    There is no filter to misconfigure and nothing to decrypt — the data never travels.</p>
-  <div class="cols">
-    <div class="card good"><span class="n">Enforced by the ledger</span><h3>Not by policy</h3>
-      <p>A sealed quote is signed dealer + buyer, with no other observers. The regulator
-        observes executed trades only: zero pre-trade visibility, full post-trade record.</p></div>
-    <div class="card good"><span class="n">Falsifiable, and falsified</span><h3>Live privacy verifier</h3>
-      <p>A script recomputes each party's visible contract set on the real DevNet ledger and
-        exits non-zero if a single quote ever leaks. It is a test, not a dashboard.</p></div>
-  </div>
-  <p class="foot">Signed in as dealer A, the ask is there · signed in as dealer B, there is nothing to hide</p>
+  <img src="../media/x-2-privacy.png" alt="The same request in dealer A's session, showing its sealed ask of 1,042,000, and in dealer B's session, where the price column is empty and the status reads awaiting quotes"
+    style="width:100%;max-height:42vh;object-fit:contain;object-position:center;margin:1.1rem 0 .5rem;border-radius:.3rem" />
+  <p class="foot">One request, one ledger, one moment &middot; a contract is delivered only to its signatories and observers</p>
 </section>
 
 <section class="slide">
@@ -340,13 +332,14 @@ li::marker{ color:var(--accent) }
   <h2>The claim is checked against the live ledger</h2>
   <div class="cols">
     <div class="card good"><span class="n">Verify privacy</span><h3>Each party's real visible set</h3>
-      <p>Not a claim — a query. Each dealer sees only its own quotes. The regulator sees zero
-        contracts before settlement. Green, on the network, on demand.</p></div>
+            <p>Not a claim &mdash; a query, run against the network on demand.</p></div>
     <div class="card good"><span class="n">Best execution</span><h3>Proof without an order book</h3>
       <p>A buyer, or a dealer defending its pricing, discloses a single sealed quote to the
         regulator. Sixteen attestations prove the clearing price beat every disclosed rival ask.</p></div>
   </div>
   <p class="punch">Confidential pre-trade. <em>Provable post-trade.</em></p>
+  <img src="../media/deck-verify.png" alt="The desk's privacy verifier: each dealer's node holds only its own sealed quotes, rivals' quotes received: 0, and the regulator holds settled trades with no pre-trade visibility"
+    style="width:100%;max-height:23vh;object-fit:contain;object-position:center;margin-top:.55rem;border-radius:.3rem" />
 </section>
 
 <section class="slide">

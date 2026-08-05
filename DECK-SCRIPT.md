@@ -15,7 +15,7 @@ never rush a number, the numbers are the part they check afterwards.
 Timings are a budget, not a stopwatch. If you fall behind, drop a whole slide rather than
 speeding up. There is a two minute cut at the bottom for that.
 
-577 spoken words plus a twenty-second film. Rehearsed pace lands it at 3:59, which
+578 spoken words plus a twenty-second film. Rehearsed pace lands it at 4:00, which
 is the whole budget — there is no slack, so a sentence you add live is a sentence you drop
 somewhere else. Rehearse it once with a timer, then trim whatever you keep stumbling on. The sentence
 you stumble on twice is the sentence to cut.
@@ -53,14 +53,13 @@ share dies.
 ---
 
 ## Slide 3 · Privacy, or proof. Never both.
-**0:29 to 0:48**
+**0:29 to 0:46**
 
 > Today you get two options and both are bad.
 >
-> A public venue leaks everything. Your request is a transaction, so is every quote.
+> A public venue leaks everything — your request is a transaction, so is every quote.
 >
-> A voice broker stays private, but six months later you can't prove to compliance you got
-> the best price.
+> A voice broker stays private, but you can't prove to compliance you got the best price.
 >
 > Privacy, or proof. Pick one.
 
@@ -69,30 +68,35 @@ share dies.
 ---
 
 ## Slide 4 · The dealer terminal, on the ledger
-**0:48 to 1:09**
+**0:46 to 1:06**
 
 > Tirai gives you both.
 >
 > A buyer picks a panel of dealers. Each answers with a sealed quote, and answering locks
-> their bond into escrow, so a price is a commitment and not a bluff.
+> their bond into escrow — a price is a commitment, not a bluff.
 >
-> The cheapest ask wins and is paid the second cheapest price. Which means quoting honestly
-> is the dealer's best move.
+> The cheapest ask wins and is paid the second cheapest price, which makes quoting honestly
+> the dealer's best move.
 
 ---
 
 ## Slide 5 · Dealer B's node never received dealer A's quote
-**1:09 to 1:21**
+**1:06 to 1:29**
 
-> Here's the part I care about.
+> Here's the part I care about. Two sessions, one request, the same second.
 >
-> No dealer sees a rival's number, and it isn't the screen hiding it. Their participant
-> node never received the contract. Nothing to decrypt, nothing to leak.
+> On the left, a dealer looking at its own ask. On the right, its rival: same row, empty
+> where the price should be. That isn't the screen hiding it. That node was never sent the
+> contract, so there's nothing to decrypt and nothing to leak.
+
+*Slide ini hampir seluruhnya gambar. Tunjuk kolom PRICE di panel kanan saat menyebut "empty
+where the price should be" — itu satu-satunya hal yang perlu mereka lihat. Jangan membaca
+tulisan kecil di gambarnya.*
 
 ---
 
 ## Slide 6 · The chain did the hard part.
-**1:21 to 1:36**
+**1:29 to 1:43**
 
 > To keep one number secret on another chain you need a trusted enclave, or zero knowledge
 > circuits, or homomorphic encryption. Heavy machinery.
@@ -107,24 +111,21 @@ menarik itu apa yang dihapus Canton, bukan berapa kali kamu mencoba.*
 ---
 
 ## Slide 7 · Desks whose tickets are big enough to leak
-**1:36 to 1:52**
+**1:43 to 1:55**
 
-> Who buys it. Fixed income and crypto desks, at banks and asset managers and prop shops,
-> moving between one and a hundred million. Below a million, leakage is a rounding error.
->
-> And the venues that would host this as an embedded app.
+> Who buys it. Fixed income and crypto desks — banks, asset managers, prop shops — moving
+> between one and a hundred million. And the venues that would host this as an embedded app.
 
 ---
 
 ## Slide 8 · A venue fee the settlement can collect
-**1:52 to 2:15**
+**1:55 to 2:15**
 
 > A per trade venue fee, taken inside the settlement transaction. If the trade settles, the
 > fee settled with it. Nothing to invoice, nothing to chase.
 >
-> That runs. One settlement on Devnet, twenty five basis points, ten thousand six hundred and
-> twenty five to the venue. What I haven't set is the rate — I'd rather a design partner
-> argued that number.
+> That runs. One settlement on Devnet, twenty five basis points, ten thousand six hundred
+> and twenty five to the venue. What I haven't set is the rate.
 
 *Kalau ada yang menekan soal angka bps, jawab persis kalimat terakhir itu: mekanismenya jalan,
 angkanya belum diputuskan. Kalau ditanya pendapatan, jawab nol — ini test asset di Devnet.*
@@ -140,7 +141,7 @@ angkanya belum diputuskan. Kalau ditanya pendapatan, jawab nol — ini test asse
 ---
 
 ## Slide 10 · Not a mock-up
-**2:23 to 2:39**
+**2:23 to 2:40**
 
 > This is all live. Two DevNet participants, the same package.
 >
@@ -155,7 +156,7 @@ angkanya belum diputuskan. Kalau ditanya pendapatan, jawab nol — ini test asse
 ---
 
 ## Slide 11 · The claim is checked against the live ledger
-**2:39 to 2:58**
+**2:40 to 2:58**
 
 > Two views do the proving.
 >
@@ -168,11 +169,11 @@ angkanya belum diputuskan. Kalau ditanya pendapatan, jawab nol — ini test asse
 ---
 
 ## Slide 12 · Two assets. Neither of them mine.
-**2:58 to 3:17**
+**2:58 to 3:18**
 
 > Your feedback asked for settlement in a real asset from a real issuer. Here it is, twice.
 >
-> Six trades in Canton Coin through the DSO's registry. Two in real CBTC, through BitSafe's.
+> Six trades in Canton Coin through the DSO's registry. Two in real CBTC through BitSafe's.
 > I control neither.
 >
 > cETH is the same code path, one field. It goes live the day the tokens land.
@@ -182,7 +183,7 @@ angkanya belum diputuskan. Kalau ditanya pendapatan, jawab nol — ini test asse
 ---
 
 ## Slide 13 · One person. Five days.
-**3:17 to 3:32**
+**3:18 to 3:32**
 
 > That's me. Pugar. Final year student, building this on my own.
 >
@@ -210,7 +211,7 @@ ikut ter-share. Screen share tanpa "share audio" akan memutar film ini tanpa sua
 ---
 
 ## Slide 15 · Close
-**3:52 to 3:59**
+**3:52 to 4:00**
 
 > Tirai means curtain. Price discovery happens behind it.
 >
