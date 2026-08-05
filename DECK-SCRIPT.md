@@ -1,23 +1,34 @@
 # Reading script for the deck
 
-Fourteen slides, four minutes. Written to be spoken, not read off a page, so it is
-short sentences and ordinary words. Say it the way you would explain it to one person
-sitting next to you.
+Fifteen slides. **Four minutes of pitch, then two minutes of Q&A** — they are separate, so
+do not save time for questions and do not run into them either. Written to be spoken, not
+read off a page: short sentences, ordinary words. Say it the way you would explain it to one
+person sitting next to you.
 
-Two rules while you speak. Pause where the line breaks are, that is where you breathe.
-And never rush a number, the numbers are the part they check afterwards.
+**Slide 14 is a twenty-second film and it narrates itself.** Stop talking, let it run, then
+speak again on the close. That is the whole demo. The organisers asked everyone not to run a
+live demo on stage, and this is why the demo is a video: nothing to break, nothing to wait for.
+
+Two rules while you speak. Pause where the line breaks are, that is where you breathe. And
+never rush a number, the numbers are the part they check afterwards.
 
 Timings are a budget, not a stopwatch. If you fall behind, drop a whole slide rather than
 speeding up. There is a two minute cut at the bottom for that.
 
-634 spoken words, which is about four and a half minutes at a comfortable pace and four
-minutes at a brisk one. Rehearse it once with a timer, then trim whatever you keep
-stumbling on. The sentence you stumble on twice is the sentence to cut.
+577 spoken words plus a twenty-second film. Rehearsed pace lands it at 3:59, which
+is the whole budget — there is no slack, so a sentence you add live is a sentence you drop
+somewhere else. Rehearse it once with a timer, then trim whatever you keep stumbling on. The sentence
+you stumble on twice is the sentence to cut.
+
+**On the day.** Tech check opens 13:30 UTC; you are sixth on the running order, so join
+early and be warm. The deck is a real deck: arrow keys or click, `f` for fullscreen, and it
+remembers position in the URL. Have `tirai.vercel.app/deck` open in a second tab in case the
+share dies.
 
 ---
 
 ## Slide 1 · Cover
-**0:00 to 0:10**
+**0:00 to 0:09**
 
 > Hi, I'm Pugar. I built Tirai, and it's a confidential trading desk on Canton.
 >
@@ -28,12 +39,12 @@ stumbling on. The sentence you stumble on twice is the sentence to cut.
 ---
 
 ## Slide 2 · Asking for a price is the information
-**0:10 to 0:40**
+**0:09 to 0:29**
 
 > A bank wants to sell fifty million of bonds. First it has to ask dealers for a price.
 >
-> But the question is the information. The moment someone sees you asking, they know your
-> size and your direction, and the price moves away from you before you've traded.
+> But the question is the information. The moment someone sees you asking they know your
+> size and your direction, and the price moves away before you've traded.
 >
 > That's why block trading still happens on the phone.
 
@@ -42,15 +53,14 @@ stumbling on. The sentence you stumble on twice is the sentence to cut.
 ---
 
 ## Slide 3 · Privacy, or proof. Never both.
-**0:40 to 1:00**
+**0:29 to 0:48**
 
-> Today you get two options, and both are bad.
+> Today you get two options and both are bad.
 >
-> A public venue, or an on-chain RFQ, leaks everything. Your request is a transaction.
-> So is every quote.
+> A public venue leaks everything. Your request is a transaction, so is every quote.
 >
-> A voice broker stays private, but six months later you can't prove to compliance that
-> you got the best price.
+> A voice broker stays private, but six months later you can't prove to compliance you got
+> the best price.
 >
 > Privacy, or proof. Pick one.
 
@@ -59,20 +69,20 @@ stumbling on. The sentence you stumble on twice is the sentence to cut.
 ---
 
 ## Slide 4 · The dealer terminal, on the ledger
-**1:00 to 1:20**
+**0:48 to 1:09**
 
 > Tirai gives you both.
 >
-> A buyer picks a panel of dealers. Each one answers with a sealed quote, and answering
-> locks their bond into escrow, so a price is a commitment and not a bluff.
+> A buyer picks a panel of dealers. Each answers with a sealed quote, and answering locks
+> their bond into escrow, so a price is a commitment and not a bluff.
 >
-> The cheapest ask wins and gets paid the second cheapest price. Strange the first time
-> you hear it. It means quoting honestly is the dealer's best move.
+> The cheapest ask wins and is paid the second cheapest price. Which means quoting honestly
+> is the dealer's best move.
 
 ---
 
 ## Slide 5 · Dealer B's node never received dealer A's quote
-**1:20 to 1:45**
+**1:09 to 1:21**
 
 > Here's the part I care about.
 >
@@ -82,10 +92,10 @@ stumbling on. The sentence you stumble on twice is the sentence to cut.
 ---
 
 ## Slide 6 · The chain did the hard part.
-**1:45 to 2:00**
+**1:21 to 1:36**
 
-> To keep one number secret on another chain, you need a trusted enclave, or zero knowledge
-> circuits, or threshold encryption, or homomorphic encryption. Heavy machinery, all of it.
+> To keep one number secret on another chain you need a trusted enclave, or zero knowledge
+> circuits, or homomorphic encryption. Heavy machinery.
 >
 > On Canton it's a signatory and an observer declaration. About forty lines. That's the
 > whole trick.
@@ -97,27 +107,24 @@ menarik itu apa yang dihapus Canton, bukan berapa kali kamu mencoba.*
 ---
 
 ## Slide 7 · Desks whose tickets are big enough to leak
-**2:00 to 2:20**
+**1:36 to 1:52**
 
-> Who buys it. Fixed income and crypto desks, at banks and asset managers and prop
-> shops, moving between one and a hundred million. Below a million the leakage is a
-> rounding error and a public venue is fine.
+> Who buys it. Fixed income and crypto desks, at banks and asset managers and prop shops,
+> moving between one and a hundred million. Below a million, leakage is a rounding error.
 >
 > And the venues that would host this as an embedded app.
 
 ---
 
 ## Slide 8 · A venue fee the settlement can collect
-**2:20 to 2:40**
+**1:52 to 2:15**
 
-> A per trade venue fee. Basis points of notional, in the settlement asset, taken inside
-> the settlement transaction. If the trade settles, the fee settled with it. No invoice,
-> no collection risk.
+> A per trade venue fee, taken inside the settlement transaction. If the trade settles, the
+> fee settled with it. Nothing to invoice, nothing to chase.
 >
-> That runs. One settlement on Devnet cleared at four and a quarter million, twenty five
-> basis points, ten thousand six hundred and twenty five to the venue. What I haven't got
-> is the rate. Blank charges nothing, and I'd rather a design partner argued the number
-> than pick one myself.
+> That runs. One settlement on Devnet, twenty five basis points, ten thousand six hundred and
+> twenty five to the venue. What I haven't set is the rate — I'd rather a design partner
+> argued that number.
 
 *Kalau ada yang menekan soal angka bps, jawab persis kalimat terakhir itu: mekanismenya jalan,
 angkanya belum diputuskan. Kalau ditanya pendapatan, jawab nol — ini test asset di Devnet.*
@@ -125,22 +132,20 @@ angkanya belum diputuskan. Kalau ditanya pendapatan, jawab nol — ini test asse
 ---
 
 ## Slide 9 · Not a DEX. Not a chat room.
-**2:40 to 3:00**
+**2:15 to 2:23**
 
-> A public order book gives you proof and no privacy. A voice broker gives you privacy
-> and no proof. A dark pool gives you both, if you completely trust the operator.
->
-> Tirai doesn't ask you to trust an operator.
+> A dark pool gives you both, if you completely trust the operator. Tirai doesn't ask you
+> to trust an operator.
 
 ---
 
 ## Slide 10 · Not a mock-up
-**3:00 to 3:15**
+**2:23 to 2:39**
 
 > This is all live. Two DevNet participants, the same package.
 >
 > Fifty settled trades. Five atomic baskets. Sixteen best execution attestations.
-> Thirty six Daml test scripts.
+> Forty one Daml test scripts.
 >
 > One honest note. I generated that trading history myself. It shows the product works.
 > It is not customers.
@@ -150,59 +155,85 @@ angkanya belum diputuskan. Kalau ditanya pendapatan, jawab nol — ini test asse
 ---
 
 ## Slide 11 · The claim is checked against the live ledger
-**3:15 to 3:30**
+**2:39 to 2:58**
 
 > Two views do the proving.
 >
-> One counts what each party's node holds. Every dealer, only its own quotes. The
-> regulator, nothing before a trade settles.
+> One counts what each party's node holds. Every dealer, only its own quotes. The regulator,
+> nothing pre-trade.
 >
-> The other proves best execution with no public order book. Counterparties disclose
-> their sealed asks to the regulator, and it checks the cleared price beat all of them.
+> The other proves best execution with no order book: counterparties disclose their sealed
+> asks, and the regulator checks the cleared price beat all of them.
 
 ---
 
 ## Slide 12 · Two assets. Neither of them mine.
-**3:30 to 3:50**
+**2:58 to 3:17**
 
-> Your feedback asked for settlement in a real asset from a real issuer. Here it is,
-> twice.
+> Your feedback asked for settlement in a real asset from a real issuer. Here it is, twice.
 >
-> Six trades in Canton Coin through the DSO's registry. Two in real CBTC through the
-> registry BitSafe issues on. I control neither and can't mint into either.
+> Six trades in Canton Coin through the DSO's registry. Two in real CBTC, through BitSafe's.
+> I control neither.
 >
-> cETH is the same code path. One field changes. It goes live the day the tokens land.
+> cETH is the same code path, one field. It goes live the day the tokens land.
 
 *Ini jawaban langsung atas kritik juri. Ucapkan dengan tenang, jangan seperti menang argumen.*
 
 ---
 
 ## Slide 13 · One person. Five days.
-**3:50 to 4:00**
+**3:17 to 3:32**
 
 > That's me. Pugar. Final year student, building this on my own.
 >
-> Repo created on the twenty second of July. Settlement leg the next day. Second participant
-> deployed and verified by the twenty sixth.
->
-> And there's a written ninety day validation plan, with the stop criteria set in advance.
+> Repo created the twenty second of July, second participant verified by the twenty sixth.
+> And a written ninety day validation plan, stop criteria set in advance.
 
 ---
 
-## Slide 14 · Close
-**4:00**
+## Slide 14 · Not a slideshow. The product.
+**3:32 to 3:52** — *the film, not you*
+
+> This is the desk being used. Watch dealer B's screen.
+
+Then **stop talking**. Press play, let it run about twenty seconds — Dealer A seals its ask,
+then Dealer B's session comes up with no price in it — and pause it there. The film narrates
+itself, so talking over it makes both harder to follow.
+
+*Kalau videonya tidak mau jalan, jangan panik dan jangan diperbaiki di panggung. Katakan:
+"the recording is in the repo" lalu lanjut ke slide penutup. Kamu sudah menjelaskan hal yang
+sama di slide lima; video ini bukti, bukan penjelasan.*
+
+*Sebelum mulai: buka slide ini sekali saat tech check 13:30 UTC, klik play, pastikan suaranya
+ikut ter-share. Screen share tanpa "share audio" akan memutar film ini tanpa suara.*
+
+---
+
+## Slide 15 · Close
+**3:52 to 3:59**
 
 > Tirai means curtain. Price discovery happens behind it.
 >
 > The desk is live at tirai dot vercel dot app. Thank you.
 
-*Berhenti. Jangan menambah kalimat penutup lagi, biarkan senyap sebentar sebelum tanya jawab.*
+*Berhenti. Jangan menambah kalimat penutup lagi, biarkan senyap sebentar sebelum tanya jawab.
+Tanya jawabnya dua menit dan terpisah dari empat menit ini, jadi tidak perlu menyisakan waktu.*
 
 ---
 
+## If you fall behind
+
+At **2:15** you should be starting slide 9. If you are not, skip slide 9 entirely — it says
+what slide 3 already said. That buys seven seconds. The next thing to drop is slide 6.
+
+Never cut slide 14. The film is the demo, and the organisers asked for a video instead of a
+live one; arriving at the close without having shown the product is the one unrecoverable
+mistake in this running order.
+
 ## If they cut you to two minutes
 
-Say slides 2, 4, 5, 10, 12, 14. In that order. Skip the rest without apologising for it.
+Say slides 2, 4, 5, 10, 12, 15. In that order, and play the film if there is any room at all.
+Skip the rest without apologising for it.
 
 The spine is: the question leaks, we seal it, the rival's node genuinely doesn't have it,
 it's live, it settles in assets I don't issue, here's the link.

@@ -398,7 +398,14 @@ li::marker{ color:var(--accent) }
   <video id="demo" style="width:100%;max-height:66vh;border:.16rem solid var(--line);background:#000"
     src="../media/tirai-demo.mp4" poster="../media/x-2-privacy.png"
     controls preload="metadata" playsinline></video>
-  <p class="small" style="margin-top:1rem">A request opened, a dealer's sealed quote, the rival's own
+  <p style="margin-top:.9rem;display:flex;gap:.8rem;align-items:center;flex-wrap:wrap">
+    <button id="clip" style="font:inherit;font-size:1.05rem;font-weight:700;padding:.55rem 1.1rem;
+      border:.14rem solid var(--accent);border-radius:.4rem;background:transparent;color:var(--accent);
+      cursor:pointer">▶ The twenty seconds that matter</button>
+    <span class="small" style="margin:0">Dealer A seals its ask, then the rival's session comes up with no
+      price. Stops itself. Press again to replay.</span>
+  </p>
+  <p class="small" style="margin-top:.7rem">A request opened, a dealer's sealed quote, the rival's own
     session without it, then the privacy verifier and the settlement rails. Screen recording against a
     live ledger; the only edit is a slow push on the rival's empty price cell.</p>
 </section>
@@ -463,6 +470,22 @@ li::marker{ color:var(--accent) }
 
   show(Math.max(0, (Number(location.hash.slice(1)) || 1) - 1), false);
 })();
+
+  // The thesis clip. Scrubbing a video by hand on stage is a way to lose ten seconds in
+  // front of judges, so the button seeks to the beat and stops itself at the end of it.
+  // 15.2s-35.2s: "Now Dealer A ... seals its ask" through "Same request. No price."
+  (() => {
+    const v = document.getElementById('demo'), b = document.getElementById('clip');
+    if (!v || !b) return;
+    const IN = 15.2, OUT = 35.2;
+    const stop = () => { if (v.currentTime >= OUT) { v.pause(); v.removeEventListener('timeupdate', stop); } };
+    b.addEventListener('click', () => {
+      v.removeEventListener('timeupdate', stop);
+      v.currentTime = IN;
+      v.addEventListener('timeupdate', stop);
+      v.play().catch(() => {});
+    });
+  })();
 </script>
 </body>
 </html>
