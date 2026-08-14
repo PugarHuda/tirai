@@ -91,4 +91,38 @@ const box = await compose.evaluate(() => {
 await compose.screenshot({ path: join(OUT, 'x-2-privacy.png'), clip: { x: 0, y: 0, width: 1640, height: box.height } });
 console.log('·', join(OUT, 'x-2-privacy.png'));
 
+// The share card. Same two dealer sessions, but sized 1200x630 for OG/Twitter —
+// the crop those cards apply would cut the composed image above in half.
+const card = await b.newPage({ viewport: { width: 1200, height: 630 }, deviceScaleFactor: 2 });
+await card.setContent(`
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@600;800&display=swap');
+  /* The strips keep their natural aspect — cropping them taller would cut the
+     price column off, and that column is the entire point of the picture. The
+     slack that leaves is spent on spacing, not on a stretched screenshot. */
+  body { margin:0; width:1200px; height:630px; background:#0e1116; color:#e7ecf2;
+         font-family:Manrope,system-ui,sans-serif; padding:56px 56px 48px; box-sizing:border-box;
+         display:flex; flex-direction:column; justify-content:space-between; }
+  .mark { color:#6ee7b7; font-weight:800; font-size:21px; letter-spacing:.22em; }
+  h1 { font-size:60px; font-weight:800; letter-spacing:-.02em; line-height:1.12; margin:0; }
+  h1 em { color:#6ee7b7; font-style:normal; }
+  .cols { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  figcaption { color:#8b97a6; font-size:16px; font-weight:600; padding-bottom:9px; }
+  img { width:100%; border:1px solid #3a4553; display:block; }
+  .foot { color:#8b97a6; font-size:18px; font-weight:600; }
+</style>
+<div class="mark">TIRAI</div>
+<h1>Whisper your quotes.<br /><em>The market hears nothing.</em></h1>
+<div class="cols">
+  <figure style="margin:0"><figcaption>Dealer A — its own sealed ask</figcaption>
+    <img src="data:image/png;base64,${dealerA}" /></figure>
+  <figure style="margin:0"><figcaption>Dealer B — the number is not there</figcaption>
+    <img src="data:image/png;base64,${dealerB}" /></figure>
+</div>
+<div class="foot">Confidential multi-dealer RFQ desk · atomic DvP · live on Canton Devnet · tirai.vercel.app</div>
+`);
+await card.waitForTimeout(2500);
+await card.screenshot({ path: join(OUT, 'og-card.png') });
+console.log('·', join(OUT, 'og-card.png'));
+
 await b.close();
