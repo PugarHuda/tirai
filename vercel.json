@@ -10,6 +10,7 @@
     { "source": "/app", "destination": "/web/app.html" },
     { "source": "/app.html", "destination": "/web/app.html" },
     { "source": "/app.js", "destination": "/web/app.js" },
-    { "source": "/style.css", "destination": "/web/style.css" }
+    { "source": "/style.css", "destination": "/web/style.css" },
+    { "source": "/logo-mark.svg", "destination": "/web/logo-mark.svg" }
   ]
 }
