@@ -1194,6 +1194,12 @@ async function refresh() {
   } catch (e) {
     ledgerDown = e.message;
     setLedger('err', 'ledger error: ' + e.message);
+    // The throw skipped every render below, so the views still hold whatever boot put
+    // there — on a desk that has never loaded, a "reading…" line that will never
+    // resolve. Re-render the ones that can explain themselves. renderBuyer is given
+    // the last book we had, which on a cold failure is nothing at all.
+    if (!document.getElementById('view-rfqs')?.hidden) keepFocus(renderActive);
+    renderBuyer(lastAcs.buyer ?? []);
   } finally { busy = false; }
 }
 
