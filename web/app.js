@@ -234,6 +234,9 @@ function renderBuyer(mine) {
     setHTML(box, rfqs.length
       ? '<div class="empty">Request is out to the panel — waiting on their asks.<br>'
         + 'Type a price in a dealer column on the right and whisper it.</div>'
+      : ledgerDown && !lastLoaded
+        ? '<div class="empty">Cannot reach the validator, so there is nothing to read.<br>'
+          + 'Clone the repo and run <span class="mono">npm run demo</span> to drive this locally.</div>'
       : '<div class="empty">Nothing on the book yet.<br>'
         + 'Open a request above and it lands in both dealer columns at once.</div>');
   } else {
@@ -452,6 +455,11 @@ function showView(v) {
 let rfqFilter = 'all';
 let selectedRfq = null;
 let lastLoaded = false; // the first ACS poll has landed
+// Why the book is empty, when it is empty for a reason. A hosted desk whose validator
+// has gone away used to sit on "Reading the book from the ledger…" for ever, which
+// reads as a hang: the only sign was a small pill in the corner of the rail. A public
+// link is the first thing a stranger sees, so it has to say what happened.
+let ledgerDown = null;
 
 // ---- identity ----------------------------------------------------------
 // A deployed desk authenticates one party per session. This switcher is the
@@ -640,7 +648,12 @@ function renderActive() {
       </tr>`.replace('<tr ', () => `<tr data-row="${esc(r.cid)}" data-rowact="${a.act}" tabindex="0" `);
     }).join('')
     + '</tbody></table>'
-    : `<div class="audit-empty">${!P.buyer || !lastLoaded
+    : `<div class="audit-empty">${ledgerDown && !lastLoaded
+        ? '<b>This desk cannot reach its validator right now</b>, so there is nothing to read. '
+          + 'Nothing is wrong with the model or the code — clone the repo and run '
+          + '<span class="mono">npm run demo</span> to drive the whole desk locally.'
+          + `<div class="sub" style="margin-top:8px">${esc(ledgerDown)}</div>`
+        : !P.buyer || !lastLoaded
         ? 'Reading the book from the ledger…'
         : all.length
         ? 'No request matches that filter.'
@@ -1155,6 +1168,7 @@ async function refresh() {
     const settled = renderRegulator(r);
     lastReg = r; lastAcs = { buyer: b, dealerA: a, dealerB: d };
     lastLoaded = true;
+    ledgerDown = null;
     renderIdentity();
     renderProgress(b, r);
     if (!document.getElementById('view-audit')?.hidden) renderAudit();
@@ -1178,6 +1192,7 @@ async function refresh() {
       (stale ? `ledger live · ${stale} column stale, retrying` : 'ledger live')
       + ' · pkg ' + (PKG ? PKG.slice(0, 8) : '—'));
   } catch (e) {
+    ledgerDown = e.message;
     setLedger('err', 'ledger error: ' + e.message);
   } finally { busy = false; }
 }
