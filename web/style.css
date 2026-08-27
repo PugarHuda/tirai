@@ -160,8 +160,27 @@ body.app { display: grid; grid-template-columns: 236px 1fr; min-height: 100vh; }
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 19px; font-weight: 700; letter-spacing: -.02em;
   color: var(--rail-ink); text-decoration: none;
+  display: flex; align-items: center; gap: 9px;
 }
 .side-brand .dot { color: var(--accent); }
+/* Inline copy of /logo-mark.svg so the mark takes the rail's ink colour. The
+   standalone file bakes its colours in; keep the two paths in step. */
+.mk { width: 1em; height: 1em; display: block; flex: none; }
+.howto span[data-step] { opacity: .45; transition: opacity .25s; }
+.howto span[data-step].on { opacity: 1; }
+.howto span[data-step].on b { background: var(--accent-ink); color: #fff; }
+.howto span[data-step].done { opacity: .7; }
+.landed {
+  margin: 0 0 14px; padding: 14px 18px; border-radius: 12px;
+  background: var(--accent-dim); border: 1px solid var(--accent-line);
+  display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+}
+/* A class with display:flex outranks the browser's [hidden] rule, so say it here. */
+.landed[hidden] { display: none; }
+.landed .k { font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase;
+  font-weight: 700; color: var(--accent-ink); }
+.landed .v { font-size: clamp(20px, 2.6vw, 30px); font-weight: 800; letter-spacing: -.02em; }
+.landed .why { color: var(--muted); font-size: 13px; }
 .side-net { font-size: 10.5px; letter-spacing: .12em; color: var(--rail-muted); line-height: 1.7; }
 .side-net span { color: var(--faint); }
 .side-nav { display: flex; flex-direction: column; gap: 2px; }

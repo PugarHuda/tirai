@@ -23,7 +23,7 @@
 <meta name="twitter:title" content="Tirai — whisper your quotes, the market hears nothing" />
 <meta name="twitter:description" content="Confidential multi-dealer RFQ / OTC block-trading desk on Canton — live on Devnet." />
 <link rel="canonical" href="https://tirai.vercel.app/" />
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b0d10'/%3E%3Ctext x='16' y='23' font-size='20' font-family='monospace' font-weight='bold' text-anchor='middle' fill='%236ee7b7'%3Et%3C/text%3E%3C/svg%3E" />
+<link rel="icon" href="/logo-mark.svg" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
@@ -53,8 +53,13 @@
   nav{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);
     background:rgba(255,255,255,.97);border-bottom:1px solid var(--line)}
   nav .wrap{display:flex;align-items:center;gap:28px;height:64px}
-  .logo{font-size:20px;font-weight:800;letter-spacing:-.02em}
+  .logo{font-size:20px;font-weight:800;letter-spacing:-.02em;display:flex;align-items:center;gap:9px}
   .logo .d{color:var(--accent)}
+  /* One geometry, two homes: this inline copy takes its colour from the text around
+     it, so the same mark works on the light chrome and the dark hero band. The
+     standalone /logo-mark.svg carries baked-in colours, because a favicon cannot
+     inherit anything. Keep the path in step with that file. */
+  .mk{width:1em;height:1em;display:block;flex:none}
   nav .links{margin-left:auto;display:flex;gap:26px;align-items:center}
   nav .links a{color:var(--muted);font-size:14px}
   nav .links a:hover{color:var(--ink)}
@@ -121,6 +126,19 @@
   .step h4{margin:10px 0 6px;font-size:15px;font-weight:700}
   .step p{margin:0;color:var(--muted);font-size:13px}
 
+  /* the proof shot, the live numbers, and the partner ask */
+  .shot{width:100%;margin-top:30px;border:1px solid var(--line);border-radius:12px;
+    box-shadow:var(--shadow);display:block}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:34px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;
+    box-shadow:var(--shadow)}
+  .stat b{display:block;font-size:clamp(28px,3.4vw,36px);letter-spacing:-.03em;font-weight:800;
+    line-height:1.05}
+  .stat span{display:block;color:var(--muted);font-size:13px;margin-top:6px}
+  .two{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:34px}
+  @media(max-width:860px){.stats{grid-template-columns:1fr 1fr}.two{grid-template-columns:1fr}}
+  @media(max-width:520px){.stats{grid-template-columns:1fr}}
+
   /* lineage table */
   .tbl{margin-top:32px;background:var(--card);border:1px solid var(--line);border-radius:12px;
     overflow:hidden;font-size:14px;box-shadow:var(--shadow)}
@@ -151,12 +169,12 @@
 </head>
 <body>
 <nav><div class="wrap">
-  <div class="logo">tirai<span class="d">.</span></div>
+  <a class="logo" href="/"><svg class="mk" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 4 H27 A3 3 0 0 1 30 7 V17 A4.2 4.2 0 0 1 21.7 17 A4.2 4.2 0 0 1 13.3 17 A4.2 4.2 0 0 1 5 17 V7 A3 3 0 0 1 5 4 Z" fill="currentColor"/><circle cx="17.5" cy="25.4" r="3.2" fill="var(--accent)"/></svg><span>tirai<span class="d">.</span></span></a>
   <div class="links">
     <a href="#how">How it works</a>
-    <a href="#model">The model</a>
+    <a href="#live">What's live</a>
+    <a href="#partner">Design partner</a>
     <a href="#lineage">Why Canton</a>
-    <a href="#film">Demo</a>
     <a href="https://github.com/PugarHuda/tirai" target="_blank" rel="noopener">GitHub</a>
     <a class="btn" href="app.html">Open the desk&nbsp;↗</a>
   </div>
@@ -171,8 +189,8 @@
       revealed. Settlement is atomic Vickrey delivery-versus-payment. Privacy is the ledger
       model, not cryptography bolted on.</p>
     <div class="cta">
-      <a class="btn" href="app.html">Open the desk&nbsp;↗</a>
-      <a class="btn ghost" href="#film">▶&nbsp;Watch the demo</a>
+      <a class="btn" href="#partner">I'm looking for one design partner</a>
+      <a class="btn ghost" href="app.html">Open the desk&nbsp;↗</a>
     </div>
     <div class="chips">
       <div class="chip">● <b>Live on Canton Devnet</b></div>
@@ -183,18 +201,19 @@
   </div>
 </div></header>
 
-<section class="blk" id="film"><div class="wrap">
-  <div class="kicker">The desk, driven</div>
-  <h2>Sixty seconds of the product, not a slideshow</h2>
-  <p class="sub">A request opened, a dealer's sealed quote, the rival's own session without it, then the privacy verifier and the settlement rails. Screen recording against a live ledger, narrated.</p>
-  <video id="film-player" style="width:100%;max-width:60rem;border:1px solid var(--line);border-radius:.5rem;background:#000;display:block"
-    src="/media/tirai-demo.mp4" poster="/media/x-2-privacy.png" controls preload="metadata" playsinline></video>
-  <p class="sub" style="margin-top:.9rem">Prefer the longer walkthrough? The <a href="https://youtu.be/_iHMouFdNA4" target="_blank" rel="noopener">four-minute demo</a> covers the same flow at a slower pace.</p>
+<section class="blk" id="proof"><div class="wrap">
+  <div class="kicker">The whole thesis, one frame</div>
+  <h2>Same request, two dealers. One of them has no price.</h2>
+  <p class="sub">Dealer A's ask sits in Dealer A's session. Dealer B has the same request open and
+    an empty price column &mdash; not hidden by the interface, never delivered to its node. There is
+    nothing there to decrypt, and nothing to leak.</p>
+  <img class="shot" src="/media/x-2-privacy.png" loading="lazy"
+    alt="One RFQ open in two dealer sessions side by side: Dealer A shows its own sealed ask, Dealer B shows no price at all" />
 </div></section>
 
 <section class="blk" id="how"><div class="wrap">
   <div class="kicker">How it works</div>
-  <h2>Four contracts. The whole privacy layer.</h2>
+  <h2>Four steps, and the market hears none of them.</h2>
   <p class="sub">On Canton, "dealer B cannot see dealer A's quote" is not a cryptographic
     achievement — it is a <span class="mono">signatory</span>/<span class="mono">observer</span> declaration. No ZK, no FHE, no TEE.</p>
   <div class="flow">
@@ -207,6 +226,58 @@
     <div class="step"><div class="s">04 · Regulator</div><h4>Auditable, post-trade</h4>
       <p>A regulator observes executed trades — and only executed trades. The pre-trade flow stays dark.</p></div>
   </div>
+</div></section>
+
+<section class="blk" id="live"><div class="wrap">
+  <div class="kicker">Running now</div>
+  <h2>On Devnet, not on a slide.</h2>
+  <p class="sub">Counted off the ledger, not off a deck. The desk you can open reads the same
+    validator live, so these move when the ledger does.</p>
+  <div class="stats">
+    <div class="stat"><b>50</b><span>trades settled</span></div>
+    <div class="stat"><b>8</b><span>of them in real Canton Coin and CBTC</span></div>
+    <div class="stat"><b>16</b><span>best-execution attestations</span></div>
+    <div class="stat"><b>42</b><span>Daml test scripts green</span></div>
+  </div>
+  <p class="sub" style="margin-top:26px">The cash leg moves through registries this desk neither
+    controls nor can mint into &mdash; Canton Coin through the DSO-run registry, CBTC through
+    BitSafe's. cETH is the same code path with one field changed. The trading history was seeded by
+    me to exercise the flows; it is not customer volume, and the page will not pretend otherwise.</p>
+</div></section>
+
+<section class="blk" id="partner"><div class="wrap">
+  <div class="kicker">What I am looking for</div>
+  <h2>One design partner, on Devnet, for ninety days.</h2>
+  <p class="sub">I build this alone. It took third place at HackCanton Season 2, and what it needs
+    next is not another feature &mdash; it is one desk willing to put real enquiries through it and
+    tell me where it breaks.</p>
+  <div class="two">
+    <div class="feat"><div class="n">what it costs you</div><h3>One party, one DAR</h3>
+      <p>If you already run a Canton validator, joining is a party allocation and a DAR vetting.
+        No vendor onboarding, no procurement queue, nothing leaving your node, and nothing
+        anywhere near mainnet.</p></div>
+    <div class="feat"><div class="n">what you get</div><h3>A sealed-quote channel</h3>
+      <p>Your axe invisible to competing dealers. Escrow on quote, so nobody is left carrying a
+        counterparty who changed their mind. Atomic delivery-versus-payment against a real registry
+        asset instead of transfer-then-hope. And a second-price rail where quoting honestly is the
+        move that wins.</p></div>
+    <div class="feat"><div class="n">what I want back</div><h3>Thirty minutes a week</h3>
+      <p>A short review, and permission to be told this is wrong. The kill criteria are written down
+        in advance &mdash; the numbers at which I stop rather than talk myself into another quarter.</p></div>
+  </div>
+  <div class="cta">
+    <a class="btn" href="mailto:hudapugar@gmail.com?subject=Tirai%20%E2%80%94%20DevNet%20design%20partner">Start a conversation</a>
+    <a class="btn ghost" href="app.html">Look at the desk first&nbsp;↗</a>
+  </div>
+</div></section>
+
+<section class="blk" id="film"><div class="wrap">
+  <div class="kicker">The desk, driven</div>
+  <h2>Sixty seconds of the product, not a slideshow</h2>
+  <p class="sub">A request opened, a dealer's sealed quote, the rival's own session without it, then the privacy verifier and the settlement rails. Screen recording against a live ledger, narrated.</p>
+  <video id="film-player" style="width:100%;max-width:60rem;border:1px solid var(--line);border-radius:.5rem;background:#000;display:block"
+    src="/media/tirai-demo.mp4" poster="/media/x-2-privacy.png" controls preload="metadata" playsinline></video>
+  <p class="sub" style="margin-top:.9rem">Prefer the longer walkthrough? The <a href="https://youtu.be/_iHMouFdNA4" target="_blank" rel="noopener">four-minute demo</a> covers the same flow at a slower pace.</p>
 </div></section>
 
 <section class="blk" id="model"><div class="wrap">
@@ -257,7 +328,7 @@
 </div></section>
 
 <footer><div class="wrap">
-  <div>tirai<span style="color:var(--accent)">.</span> — confidential RFQ desk · Canton Network · Build on Canton Hackathon 2026</div>
+  <div>tirai<span style="color:var(--accent)">.</span> — confidential RFQ desk on Canton · third place, HackCanton Season 2</div>
   <div><a href="app.html">Open the desk</a> · <a href="https://github.com/PugarHuda/tirai" target="_blank" rel="noopener">GitHub</a></div>
 </div></footer>
 

@@ -256,6 +256,7 @@ vetted version. Pin one with `TIRAI_PKG` if you need the old template.
 | `mcp/` | MCP server — 6 tools: 5 read-only + `post_rfq`, which writes a real RFQ |
 | `deck/` | the pitch deck — 15 slides, keyboard/click/swipe, full screen, and the film on slide 14. Served at [`/deck`](https://tirai.vercel.app/deck); `deck/NOTES.md` is the per-slide speaker guide |
 | `video/` | Remotion source for the film, and `video/vo/` — the narration script and the mixer that places each line inside the shot it belongs to |
+| `web/logo-mark.svg` | the mark. Colours baked in for the favicon; the same path is inlined in both headers with `currentColor` |
 | `media/` | the film (narrated `tirai-demo.mp4` + its silent master), deck screenshots, logo variants, submission PDFs |
 | [`SUBMISSION.md`](SUBMISSION.md) | tracks, business brief, pilot plan |
 | [`JOURNAL.md`](JOURNAL.md) | daily build journal (what was built, what broke) |

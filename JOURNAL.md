@@ -364,3 +364,54 @@ Counts: 42 Daml scripts, e2e 28/28, actions 18/18, best-exec 8/8, shell 23/23, p
 29/29, each on its own fresh sandbox. The seal step in `e2e:actions` gets one attempt
 and no retry on purpose — a retry loop would hide this bug coming back. `e2e:mcp` needs
 a Devnet token this machine cannot mint, so it stays unrun rather than claimed.
+
+## 27 August, later — a mark, a page that asks for something, and a desk a stranger can follow
+
+Three surfaces, one thread running through them: none of them was asking anyone for
+anything.
+
+**The logo did not exist.** There were four PNGs in `media/` and a script that drew
+them, and not one was used anywhere — the landing rendered `tirai.` as CSS text and both
+favicons were a monospace `t` on a dark square. The PNGs were also dark-only, in the
+neon green that had already failed contrast when the product went light in August, so
+adopting them was never an option. `web/logo-mark.svg` is a drawn curtain with a
+scalloped hem and the one price that came out from behind it — a solid shape rather than
+thin bars, because the first test any mark has to pass is 16 pixels. The file bakes its
+own colours and switches on `prefers-color-scheme`, since a favicon inherits nothing;
+the same path is inlined in both headers with `currentColor`, where it can follow the
+ink around it. One geometry, two homes, and a comment in each pointing at the other.
+`scripts/make-logo.mjs` and its four PNGs are now dead, and left in place until someone
+says to remove them.
+
+**The landing read like a submission.** It opened with a film, then four contracts, then
+a table comparing chains — an argument aimed at a judge who has already decided to pay
+attention. It now opens, proves, explains, shows what is running, and asks: one design
+partner, on Devnet, for ninety days, with what it costs you, what you get and what I want
+back stated in three cards, and the honest note that the trading history was seeded by me
+and is not customer volume. The film and the chain-lineage table still exist, below the
+ask, where evidence belongs. The numbers in the new "running now" band come from the
+ledger, and the page says so rather than implying it.
+
+**The desk assumed you had been introduced.** On 2 September it gets ten minutes of live
+screen share in front of people who have never seen it, so the test stopped being "can I
+drive this" and became "can someone watching follow it". The hint strip was already
+there and already dismissible, so it became the tracker instead of growing a second one:
+four steps, the current one lit, read from the ledger — a request open, two asks sealed,
+a report filed. Empty states say what to do next instead of reporting that nothing has
+happened. And a settlement stays on the glass as a line of large type, because the toast
+that used to announce it was gone in three seconds, which is less time than an audience
+needs to read a number.
+
+The privacy claim is now a sentence with counts in it, and it lives in the footer of the
+side-by-side view rather than inside a dealer's column. That placement is the whole
+point: the side-by-side seat is declared omniscient, so it may say "two sealed asks on
+the book, and every dealer column beside it holds none of its rivals'". A dealer's own
+column may not, because that column is supposed to show what its node actually holds,
+and a node that knew a rival had quoted would be the bug this product exists to avoid.
+
+One bug worth the note: `.landed { display: flex }` outranks the browser's `[hidden]`
+rule, so the settlement strip sat on the page as an empty green bar until a trade landed.
+
+e2e 28/28 · actions 18/18 · shell 23/23 · best-exec 8/8 · paths 29/29, each on a fresh
+sandbox. The share cards are not regenerated: `npm run social` shoots the hosted desk,
+and the hosted desk is still the old build.

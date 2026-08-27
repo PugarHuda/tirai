@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Tirai">
+  <!-- A drawn curtain with a scalloped hem, and the one price that came out from behind
+       it. The enquiry stays behind the cloth; a single number leaves. A solid shape
+       rather than thin bars, because this has to survive a 16px favicon.
+       Colours are baked in: a standalone file cannot inherit the page's CSS. The same
+       geometry is inlined in the page headers with currentColor, where it can. -->
+  <style>
+    .cloth { fill: #0e1116 }
+    .price { fill: #07724d }
+    @media (prefers-color-scheme: dark) {
+      .cloth { fill: #e8ecf1 }
+      .price { fill: #6ee7b7 }
+    }
+  </style>
+  <path class="cloth" d="M5 4 H27 A3 3 0 0 1 30 7 V17 A4.2 4.2 0 0 1 21.7 17 A4.2 4.2 0 0 1 13.3 17 A4.2 4.2 0 0 1 5 17 V7 A3 3 0 0 1 5 4 Z" />
+  <circle class="price" cx="17.5" cy="25.4" r="3.2" />
+</svg>

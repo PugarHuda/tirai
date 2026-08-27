@@ -228,9 +228,14 @@ function renderBuyer(mine) {
   const quotes = rfq ? allQuotes.filter((q) => q.arg.rfqId === rfq.cid) : [];
 
   if (!quotes.length) {
+    // The empty state is the one screen a newcomer is guaranteed to meet, so it should
+    // say what to do next rather than report that nothing has happened. Keep the word
+    // "waiting": e2e reads it as the signal that the request reached the panel.
     setHTML(box, rfqs.length
-      ? '<div class="empty">RFQ live — waiting for dealers to quote…</div>'
-      : '<div class="empty">No quotes yet.</div>');
+      ? '<div class="empty">Request is out to the panel — waiting on their asks.<br>'
+        + 'Type a price in a dealer column on the right and whisper it.</div>'
+      : '<div class="empty">Nothing on the book yet.<br>'
+        + 'Open a request above and it lands in both dealer columns at once.</div>');
   } else {
     const sorted = [...quotes].sort((a, b) =>
       Number(a.arg.price) - Number(b.arg.price) || a.arg.dealer.localeCompare(b.arg.dealer));
@@ -908,6 +913,50 @@ function renderVerify() {
       <div class="vf-note">Every row in the middle column is machinery a confidential desk has to bolt on and then keep proving correct: a trusted enclave, a ZK circuit per rule, threshold encryption, FHE. On Canton the privacy is a <code>signatory</code> / <code>observer</code> declaration in the template &mdash; same product, zero cryptography, nothing to audit or benchmark.</div>
     </div>`;
 }
+// Where the trade has actually got to, spelled out for someone watching over a
+// shoulder. Reads the buyer's book and the regulator's, which is exactly what the
+// side-by-side view already declares itself to be — the omniscient seat no real
+// deployment offers. The per-party columns stay honest: a dealer's column still shows
+// only what its own node holds, and nothing from here is written into one.
+function renderProgress(buyerAcs, regAcs) {
+  const rfqs = buyerAcs.filter((c) => is(c, 'RFQ'));
+  const quotes = buyerAcs.filter((c) => is(c, 'Quote'));
+  const reports = regAcs.filter((c) => is(c, 'TradeReport'));
+  const at = reports.length ? 4 : quotes.length >= 2 ? 3 : rfqs.length ? 2 : 1;
+  for (const el of document.querySelectorAll('.howto span[data-step]')) {
+    const n = Number(el.dataset.step);
+    el.classList.toggle('on', n === at);
+    el.classList.toggle('done', n < at);
+  }
+
+  // The claim as a sentence with numbers behind it: asks that exist on the book,
+  // against how many of them a rival's node is holding.
+  const note = document.getElementById('privacy-note');
+  if (note) {
+    const lead = quotes.length
+      ? `${quotes.length} sealed ask${quotes.length > 1 ? 's' : ''} on the book right now, `
+        + 'and every dealer column beside it holds none of its rivals’ — not blanked by '
+        + 'this interface, never delivered to their node. '
+      : '';
+    setHTML(note, lead + 'Each column is that party’s own view of the same Canton ledger. '
+      + 'Dealer B never receives Dealer A’s quote.');
+  }
+
+  // The last settlement stays on the glass. A toast is gone before an audience reads it.
+  const strip = document.getElementById('landed');
+  if (!strip) return;
+  const last = reports[reports.length - 1];
+  if (!last) { strip.hidden = true; return; }
+  const a = last.arg;
+  const fee = Number(a.feePaid ?? 0);
+  setHTML(strip, '<span class="k">Settled</span>'
+    + `<span class="v">${esc(a.instrument)} ${fmt(a.quantity)} @ ${fmt(a.clearingPrice)}</span>`
+    + `<span class="why">to ${dealerLabel(a.dealer)}, atomically`
+    + (fee > 0 ? `, ${fmt(fee)} to the venue` : '')
+    + '. Both legs moved, or neither would have.</span>');
+  strip.hidden = false;
+}
+
 // Portfolio: each party's holdings, aggregated by instrument.
 function renderPortfolio() {
   const el = document.getElementById('portfolio-body'); if (!el) return;
@@ -1107,6 +1156,7 @@ async function refresh() {
     lastReg = r; lastAcs = { buyer: b, dealerA: a, dealerB: d };
     lastLoaded = true;
     renderIdentity();
+    renderProgress(b, r);
     if (!document.getElementById('view-audit')?.hidden) renderAudit();
     if (!document.getElementById('view-rfqs')?.hidden) keepFocus(renderActive);
     if (!document.getElementById('view-portfolio')?.hidden) renderPortfolio();

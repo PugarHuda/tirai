@@ -6,12 +6,12 @@
 <meta name="description" content="The Tirai desk — three party views of one Canton ledger. Watch a dealer quote and the rival's column stay blank: sealed quotes, atomic Vickrey DvP, provable best execution, live on Devnet." />
 <meta name="theme-color" content="#0e1116" />
 <title>Tirai — the desk</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b0d10'/%3E%3Ctext x='16' y='23' font-size='20' font-family='monospace' font-weight='bold' text-anchor='middle' fill='%236ee7b7'%3Et%3C/text%3E%3C/svg%3E" />
+<link rel="icon" href="/logo-mark.svg" />
 <link rel="stylesheet" href="style.css" />
 </head>
 <body class="app">
 <aside class="side">
-  <a class="side-brand" href="/">tirai<span class="dot">.</span></a>
+  <a class="side-brand" href="/"><svg class="mk" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 4 H27 A3 3 0 0 1 30 7 V17 A4.2 4.2 0 0 1 21.7 17 A4.2 4.2 0 0 1 13.3 17 A4.2 4.2 0 0 1 5 17 V7 A3 3 0 0 1 5 4 Z" fill="currentColor"/><circle cx="17.5" cy="25.4" r="3.2" fill="var(--accent)"/></svg><span>tirai<span class="dot">.</span></span></a>
   <div class="side-net">CANTON · DEVNET<br><span>JSON Ledger API</span></div>
   <button class="side-cta" id="btn-new-rfq"><span aria-hidden="true">＋</span> New RFQ</button>
   <nav class="side-nav">
@@ -74,14 +74,20 @@
     <div class="stat"><span class="k" id="stat-settled">—</span><span class="l" id="lab-settled">Settled trades</span></div>
   </div>
 
+  <!-- Three parties' own views at once, which no real deployment shows you. The strip
+       below tracks where the trade actually is, so someone watching a screen share can
+       follow it without being told. -->
   <div class="howto" id="howto">
-    <strong>Side-by-side proof</strong> — all three parties' own views at once, which no real
-    deployment shows you. Sign in as one identity in the sidebar for the product path:
-    <span><b>1</b> Buyer → <em>Send to dealer panel</em></span>
-    <span><b>2</b> Dealer A &amp; B → type an ask → <em>Whisper sealed quote</em> <i>(watch the rival column stay blank)</i></span>
-    <span><b>3</b> Buyer → <em>Award</em> (Vickrey) · <em>Accept</em> (direct OTC) · or <em>Fill partial</em></span>
+    <strong>Side-by-side proof</strong>
+    <span data-step="1"><b>1</b> Buyer sends the request to a dealer panel</span>
+    <span data-step="2"><b>2</b> Each dealer whispers a sealed ask <i>(watch the rival column stay empty)</i></span>
+    <span data-step="3"><b>3</b> Buyer awards — cheapest wins, paid the second price</span>
+    <span data-step="4"><b>4</b> The regulator sees the trade, and only the trade</span>
     <button class="howto-x" id="howto-x" aria-label="dismiss">×</button>
   </div>
+  <!-- A settlement used to arrive as a toast that was gone in three seconds. On a
+       screen share the payoff has to stay on the glass. -->
+  <div class="landed" id="landed" hidden></div>
 
   <main class="desk" id="top">
     <!-- Buyer -->
