@@ -29,7 +29,8 @@
     "e2e:paths": "node scripts/e2e-paths.mjs",
     "record:desk": "node scripts/record-desk.mjs",
     "e2e:fee": "node scripts/e2e-fee.mjs",
-    "devnet:fee": "node scripts/devnet.mjs seed-fee"
+    "devnet:fee": "node scripts/devnet.mjs seed-fee",
+    "e2e:upgrade": "node scripts/e2e-upgrade.mjs"
   },
   "devDependencies": {
     "playwright": "^1.48.0"

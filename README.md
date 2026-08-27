@@ -141,7 +141,7 @@ To reproduce the frozen DARs: download `dars/` from the Splice release bundle
 
 ## Status
 
-- [x] Ledger model + **42 Daml test scripts green** (`test/`)
+- [x] Ledger model + **44 Daml test scripts green** (`test/`)
 - [x] **CIP-0056 cETH / CBTC settlement leg** (Splice v1 interfaces, DvP tested)
 - [x] **Deployed on two Canton Devnet participants** (privacy verified on both)
 - [x] **Venue fee collected inside the settlement** — an RFQ can name a venue and a rate in
@@ -211,7 +211,8 @@ and addresses the operator-allocated parties directly.
 | Deployer decision logic | `node scripts/test-devnet-logic.mjs` | 6 / 6 |
 | Product path, one identity | `npm run e2e:shell` | 23 / 23 (incl. the front-end audit's regression checks) |
 | Happy path and wrong path | `npm run e2e:paths` | 29 / 29 — bad input, actions an identity is not entitled to, a second quote from the same dealer, filters that hide everything. Every refusal is checked to have submitted **nothing**, not merely to have looked refused. Also awards a real `TokenTrade` and checks the awaiting-allocation state renders |
-| Local write-path UI | `npm run e2e` · `e2e:bestexec` · `e2e:actions` | 28 / 28 · 8 / 8 · 18 / 18 |
+| Local write-path UI | `npm run e2e` · `e2e:bestexec` · `e2e:actions` | 28 / 28 · 8 / 8 · 23 / 23 |
+| Upgrade rehearsal | `npm run e2e:upgrade` | 12 / 12 — boots a sandbox on the previous package, uploads the new one over it, and settles contracts written by the old version through the new code |
 | Venue fee, through the UI | `npm run e2e:fee` | 12 / 12 — the audit trail's fee column and revenue line against live Devnet numbers, a dash on trades that predate the fee, and a rate above the ceiling refused without submitting. Needs a desk pointed at Devnet: `cd web && LEDGER_ENV_FILE=../scripts/.env.devnet PORT=8091 node server.mjs` |
 | Upgrade safety | rehearsed per upload, see `daml.yaml` | 13 / 13, twice — an old-version client still creates, package-name queries still answer, existing contracts stay visible |
 
@@ -226,7 +227,7 @@ and a suite run against a used ledger dies waiting for the quote button.
 # prerequisites: Daml SDK 3.4.11, JDK 21, Node
 daml build --all
 npm run demo        # sandbox + seed + web desk on http://localhost:8080
-cd test; daml test  # 42 scripts
+cd test; daml test  # 44 scripts
 ```
 
 ### Upgrades
@@ -249,7 +250,7 @@ vetted version. Pin one with `TIRAI_PKG` if you need the old template.
 |---|---|
 | `daml/Tirai.daml` | ledger model — RFQ, sealed quotes, escrow, DvP rails, `TokenTrade` |
 | `dars/` | frozen Splice CIP-0056 interface DARs (data-dependencies) + `tirai-desk-0.1.0.dar`, the upgrade base `daml.yaml` checks against |
-| `test/` | 42 Daml test scripts (incl. `MockRegistry` implementing the real interfaces) |
+| `test/` | 44 Daml test scripts (incl. `MockRegistry` implementing the real interfaces) |
 | `web/` | the desk — one signed-in identity, plus the side-by-side proof view — + Node proxy |
 | `api/` | read-only serverless proxy (hosted deployment) |
 | `scripts/` | Devnet deployer, local demo, e2e suites, recorder, PDF/logo generators |

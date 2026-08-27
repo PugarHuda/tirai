@@ -163,7 +163,7 @@ template RFQ
          -- never cross-settle into another RFQ that shares instrument/size.
          create Quote with buyer; regulator; dealer; instrument; quantity
                            payInstrument; price; escrowCid; rfqId = Some self; payIssuer
-                           venue; feeBps
+                           venue; feeBps; sealedAt = Some now
 
     -- Buyer settles against the submitted quotes: cheapest ask wins, but is
     -- paid the SECOND-cheapest price (reverse Vickrey), atomically DvP.
@@ -173,8 +173,14 @@ template RFQ
         quoteCids : [ContractId Quote]
         cashCid : ContractId Holding
       controller buyer
-      do (winCid, clearing) <- runAuction self quoteCids
-         exercise winCid SettleQuote with cashCid; clearingPrice = clearing
+      do
+         a <- runAuction self quoteCids
+         now <- getTime
+         create PanelRecord with
+           buyer; instrument; quantity; invited = invitedDealers
+           entries = a.panel; winner = a.winnerDealer
+           clearingPrice = a.clearing; awardedAt = now
+         exercise a.winner SettleQuote with cashCid; clearingPrice = a.clearing
 
     -- Award, but the buyer takes only `fillQuantity` of the winning lot at the
     -- prorated Vickrey (second) price. Competitive price discovery + partial fills
@@ -185,8 +191,14 @@ template RFQ
         cashCid : ContractId Holding
         fillQuantity : Decimal
       controller buyer
-      do (winCid, clearing) <- runAuction self quoteCids
-         exercise winCid SettleQuotePartial with cashCid; clearingPrice = clearing; fillQuantity
+      do
+         a <- runAuction self quoteCids
+         now <- getTime
+         create PanelRecord with
+           buyer; instrument; quantity; invited = invitedDealers
+           entries = a.panel; winner = a.winnerDealer
+           clearingPrice = a.clearing; awardedAt = now
+         exercise a.winner SettleQuotePartial with cashCid; clearingPrice = a.clearing; fillQuantity
 
     -- Reverse-Vickrey award with the cash leg in a REAL token-standard asset
     -- (cETH / CBTC / CC / USDCx). Same auction as Award — cheapest ask wins, pays
@@ -202,9 +214,15 @@ template RFQ
         allocateBefore : Time
         settleBefore : Time
       controller buyer
-      do (winCid, clearing) <- runAuction self quoteCids
-         exercise winCid ConvertToTokenTrade with
-           cashInstrument; clearingPrice = clearing; allocateBefore; settleBefore
+      do
+         a <- runAuction self quoteCids
+         now <- getTime
+         create PanelRecord with
+           buyer; instrument; quantity; invited = invitedDealers
+           entries = a.panel; winner = a.winnerDealer
+           clearingPrice = a.clearing; awardedAt = now
+         exercise a.winner ConvertToTokenTrade with
+           cashInstrument; clearingPrice = a.clearing; allocateBefore; settleBefore
 
     choice CancelRFQ : ()
       controller buyer
@@ -226,7 +244,14 @@ template RFQ
 -- incentive the sealed quote is supposed to remove. So a one-quote auction is refused:
 -- a buyer that wants to lift an ask uses the direct rail (`SettleQuote` / `AcceptPartial`
 -- / `ConvertToTokenTrade`), which settles at the ask and is recorded as what it is.
-runAuction : ContractId RFQ -> [ContractId Quote] -> Update (ContractId Quote, Decimal)
+data Auction = Auction
+  with
+    winner : ContractId Quote
+    winnerDealer : Party
+    clearing : Decimal
+    panel : [PanelEntry]
+
+runAuction : ContractId RFQ -> [ContractId Quote] -> Update Auction
 runAuction rfqCid quoteCids = do
   assertMsg "no quotes submitted" (not (null quoteCids))
   let uniqueCids = dedup quoteCids
@@ -244,10 +269,66 @@ runAuction rfqCid quoteCids = do
   -- Secondary sort on dealer makes the winner deterministic on a price
   -- tie, independent of the order the buyer listed the quotes in.
   case sortOn (\(_, q) -> (q.price, q.dealer)) quotes of
-    (winCid, _) :: losers@((_, second) :: _) -> do
+    sorted@((winCid, win) :: losers@((_, second) :: _)) -> do
       forA_ losers \(cid, _) -> exercise cid RejectQuote
-      pure (winCid, second.price)
+      -- Distance from the winning ask, in basis points, so the panel record can
+      -- carry how competitive a dealer was WITHOUT carrying what it actually asked.
+      let entry (_, q) = PanelEntry with
+            dealer = q.dealer
+            fromWinnerBps = roundBankers 1 ((q.price - win.price) * 10000.0 / win.price)
+            sealedAt = q.sealedAt
+      pure Auction with
+        winner = winCid; winnerDealer = win.dealer
+        clearing = second.price; panel = map entry sorted
     _ -> abort "an auction needs at least two quotes: to lift a single ask, settle that quote directly"
+
+-- One dealer's showing in one auction. `fromWinnerBps` is the distance from the
+-- winning ask, never the ask: a losing price is archived unrevealed and stays that
+-- way, and a dealer asked what is kept about it can be told "how far you were from
+-- the winner, not your number".
+data PanelEntry = PanelEntry
+  with
+    dealer : Party
+    fromWinnerBps : Decimal
+    sealedAt : Optional Time
+  deriving (Eq, Show)
+
+-- What a panel did, kept after the RFQ that produced it is gone. The award consumes
+-- the RFQ and archives every losing quote, so without this the only durable trace of
+-- an auction is its TradeReport — which names the winner and nobody else. Scoring a
+-- panel needs the dealers who were invited and said nothing, and they are precisely
+-- the ones that leave no contract behind.
+--
+-- Signatory buyer, no observers. Every fact here is one the buyer already received
+-- lawfully as a Quote signatory; keeping a summary is not a new disclosure. It is
+-- deliberately NOT shown to the regulator: how a panel behaves is the buyer's
+-- commercial record, not part of the post-trade report.
+template PanelRecord
+  with
+    buyer : Party
+    instrument : Text
+    quantity : Decimal
+    invited : [Party]
+    entries : [PanelEntry]   -- one per dealer that actually answered
+    winner : Party
+    clearingPrice : Decimal
+    awardedAt : Time
+  where
+    signatory buyer
+    ensure not (null invited) && not (null entries)
+
+-- A dealer that sealed an ask and then pulled it before the award. The buyer cannot
+-- write this alone and neither can the dealer: both sign, inside the Quote choice
+-- where both authorities are present. A dealer therefore co-signs the record of its
+-- own withdrawal, which is what makes it usable as evidence rather than an accusation.
+template QuoteWithdrawn
+  with
+    buyer : Party
+    dealer : Party
+    instrument : Text
+    withdrawnAt : Time
+  where
+    signatory buyer, dealer
 
 -- What the venue takes out of a cleared amount. Rounded to the cent, and zero
 -- when the desk charges nothing. The fee is not an invoice: it leaves the same
@@ -285,6 +366,9 @@ template Quote
     -- the venue takes, and settlement cannot be handed different terms afterwards.
     venue : Optional Party
     feeBps : Optional Decimal
+    -- When the dealer sealed it. The only source of a response time, and Optional
+    -- because a quote written by an older version of this package has none.
+    sealedAt : Optional Time
   where
     signatory dealer, buyer
 
@@ -401,9 +485,13 @@ template Quote
          pure ()
 
     -- Dealer walks away before award; escrow returns to the dealer.
+    -- Returns () and not the new contract id: upgrade validation refuses to let a
+    -- choice change its return type, because an 0.1.0 client still expects unit here.
     choice WithdrawQuote : ()
       controller dealer
       do _ <- exercise escrowCid DeliverTo with recipient = dealer
+         now <- getTime
+         _ <- create QuoteWithdrawn with buyer; dealer; instrument; withdrawnAt = now
          pure ()
 
     -- Selective disclosure — Canton's real superpower. The buyer reveals THIS

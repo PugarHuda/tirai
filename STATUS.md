@@ -138,7 +138,7 @@ That is fifteen of the model's twenty-two exercisable choices. The seven the UI
 never exercises are listed in section 2.
 
 Proven by: `npm run e2e` (`scripts/e2e.mjs`, 28 checks), `npm run e2e:actions`
-(18), `npm run e2e:bestexec` (8), `npm run e2e:shell` (23), `npm run e2e:paths`
+(23), `npm run e2e:bestexec` (8), `npm run e2e:shell` (23), `npm run e2e:paths`
 (29), `node scripts/e2e-hosted.mjs` (29 checks per engine across three engines,
 87). Those counts are counted from the source `check`/`say`/`ok` calls and match
 the README's test table, `e2e:paths` included. Every local suite here was run
@@ -344,8 +344,8 @@ become a holding this desk can split.
   (`Tirai.daml:558`), but no wallet has ever been pointed at it. `[unverified]`:
   open a `TokenTrade` in Canton Loop or Console against the 5N deployment and see
   what renders.
-- `README.md:140`, `README.md:193`, `VALIDATION.md:9`: "42 Daml test scripts".
-  Thirty-six scripts execute; six of them are seed and helper scripts with no
+- `README.md:140`, `README.md:193`, `VALIDATION.md:9`: "44 Daml test scripts".
+  Thirty-eight scripts execute; six of them are seed and helper scripts with no
   assertions.
 - Was: the README's test matrix omitted `npm run e2e:paths`. It lists it now, at
   29 assertions, most of them about refusals.

@@ -18,6 +18,7 @@
     <a class="on" href="#" data-view="rfqs"><span class="ic" aria-hidden="true">≣</span> Active RFQs</a>
     <a href="#" data-view="create"><span class="ic" aria-hidden="true">⇄</span> Create RFQ</a>
     <a href="#" data-view="activity"><span class="ic" aria-hidden="true">◷</span> My activity</a>
+    <a href="#" data-view="panel"><span class="ic" aria-hidden="true">⚖</span> Dealer panel</a>
     <a href="#" data-view="portfolio"><span class="ic" aria-hidden="true">◈</span> Portfolio</a>
     <a href="#" data-view="rails"><span class="ic" aria-hidden="true">⇉</span> Settlement rails</a>
     <a href="#" data-view="audit"><span class="ic" aria-hidden="true">✓</span> Audit trail</a>
@@ -190,6 +191,14 @@
   <section class="audit-view" id="view-rails" hidden>
     <h2 class="audit-title">Settlement rails <span class="hint">the cash legs this desk can clear a trade in, and who issues each one</span></h2>
     <div id="rails-body"></div>
+  </section>
+
+  <!-- Dealer panel: how each dealer behaved across the buyer's own auctions. Read from
+       PanelRecord, which nobody but the buyer is a stakeholder on — so this view is
+       empty for every other identity, and hidden for them entirely. -->
+  <section class="audit-view" id="view-panel" hidden>
+    <h2 class="audit-title">Dealer panel <span class="hint">counted from your own auctions — a dealer cannot see this, and neither can the regulator</span></h2>
+    <div id="panel-body"></div>
   </section>
 
   <!-- Portfolio view: each party's holdings, aggregated by instrument. -->

@@ -415,3 +415,74 @@ rule, so the settlement strip sat on the page as an empty green bar until a trad
 e2e 28/28 · actions 18/18 · shell 23/23 · best-exec 8/8 · paths 29/29, each on a fresh
 sandbox. The share cards are not regenerated: `npm run social` shoots the hosted desk,
 and the hosted desk is still the old build.
+
+## 27 August, later still — scoring a panel from a ledger that throws the evidence away
+
+The front-running answer has always ended with a list of things not built, and dealer
+scoring was top of it. Building it turned out to be a question about what the ledger
+keeps rather than about arithmetic.
+
+The obvious route was the update stream: replay history, count what each dealer did.
+Six shapes of `/v2/updates/flats` later I had a working pipe — offset checkpoints
+arriving correctly — and not one historical transaction event out of it. `beginExclusive:
+0` behaves as "from now" rather than "from the start", and I stopped rather than keep
+guessing at an API on a deadline. Worth writing down, because the endpoint looks alive
+the whole time it is telling you nothing.
+
+The route that survives is to stop needing the history. The award consumes the RFQ and
+archives every losing quote, so the only durable trace of an auction was its
+`TradeReport`, which names the winner and nobody else. A dealer that was invited and
+stayed silent leaves no contract at all — and that is exactly the dealer worth scoring.
+So `runAuction` now files a `PanelRecord` as it goes: who was invited, who answered,
+who won, and for each answer how far it sat from the winning ask.
+
+**In basis points, never the ask.** The distance is enough to score competitiveness, and
+a losing price stays unrevealed even in the buyer's own record. A dealer that asks what
+is kept about it can be told: how far you were from the winner, not your number. That
+felt like the difference between a scoring feature and a surveillance one.
+
+Response time needed a timestamp, and the honest version of that took a second pass. The
+RFQ carries no creation time, and one supplied by the client would be a number the buyer
+chose. So `Quote` gained `sealedAt` — Optional and appended, so an 0.1.0 contract still
+typechecks — and lateness is measured against the first dealer to answer that auction.
+Nobody in the auction can move that baseline alone.
+
+A withdrawal leaves a `QuoteWithdrawn` signed by buyer AND dealer, inside the Quote
+choice where both authorities are present. A dealer co-signs the record of its own
+withdrawal, which is what makes it evidence instead of an accusation.
+
+The view is a table with no composite score, because a single number looks most
+authoritative exactly when it is wrong and the weights would be mine rather than the
+ledger's. It renders for the buy side only, and the nav entry is not even offered to a
+dealer — a table built out of how your rivals behaved is the leak this product exists to
+prevent. The records are not on a dealer's node either, so the gate is belt and braces
+over a guarantee that already holds.
+
+Three things the build caught that I would not have:
+
+`WithdrawQuote` could not start returning the new contract id. Upgrade validation refuses
+a changed return type outright, because an 0.1.0 client still expects unit there. It
+creates and discards instead.
+
+And the rehearsal finally has a script. The README has documented "rehearse the upgrade
+against a sandbox holding the old version" since 0.2.0, and it was done by hand every
+time, which is how a check quietly stops happening. `npm run e2e:upgrade` boots a sandbox
+on the previous package, uploads the new one over it — the production order, not two
+`--dar` flags, which the sandbox rejects anyway — writes an RFQ and its quotes against the
+old package id, then awards by package NAME so the node picks the newest vetted version.
+Twelve checks: the old quote reads back with no `sealedAt`, settles under the new code at
+the second price, and lands in a panel record that scores the loser at 95 bps while
+carrying no response time it could not know.
+
+Getting that script to run cost three failures worth keeping. A `spawn` with `shell:true`
+does not quote its arguments, and this repository lives under "Hackathon Build on Canton"
+— the sandbox read "Build" and "on" as flags and printed its usage. `ledger upload-dar`
+rejects `--no-legacy-assistant-warning` rather than ignoring it. And a sandbox claims
+three ports above the one you give it, so 6866 collided with the demo on 6865 and died
+binding 6868. All three were invisible until the child's output stopped going to
+`stdio: 'ignore'`, which is the actual lesson.
+
+daml 44/44 · e2e 28/28 · actions 23/23 · shell 23/23 · best-exec 8/8 · paths 29/29 ·
+upgrade 0.4.0→0.5.0 12/12. The table starts empty on any ledger that predates it: fifty
+settled trades have no panel record, and the view says so rather than implying a dealer
+has never been invited.

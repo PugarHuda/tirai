@@ -306,7 +306,7 @@ assumption or a performance ceiling. On Canton, "dealer B cannot see dealer A's 
 README says "none" for Canton, and that is the whole thesis.
 
 **Q2. What is real, and what is a demo?**
-Real: the Daml model, the 42 test scripts, two DevNet deployments of the same package
+Real: the Daml model, the 44 test scripts, two DevNet deployments of the same package
 (`4b1e408f…` is 0.1.0, still what HackCanton's node runs; the validator has been upgraded
 through 0.2.0 to 0.3.0 for the venue fee), the on-network privacy verifier, 50 settled trades
 and 5 atomic baskets on the 5N validator, 16 best-execution attestations, the venue fee

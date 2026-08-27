@@ -114,6 +114,25 @@ const check = (n, c, d = '') => { R.push({ n, ok: !!c }); console.log((c ? '  �
     check('basket-reject produced the return-legs toast', (await toastText()).toLowerCase().includes('reject'));
   } catch (e) { check('RejectBasketQuote flow', false, e.message.split('\n')[0]); }
 
+  // The panel record is written by the award in case 1, so by here there is one
+  // auction to count. Two things matter: the numbers come out, and a dealer is never
+  // offered the table — it is built from how its rivals behaved.
+  console.log('\n── 6 · Dealer panel (scored from the buyer’s own auctions) ──');
+  try {
+    await p.locator('.side-nav a[data-view="panel"]').click(); await wait(2200);
+    const body = await txt('#panel-body');
+    check('the panel table counts the auction just run', /Invited/i.test(body) && /100%/.test(body), body.slice(0, 90));
+    check('both dealers appear, winner and loser alike', /dealerA/i.test(body) && /dealerB/i.test(body));
+    // The loser's distance is shown; the loser's ask is not, anywhere on the page.
+    check('the losing ask itself is never rendered', !body.includes('4,250,000') && /bps/.test(body));
+    await p.selectOption('#acting-as', 'dealerA'); await wait(2200);
+    check('a dealer is not offered the panel at all',
+      !(await p.locator('.side-nav a[data-view="panel"]').isVisible()));
+    check('and is moved off it rather than left on an empty view',
+      await p.locator('#view-panel').isHidden());
+    await p.selectOption('#acting-as', 'buyer'); await wait(1800);
+  } catch (e) { check('Dealer panel flow', false, e.message.split('\n')[0]); }
+
   console.log('\n── No uncaught errors ──');
   check('zero page/console errors', errs.length === 0, errs.slice(0, 4).join(' | '));
   await b.close();

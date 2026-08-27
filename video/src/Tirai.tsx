@@ -103,7 +103,7 @@ const PRICE_B = {x: 0.78, y: 0.5, w: 0.082, h: 0.26};
 
 // ---- 5 · numbers ------------------------------------------------------------
 const STATS: [string, string][] = [
-  ['42', 'Daml test scripts'],
+  ['44', 'Daml test scripts'],
   ['50', 'settled trades'],
   ['5', 'atomic baskets'],
   ['16', 'attestations'],

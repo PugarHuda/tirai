@@ -62,6 +62,9 @@ const ledgerEnd = async () => {
 const DESK_TEMPLATE_GROUPS = [
   ['Holding'],
   ['TradeReport', 'BasketTradeReport', 'QuoteDisclosure'],
+  // The buyer's own record of how each panel behaved. Nobody else is a stakeholder,
+  // so for every other identity these groups come back empty and the view stays away.
+  ['PanelRecord', 'QuoteWithdrawn'],
   ['RFQ', 'Quote', 'TokenTrade', 'BasketRFQ', 'BasketQuote'],
 ];
 
@@ -423,7 +426,7 @@ function renderRegulator(mine) {
 let lastReg = [];
 let lastAcs = { buyer: [], dealerA: [], dealerB: [] };
 let currentView = 'rfqs';
-const VIEWS = ['rfqs', 'create', 'activity', 'portfolio', 'rails', 'audit', 'bestexec', 'verify'];
+const VIEWS = ['rfqs', 'create', 'activity', 'panel', 'portfolio', 'rails', 'audit', 'bestexec', 'verify'];
 
 function showView(v) {
   currentView = v;
@@ -442,6 +445,7 @@ function showView(v) {
   if (v === 'rfqs') renderActive();
   if (v === 'create') renderCreate();
   if (v === 'activity') renderActivity();
+  if (v === 'panel') renderPanel();
   if (v === 'portfolio') renderPortfolio();
   if (v === 'rails') renderRails();
   if (v === 'verify') renderVerify();
@@ -510,6 +514,12 @@ function renderIdentity() {
   if (cta) cta.style.display = ACTING === 'buyer' ? '' : 'none';
   const createNav = document.querySelector('.side-nav a[data-view="create"]');
   if (createNav) createNav.style.display = ACTING === 'buyer' ? '' : 'none';
+  // Panel scoring is the buy side's commercial record. Showing a dealer a table built
+  // out of how its rivals behaved would be exactly the leak this product prevents, so
+  // the entry is not offered — and the records are not on a dealer's node to begin with.
+  const panelNav = document.querySelector('.side-nav a[data-view="panel"]');
+  if (panelNav) panelNav.style.display = ACTING === 'buyer' ? '' : 'none';
+  if (currentView === 'panel' && ACTING !== 'buyer') showView('rfqs');
 }
 
 // ---- the book ----------------------------------------------------------
@@ -970,6 +980,82 @@ function renderProgress(buyerAcs, regAcs) {
   strip.hidden = false;
 }
 
+// How the panel behaved, counted from the buyer's own auctions. No composite score:
+// a single number looks authoritative exactly when it is wrong, and the weights would
+// be mine rather than anything the ledger says. Raw columns, sorted, and the reader
+// draws the conclusion.
+//
+// Two of these cannot be computed from anything else on the ledger. A dealer that was
+// invited and stayed silent leaves no contract at all, and a losing ask is archived
+// unrevealed — so without PanelRecord the only durable trace of an auction names the
+// winner and nobody else.
+function renderPanel() {
+  const host = document.getElementById('panel-body'); if (!host) return;
+  const mine = actingAcs();
+  const records = mine.filter((c) => is(c, 'PanelRecord'));
+  const pulls = mine.filter((c) => is(c, 'QuoteWithdrawn'));
+
+  if (!records.length) {
+    setHTML(host, `<div class="audit-empty">${ledgerDown && !lastLoaded
+      ? 'Cannot reach the validator, so there is nothing to count.'
+      : 'No auction has been awarded from this identity yet. A panel is scored from your '
+        + 'own awards, so the table fills as you run them — nothing here is imported.'}</div>`);
+    return;
+  }
+
+  const row = {};
+  const seat = (p) => (row[p] ??= { party: p, invited: 0, answered: 0, won: 0, bps: [], late: [], pulled: 0 });
+  for (const r of records) {
+    const a = r.arg;
+    for (const d of a.invited) seat(d).invited++;
+    // Lateness is measured against the first dealer to answer THIS auction, not against
+    // when the request went out: the ledger does not record that, and a timestamp the
+    // buyer supplied would be a number the buyer chose.
+    const stamps = a.entries.map((e) => e.sealedAt).filter(Boolean).map((t) => Date.parse(t));
+    const first = stamps.length ? Math.min(...stamps) : null;
+    for (const e of a.entries) {
+      const st = seat(e.dealer);
+      st.answered++;
+      st.bps.push(Number(e.fromWinnerBps));
+      if (first !== null && e.sealedAt) st.late.push((Date.parse(e.sealedAt) - first) / 1000);
+      if (e.dealer === a.winner) st.won++;
+    }
+  }
+  for (const w of pulls) seat(w.arg.dealer).pulled++;
+
+  const avg = (xs) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : null);
+  const rows = Object.values(row).sort((a, b) => b.invited - a.invited || a.party.localeCompare(b.party));
+  const pct = (n, d) => (d ? Math.round((n / d) * 100) + '%' : '—');
+  const secs = (n) => (n === null ? '—' : n < 90 ? Math.round(n) + 's' : Math.round(n / 60) + 'm');
+
+  setHTML(host, `<table class="audit rfq-table"><thead><tr>
+      <th>Dealer</th><th class="num">Invited</th><th class="num">Answered</th>
+      <th class="num">Response</th><th class="num">Won</th>
+      <th class="num">Avg from winner</th><th class="num">Behind first</th><th class="num">Pulled</th>
+    </tr></thead><tbody>`
+    + rows.map((r) => {
+      const a = avg(r.bps);
+      return `<tr>
+        <td>${dealerLabel(r.party)}</td>
+        <td class="num">${r.invited}</td>
+        <td class="num">${r.answered}</td>
+        <td class="num">${pct(r.answered, r.invited)}</td>
+        <td class="num">${r.won}</td>
+        <td class="num">${a === null ? '—' : (a === 0 ? '0' : '+' + a.toFixed(1)) + ' bps'}</td>
+        <td class="num">${secs(avg(r.late))}</td>
+        <td class="num">${r.pulled || '—'}</td>
+      </tr>`;
+    }).join('')
+    + `</tbody></table>
+    <div class="vf-note">Counted over ${records.length} awarded auction${records.length > 1 ? 's' : ''}.
+      <b>Avg from winner</b> is how far this dealer's ask sat above the winning ask, in basis
+      points — the record keeps the distance, never the ask itself, so a losing price stays
+      unrevealed even here. <b>Behind first</b> is how long after the auction's quickest
+      responder it sealed. A dealer invited and silent shows a response rate below 100%,
+      which is the only place that behaviour is visible at all: it leaves no contract of
+      its own.</div>`);
+}
+
 // Portfolio: each party's holdings, aggregated by instrument.
 function renderPortfolio() {
   const el = document.getElementById('portfolio-body'); if (!el) return;
@@ -1173,6 +1259,7 @@ async function refresh() {
     renderProgress(b, r);
     if (!document.getElementById('view-audit')?.hidden) renderAudit();
     if (!document.getElementById('view-rfqs')?.hidden) keepFocus(renderActive);
+    if (!document.getElementById('view-panel')?.hidden) renderPanel();
     if (!document.getElementById('view-portfolio')?.hidden) renderPortfolio();
     if (!document.getElementById('view-rails')?.hidden) renderRails();
     if (!document.getElementById('view-verify')?.hidden) renderVerify();
