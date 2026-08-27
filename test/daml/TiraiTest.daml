@@ -1,5 +1,5 @@
 -- Full behavioural suite for the Tirai desk. Covers the happy path, the
--- privacy guarantees that ARE the product, Vickrey pricing across 1/2/3 quotes,
+-- privacy guarantees that ARE the product, Vickrey pricing across 2 and 3 quotes,
 -- escrow return on withdraw, and the failure modes (insufficient cash,
 -- cross-RFQ settlement, duplicate quotes).
 module TiraiTest where
@@ -104,29 +104,55 @@ testThreeQuoteVickrey = do
   ownedBy dealerA <$> query @Holding dealerA >>= \h -> h === [("USDC", 4250000.0)]
   ownedBy e.buyer <$> query @Holding e.buyer >>= \h -> h === [("TBOND30", 1000.0), ("USDC", 750000.0)]
 
--- Single quote: degenerate Vickrey pays the winner its own price.
-testSingleQuote : Script ()
-testSingleQuote = do
+-- One quote is not an auction. There is no second price to pay, and the old fallback
+-- quietly paid the winner its own ask under a Vickrey label. Refused now — the buyer
+-- that wants that price takes the direct rail, which records itself as direct OTC.
+testSingleQuoteAuctionRefused : Script ()
+testSingleQuoteAuctionRefused = do
   e <- setupEnv
   dealerA <- allocateParty "DealerA"
   cash <- mintCash e 5000000.0
   bondA <- mintBond e dealerA
   rfq <- openRfq e [dealerA]
   qA <- submit dealerA do exerciseCmd rfq SubmitQuote with dealer = dealerA; price = 4210000.0; assetCid = bondA
-  submit e.buyer do exerciseCmd rfq Award with quoteCids = [qA]; cashCid = cash
+  submitMustFail e.buyer do exerciseCmd rfq Award with quoteCids = [qA]; cashCid = cash
+  submit e.buyer do exerciseCmd qA SettleQuote with cashCid = cash; clearingPrice = 4210000.0
   ownedBy dealerA <$> query @Holding dealerA >>= \h -> h === [("USDC", 4210000.0)]
   ownedBy e.buyer <$> query @Holding e.buyer >>= \h -> h === [("TBOND30", 1000.0), ("USDC", 790000.0)]
+
+-- The attack the arity check exists for: two dealers quoted, and the buyer names only
+-- the cheaper one. Under the old fallback that shed the 4.25M second price and paid A
+-- its own 4.21M — a first-price auction wearing a Vickrey label, chosen by the buyer
+-- after seeing both numbers, with the shed quote never revealed to anyone.
+testCannotShedSecondPrice : Script ()
+testCannotShedSecondPrice = do
+  e <- setupEnv
+  dealerA <- allocateParty "DealerA"
+  dealerB <- allocateParty "DealerB"
+  cash <- mintCash e 5000000.0
+  bondA <- mintBond e dealerA
+  bondB <- mintBond e dealerB
+  rfq <- openRfq e [dealerA, dealerB]
+  qA <- submit dealerA do exerciseCmd rfq SubmitQuote with dealer = dealerA; price = 4210000.0; assetCid = bondA
+  qB <- submit dealerB do exerciseCmd rfq SubmitQuote with dealer = dealerB; price = 4250000.0; assetCid = bondB
+  submitMustFail e.buyer do exerciseCmd rfq Award with quoteCids = [qA]; cashCid = cash
+  -- Naming both is the only auction on offer, and it pays the second price.
+  submit e.buyer do exerciseCmd rfq Award with quoteCids = [qA, qB]; cashCid = cash
+  ownedBy dealerA <$> query @Holding dealerA >>= \h -> h === [("USDC", 4250000.0)]
 
 -- Award fails cleanly if the buyer's cash cannot cover the clearing price.
 testInsufficientCash : Script ()
 testInsufficientCash = do
   e <- setupEnv
   dealerA <- allocateParty "DealerA"
-  cash <- mintCash e 4000000.0 -- less than the 4.21M ask
+  dealerB <- allocateParty "DealerB"
+  cash <- mintCash e 4000000.0 -- below the 4.21M winning ask, let alone the 4.25M clearing
   bondA <- mintBond e dealerA
-  rfq <- openRfq e [dealerA]
+  bondB <- mintBond e dealerB
+  rfq <- openRfq e [dealerA, dealerB]
   qA <- submit dealerA do exerciseCmd rfq SubmitQuote with dealer = dealerA; price = 4210000.0; assetCid = bondA
-  submitMustFail e.buyer do exerciseCmd rfq Award with quoteCids = [qA]; cashCid = cash
+  qB <- submit dealerB do exerciseCmd rfq SubmitQuote with dealer = dealerB; price = 4250000.0; assetCid = bondB
+  submitMustFail e.buyer do exerciseCmd rfq Award with quoteCids = [qA, qB]; cashCid = cash
 
 -- A dealer can withdraw before award; the escrow returns to them intact.
 testWithdraw : Script ()
@@ -280,8 +306,11 @@ testDuplicateDealerRejected = do
   q1 <- submit dealerA do exerciseCmd rfq SubmitQuote with dealer = dealerA; price = 4210000.0; assetCid = bond1
   q2 <- submit dealerA do exerciseCmd rfq SubmitQuote with dealer = dealerA; price = 4200000.0; assetCid = bond2
   submitMustFail e.buyer do exerciseCmd rfq Award with quoteCids = [q1, q2]; cashCid = cash
-  -- but the buyer can still settle ONE of them (q2's bond stays locked in escrow)
-  submit e.buyer do exerciseCmd rfq Award with quoteCids = [q1]; cashCid = cash
+  -- Nor can the buyer wash it through a one-quote award: the two are the same dealer,
+  -- so there is no auction here to run at all. The direct rail settles one of them at
+  -- its ask, and q2's bond stays locked in escrow until it is withdrawn.
+  submitMustFail e.buyer do exerciseCmd rfq Award with quoteCids = [q1]; cashCid = cash
+  submit e.buyer do exerciseCmd q1 SettleQuote with cashCid = cash; clearingPrice = 4210000.0
   ownedBy dealerA <$> query @Holding dealerA >>= \h -> h === [("USDC", 4210000.0)]
 
 -- A dealer cannot pull the escrowed asset back out on their own while the quote
@@ -332,11 +361,14 @@ testCounterfeitCashRejected = do
   e <- setupEnv
   dealerA <- allocateParty "DealerA"
   bondA <- mintBond e dealerA
+  dealerB <- allocateParty "DealerB"
+  bondB <- mintBond e dealerB
   fakeCash <- submit e.buyer do
     createCmd Holding with issuer = e.buyer; owner = e.buyer; instrument = "USDC"; amount = 5000000.0
-  rfq <- openRfq e [dealerA]
+  rfq <- openRfq e [dealerA, dealerB]
   qA <- submit dealerA do exerciseCmd rfq SubmitQuote with dealer = dealerA; price = 4210000.0; assetCid = bondA
-  submitMustFail e.buyer do exerciseCmd rfq Award with quoteCids = [qA]; cashCid = fakeCash
+  qB <- submit dealerB do exerciseCmd rfq SubmitQuote with dealer = dealerB; price = 4250000.0; assetCid = bondB
+  submitMustFail e.buyer do exerciseCmd rfq Award with quoteCids = [qA, qB]; cashCid = fakeCash
 
 -- Direct bilateral OTC: the buyer hits one dealer's quote at its own ask via
 -- SettleQuote (clearingPrice = ask), no auction. Atomic DvP, dealer paid its ask.
@@ -477,13 +509,16 @@ testNoFeeUnchanged : Script ()
 testNoFeeUnchanged = do
   e <- setupEnv
   dealerA <- allocateParty "DealerA"
+  dealerB <- allocateParty "DealerB"
   cash <- mintCash e 5000000.0
   bondA <- mintBond e dealerA
-  rfq <- openRfq e [dealerA]
+  bondB <- mintBond e dealerB
+  rfq <- openRfq e [dealerA, dealerB]
   qA <- submit dealerA do exerciseCmd rfq SubmitQuote with dealer = dealerA; price = 4210000.0; assetCid = bondA
-  submit e.buyer do exerciseCmd rfq Award with quoteCids = [qA]; cashCid = cash
-  ownedBy dealerA <$> query @Holding dealerA >>= \h -> h === [("USDC", 4210000.0)]
-  ownedBy e.buyer <$> query @Holding e.buyer >>= \h -> h === [("TBOND30", 1000.0), ("USDC", 790000.0)]
+  qB <- submit dealerB do exerciseCmd rfq SubmitQuote with dealer = dealerB; price = 4250000.0; assetCid = bondB
+  submit e.buyer do exerciseCmd rfq Award with quoteCids = [qA, qB]; cashCid = cash
+  ownedBy dealerA <$> query @Holding dealerA >>= \h -> h === [("USDC", 4250000.0)]
+  ownedBy e.buyer <$> query @Holding e.buyer >>= \h -> h === [("TBOND30", 1000.0), ("USDC", 750000.0)]
   reports <- map snd <$> query @TradeReport e.regulator
   [r.feePaid | r <- reports] === [None : Optional Decimal]
 

@@ -120,6 +120,25 @@ const dealerLabel = (party) => esc(party.split('::')[0]);
 // Escape ledger-sourced strings before putting them in innerHTML (instrument, etc.).
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// Repaint politely. The desk polls every 1.8s and rebuilds whole columns with
+// innerHTML, which threw away an ask someone was still typing — the typed value lives
+// in the DOM, not in the template, so every tick reset it to the default.
+//
+// Two rules. Skip the write when the markup is unchanged, which makes the steady-state
+// poll a no-op. And yield a container back to whoever is using it: while a field
+// inside it has focus, or for a moment after a pointer went down inside it. An
+// interaction is far shorter than the poll, so the change lands on the next tick
+// instead of landing on top of the person. Focus only counts for fields — a button
+// keeps focus after it is pressed, and honouring that would freeze the column that
+// just changed. `guarded` drops the hold when its action completes.
+let pointerAt = 0, pointerIn = null;
+document.addEventListener('pointerdown', (e) => { pointerAt = Date.now(); pointerIn = e.target; }, true);
+const inUse = (el) => {
+  const a = document.activeElement;
+  if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && el.contains(a)) return true;
+  return Date.now() - pointerAt < 1200 && pointerIn instanceof Node && el.contains(pointerIn);
+};
+const setHTML = (el, html) => { if (el && el.innerHTML !== html && !inUse(el)) el.innerHTML = html; };
 // Validate a positive decimal from an input; return the trimmed string (no lossy
 // reformatting) or null. Daml Decimal accepts up to 10 fractional digits.
 const posDec = (raw) => {
@@ -209,24 +228,27 @@ function renderBuyer(mine) {
   const quotes = rfq ? allQuotes.filter((q) => q.arg.rfqId === rfq.cid) : [];
 
   if (!quotes.length) {
-    box.innerHTML = rfqs.length
+    setHTML(box, rfqs.length
       ? '<div class="empty">RFQ live — waiting for dealers to quote…</div>'
-      : '<div class="empty">No quotes yet.</div>';
+      : '<div class="empty">No quotes yet.</div>');
   } else {
     const sorted = [...quotes].sort((a, b) =>
       Number(a.arg.price) - Number(b.arg.price) || a.arg.dealer.localeCompare(b.arg.dealer));
     const winCid = sorted[0].cid;
+    // One quote is not an auction: the ledger refuses Award with no second price to
+    // pay, so the desk must not offer it either. The ask is still hittable directly.
+    const auction = sorted.length >= 2;
     const clearing = Number((sorted[1] ?? sorted[0]).arg.price);
     // Per-quote "Accept" = direct bilateral OTC: settle THIS dealer at its own
     // ask (SettleQuote at clearingPrice = price), instead of the competitive
     // Vickrey Award (2nd price) below. Same atomic DvP, same sealed privacy.
-    box.innerHTML = sorted.map((c) => {
+    let html = sorted.map((c) => {
       const cashFor = mine.find((h) => is(h, 'Holding') && h.arg.owner === P.buyer
         && h.arg.instrument === c.arg.payInstrument && Number(h.arg.amount) >= Number(c.arg.price));
       return `
       <div class="card ${c.cid === winCid ? 'win' : ''}">
         <div class="row"><span>${dealerLabel(c.arg.dealer)}</span><span class="price">${fmt(c.arg.price)} ${esc(c.arg.payInstrument)}</span></div>
-        <div class="sub">${esc(c.arg.instrument)} · ${fmt(c.arg.quantity)}${c.cid === winCid ? ' · Vickrey winner, pays 2nd price ' + fmt(clearing) : ''}</div>
+        <div class="sub">${esc(c.arg.instrument)} · ${fmt(c.arg.quantity)}${c.cid === winCid && auction ? ' · Vickrey winner, pays 2nd price ' + fmt(clearing) : ''}</div>
         ${cashFor ? `<button class="ghost accept" style="margin-top:8px" data-accept="${c.cid}" data-tpl="${esc(c.tpl)}" data-cash="${cashFor.cid}" data-price="${esc(c.arg.price)}">Accept · direct OTC (pay ask ${fmt(c.arg.price)})</button>
         <div class="form" style="margin-top:6px">
           <label>Partial fill <input type="number" id="fill-${c.cid}" value="${esc(c.arg.quantity)}" min="0" max="${esc(c.arg.quantity)}" /></label>
@@ -245,12 +267,18 @@ function renderBuyer(mine) {
     const totalCash = usdc.reduce((s, h) => s + Number(h.arg.amount), 0);
     const maxCash = usdc.reduce((m, h) => Math.max(m, Number(h.arg.amount)), 0);
     if (maxCash < clearing && totalCash >= clearing) {
-      box.innerHTML += `<div class="blind" style="text-align:left;font-style:normal">⚠ Your ${esc(rfq.arg.payInstrument)} is split across ${usdc.length} holdings — the largest is ${fmt(maxCash)}, but the ${fmt(clearing)} clearing price needs one holding to cover it. Total held: ${fmt(totalCash)}. (Settlement passes a single cash holding.)</div>`;
+      html += `<div class="blind" style="text-align:left;font-style:normal">⚠ Your ${esc(rfq.arg.payInstrument)} is split across ${usdc.length} holdings — the largest is ${fmt(maxCash)}, but the ${fmt(clearing)} clearing price needs one holding to cover it. Total held: ${fmt(totalCash)}. (Settlement passes a single cash holding.)</div>`;
     }
+
+    if (!auction) {
+      html += `<div class="blind" style="text-align:left;font-style:normal">Only one dealer has quoted, so there is no auction to run — no second price exists, and the ledger refuses an award that would quietly pay this dealer its own ask under a Vickrey label. Hit the ask directly with <b>Accept · direct OTC</b>, which settles at ${fmt(clearing)} and is recorded as the direct trade it is.</div>`;
+    }
+
+    setHTML(box, html);
 
     const cash = mine.find((c) => is(c, 'Holding') && c.arg.owner === P.buyer
       && c.arg.instrument === rfq.arg.payInstrument && Number(c.arg.amount) >= clearing);
-    if (rfq && cash) awardable = { rfqCid: rfq.cid, tpl: rfq.tpl, quoteCids: sorted.map((c) => c.cid), cashCid: cash.cid, qty: Number(rfq.arg.quantity) };
+    if (rfq && cash && auction) awardable = { rfqCid: rfq.cid, tpl: rfq.tpl, quoteCids: sorted.map((c) => c.cid), cashCid: cash.cid, qty: Number(rfq.arg.quantity) };
   }
   document.getElementById('btn-award').disabled = !awardable;
 
@@ -359,11 +387,11 @@ function renderDealer(role, mine) {
       + `</div>`
     : '';
 
-  panel.innerHTML = `
+  setHTML(panel, `
     <div class="block"><h3>Incoming RFQs</h3><div class="list">${rfqCards || '<div class="empty">none</div>'}</div></div>
     <div class="block"><h3>Your quotes <span class="hint">(rivals can't see these)</span></h3>
       <div class="list">${mineCards || '<div class="blind">You only ever see your own quotes.<br>Rival dealers’ quotes are never sent to your node.</div>'}</div></div>
-    ${basketBlock}`;
+    ${basketBlock}`);
 }
 
 function renderRegulator(mine) {
@@ -1107,12 +1135,23 @@ async function refresh() {
 const setLedger = (cls, msg) => { const el = document.getElementById('ledger-status'); el.className = 'ledger ' + cls; el.textContent = msg; };
 
 // ---- actions ---- (guarded so a double-click can't fire two submits)
-let acting = false;
+//
+// The guard is per BUTTON, not per app. It used to be one shared flag, so any action
+// begun while another was still in flight was dropped on the floor — no toast, no
+// console error, no command, nothing to tell the user their click did not happen. On
+// the side-by-side desk that is two different dealers whose actions have nothing to do
+// with each other: seal A's ask, seal B's a second later while A's submit is still
+// open, and B's quote simply never exists. Disabling the button that was pressed is
+// what double-click protection actually needs. Two actions that genuinely collide on
+// the same contract are refused by the ledger, with a message — better than silence.
 async function guarded(btn, fn) {
-  if (acting) return;
-  acting = true; if (btn) btn.disabled = true;
+  if (!btn) return fn();
+  if (btn.disabled) return;
+  btn.disabled = true;
   try { await fn(); }
-  finally { acting = false; if (btn) btn.disabled = false; }
+  // The press this action came from is over, so stop holding its column still: the
+  // repaint that shows the result is the one the user is now waiting for.
+  finally { btn.disabled = false; pointerAt = 0; }
 }
 
 // Called from two places: the Create RFQ page (the product path) and the buyer

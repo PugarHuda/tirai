@@ -5,7 +5,7 @@ conversation has taken place.** Nothing below reports a result. Everything is a
 plan, a target, or an assumption — and assumptions are marked as such. The
 numbers in the tables are thresholds to be tested against, not measurements.
 
-What is real and checkable today: the ledger model (41 Daml scripts green), the
+What is real and checkable today: the ledger model (42 Daml scripts green), the
 CIP-0056 settlement path against the frozen Splice v1 interfaces, a venue fee
 collected inside the settlement transaction (one settlement, 25 bps, on the
 validator — mechanism proven, rate unset, revenue zero), two Canton DevNet

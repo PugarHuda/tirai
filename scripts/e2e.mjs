@@ -86,7 +86,10 @@ const check = (name, cond, detail = '') => {
 
   console.log('── Case 6 · Portfolio / Verify / Audit views ──');
   await setView('portfolio');
-  check('Portfolio shows three party columns', (await p.locator('.pf-col').count()) === 3);
+  // One column, not three. The desk became a single-identity application, and Portfolio
+  // showing the other desks' books here would be the app leaking what the ledger does not
+  // — the side-by-side view is where the comparison belongs, and it says so.
+  check('Portfolio shows only the acting identity’s positions', (await p.locator('.pf-col').count()) === 1);
   check('Portfolio: buyer received the bond', (await txt('#view-portfolio')).includes('TBOND30'));
   await setView('verify');
   check('Verify-privacy verdict = verified', (await txt('.vf-verdict')).includes('verified'));

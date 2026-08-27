@@ -1,6 +1,6 @@
 sdk-version: 3.4.11
 name: tirai-desk
-version: 0.3.0
+version: 0.4.0
 source: daml
 # The package this one upgrades: 4b1e408f, the version live on DevNet. damlc
 # checks every change against it, so an edit that would strand existing contracts

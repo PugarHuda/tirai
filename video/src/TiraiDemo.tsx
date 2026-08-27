@@ -253,7 +253,7 @@ const ColdOpen: React.FC = () => {
 const STATS: [string, string][] = [
   ['50', 'settled trades'],
   ['5', 'atomic baskets'],
-  ['41', 'Daml test scripts'],
+  ['42', 'Daml test scripts'],
   ['16', 'best execution attestations'],
 ];
 

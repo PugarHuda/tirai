@@ -34,7 +34,7 @@ with the command that would settle them.
 >   token rail" with an explanation instead of an action that silently does nothing.
 >   Settling it from the browser is still not possible and is still the top item in §4.
 >
-> A `npm run e2e:paths` suite (27 checks) now covers the wrong paths: bad input, actions an
+> A `npm run e2e:paths` suite (29 checks) now covers the wrong paths: bad input, actions an
 > identity is not entitled to, a second quote from one dealer, filters that hide everything,
 > and the awaiting-allocation state. Every refusal asserts that no command was submitted.
 
@@ -48,7 +48,7 @@ with the command that would settle them.
 | RFQ visible only to the invited panel | `template RFQ` (l.118, `observer invitedDealers`) | `TiraiTest.daml:66-67` (uninvited party cannot quote), `:77` (regulator sees no RFQ) |
 | Escrow on quote | `Holding.Lock` (l.58) to `EscrowedHolding` (l.67) | `testTokenInterface` (`TiraiTest.daml:238`): after `Lock`, the standard `HoldingV1` view reports `lock.holders = [buyer]` |
 | Escrow cannot be pulled back unilaterally | `EscrowedHolding.DeliverTo` controller `dealer, buyer` (l.99) | `testEscrowNotUnilaterallyReleasable` (`TiraiTest.daml:288`) |
-| Reverse-Vickrey award, second price | `RFQ.Award` (l.161), clearing chosen at l.183-185 | `testHappyPathAndPrivacy` (l.56), `testThreeQuoteVickrey` (l.88), `testSingleQuote` (l.106, degenerate case pays own ask) |
+| Reverse-Vickrey award, second price | `RFQ.Award` -> shared `runAuction`, second price and the two-quote minimum | `testHappyPathAndPrivacy` (l.56), `testThreeQuoteVickrey` (l.88), `testSingleQuoteAuctionRefused` (one quote is refused, direct rail settles it), `testCannotShedSecondPrice` (buyer cannot drop to first price) |
 | Deterministic winner on a price tie | secondary sort on dealer, l.181 | read the sort key; no dedicated test |
 | One quote per dealer per auction | `Award` l.176-178 | `testDuplicateDealerRejected` (l.270) |
 | A quote can only settle its own RFQ | `rfqId = Some self` (l.156), checked l.172 | `testCrossRfqRejected` (l.143) |
@@ -138,11 +138,13 @@ That is fifteen of the model's twenty-two exercisable choices. The seven the UI
 never exercises are listed in section 2.
 
 Proven by: `npm run e2e` (`scripts/e2e.mjs`, 28 checks), `npm run e2e:actions`
-(16), `npm run e2e:bestexec` (8), `npm run e2e:shell` (23), `npm run e2e:paths`
-(22), `node scripts/e2e-hosted.mjs` (29 checks per engine across three engines,
+(18), `npm run e2e:bestexec` (8), `npm run e2e:shell` (23), `npm run e2e:paths`
+(29), `node scripts/e2e-hosted.mjs` (29 checks per engine across three engines,
 87). Those counts are counted from the source `check`/`say`/`ok` calls and match
-the README except `e2e:paths`, which the README's test table omits entirely.
-Pass status is `[unverified]`; each needs a fresh `npm run demo` first.
+the README's test table, `e2e:paths` included. Every local suite here was run
+green on 27 August against a fresh `npm run demo`, one clean sandbox per suite —
+the ledger is stateful, and a suite run on another suite's leftovers reports
+failures that are not real.
 
 ### 1.4 Agent surface (`mcp/server.mjs`, 300 lines)
 
@@ -342,11 +344,11 @@ become a holding this desk can split.
   (`Tirai.daml:558`), but no wallet has ever been pointed at it. `[unverified]`:
   open a `TokenTrade` in Canton Loop or Console against the 5N deployment and see
   what renders.
-- `README.md:140`, `README.md:193`, `VALIDATION.md:9`: "41 Daml test scripts".
+- `README.md:140`, `README.md:193`, `VALIDATION.md:9`: "42 Daml test scripts".
   Thirty-six scripts execute; six of them are seed and helper scripts with no
   assertions.
-- `README.md:191-199`: the test matrix omits `npm run e2e:paths`, which exists in
-  `package.json:26` and contains 22 assertions, most of them about refusals.
+- Was: the README's test matrix omitted `npm run e2e:paths`. It lists it now, at
+  29 assertions, most of them about refusals.
 - `README.md:153-154`: "Create RFQ ... with a choice of settlement rail" is true
   as written but omits that a rail-bound request cannot then be settled from the
   desk.
@@ -488,7 +490,7 @@ What this repository does record as deliberately dropped or refused:
 ## Verification cheat sheet
 
 ```
-cd test; daml test                                # the model, 41 scripts
+cd test; daml test                                # the model, 42 scripts
 node scripts/test-readonly-proxy.mjs              # 14, no network needed
 node scripts/test-devnet-logic.mjs                # 6, no network needed
 node scripts/devnet.mjs verify                    # privacy, on the live 5N node

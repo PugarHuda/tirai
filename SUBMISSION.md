@@ -116,7 +116,7 @@ BitSafe CBTC registry, a validator/hosting venue, and wallet support (Canton Loo
 
 ## What's built (verifiable now)
 
-- **41 Daml test scripts green** (`cd test; daml test`) — happy path, the two
+- **42 Daml test scripts green** (`cd test; daml test`) — happy path, the two
   privacy guarantees, Vickrey across 1/2/3 quotes, direct OTC, partial fills,
   baskets, selective disclosure, provable best execution, and the full CIP-0056
   DvP rail (cETH + CBTC, cancel, expiry, forged-allocation rejection, instrument

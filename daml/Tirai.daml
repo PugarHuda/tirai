@@ -4,7 +4,7 @@
 module Tirai where
 
 import DA.Foldable (forA_)
-import DA.List (dedup, head, sortOn, tail)
+import DA.List (dedup, sortOn)
 import DA.TextMap qualified as TextMap
 
 -- Canton Network Token Standard (CIP-0056) — the real Splice interface packages,
@@ -173,27 +173,7 @@ template RFQ
         quoteCids : [ContractId Quote]
         cashCid : ContractId Holding
       controller buyer
-      do assertMsg "no quotes submitted" (not (null quoteCids))
-         let uniqueCids = dedup quoteCids
-         assertMsg "duplicate quote ids" (length uniqueCids == length quoteCids)
-         quotes <- forA quoteCids \cid -> do
-           q <- fetch cid
-           -- Bind by the RFQ's own id: a quote settles this RFQ or nothing.
-           assertMsg "quote belongs to a different RFQ" (q.rfqId == Some self)
-           pure (cid, q)
-         -- One quote per dealer in a single auction: a dealer that happens to hold
-         -- surplus assets can't stuff the book with several of its own bids.
-         let dealers = map (\(_, q) -> q.dealer) quotes
-         assertMsg "a dealer may only have one quote in the auction"
-           (length (dedup dealers) == length dealers)
-         -- Secondary sort on dealer makes the winner deterministic on a price
-         -- tie, independent of the order the buyer listed the quotes in.
-         let sorted = sortOn (\(_, q) -> (q.price, q.dealer)) quotes
-         let (winCid, winQ) = head sorted
-         let clearing = case sorted of
-               _ :: (_, second) :: _ -> second.price
-               _ -> winQ.price
-         forA_ (tail sorted) \(cid, _) -> exercise cid RejectQuote
+      do (winCid, clearing) <- runAuction self quoteCids
          exercise winCid SettleQuote with cashCid; clearingPrice = clearing
 
     -- Award, but the buyer takes only `fillQuantity` of the winning lot at the
@@ -205,22 +185,7 @@ template RFQ
         cashCid : ContractId Holding
         fillQuantity : Decimal
       controller buyer
-      do assertMsg "no quotes submitted" (not (null quoteCids))
-         let uniqueCids = dedup quoteCids
-         assertMsg "duplicate quote ids" (length uniqueCids == length quoteCids)
-         quotes <- forA quoteCids \cid -> do
-           q <- fetch cid
-           assertMsg "quote belongs to a different RFQ" (q.rfqId == Some self)
-           pure (cid, q)
-         let dealers = map (\(_, q) -> q.dealer) quotes
-         assertMsg "a dealer may only have one quote in the auction"
-           (length (dedup dealers) == length dealers)
-         let sorted = sortOn (\(_, q) -> (q.price, q.dealer)) quotes
-         let (winCid, winQ) = head sorted
-         let clearing = case sorted of
-               _ :: (_, second) :: _ -> second.price
-               _ -> winQ.price
-         forA_ (tail sorted) \(cid, _) -> exercise cid RejectQuote
+      do (winCid, clearing) <- runAuction self quoteCids
          exercise winCid SettleQuotePartial with cashCid; clearingPrice = clearing; fillQuantity
 
     -- Reverse-Vickrey award with the cash leg in a REAL token-standard asset
@@ -237,22 +202,7 @@ template RFQ
         allocateBefore : Time
         settleBefore : Time
       controller buyer
-      do assertMsg "no quotes submitted" (not (null quoteCids))
-         let uniqueCids = dedup quoteCids
-         assertMsg "duplicate quote ids" (length uniqueCids == length quoteCids)
-         quotes <- forA quoteCids \cid -> do
-           q <- fetch cid
-           assertMsg "quote belongs to a different RFQ" (q.rfqId == Some self)
-           pure (cid, q)
-         let dealers = map (\(_, q) -> q.dealer) quotes
-         assertMsg "a dealer may only have one quote in the auction"
-           (length (dedup dealers) == length dealers)
-         let sorted = sortOn (\(_, q) -> (q.price, q.dealer)) quotes
-         let (winCid, winQ) = head sorted
-         let clearing = case sorted of
-               _ :: (_, second) :: _ -> second.price
-               _ -> winQ.price
-         forA_ (tail sorted) \(cid, _) -> exercise cid RejectQuote
+      do (winCid, clearing) <- runAuction self quoteCids
          exercise winCid ConvertToTokenTrade with
            cashInstrument; clearingPrice = clearing; allocateBefore; settleBefore
 
@@ -262,6 +212,43 @@ template RFQ
 
 -- Sealed quote. Signatories: dealer + buyer (both bound). No observers:
 -- competing dealers and the regulator cannot see it - by ledger model, not policy.
+-- The sealed auction itself, shared by all three award paths: validate the quote set
+-- the buyer names, pick the winner deterministically, archive the losers unrevealed,
+-- and hand back the SECOND price. One implementation, because an award path that
+-- grows its own copy of this is a path that can quietly price differently.
+--
+-- The arity check is the load-bearing line. `quoteCids` is a list the buyer chooses,
+-- and nothing on the ledger says it is every quote received. Dropping a quote from it
+-- normally RAISES what the buyer pays, so it punishes itself — except in the one case
+-- where the buyer keeps only the winner, because then there is no second price left to
+-- pay and the old code fell back to the winner's own ask. That turned a Vickrey auction
+-- into a first-price one at the buyer's discretion, silently, which is exactly the
+-- incentive the sealed quote is supposed to remove. So a one-quote auction is refused:
+-- a buyer that wants to lift an ask uses the direct rail (`SettleQuote` / `AcceptPartial`
+-- / `ConvertToTokenTrade`), which settles at the ask and is recorded as what it is.
+runAuction : ContractId RFQ -> [ContractId Quote] -> Update (ContractId Quote, Decimal)
+runAuction rfqCid quoteCids = do
+  assertMsg "no quotes submitted" (not (null quoteCids))
+  let uniqueCids = dedup quoteCids
+  assertMsg "duplicate quote ids" (length uniqueCids == length quoteCids)
+  quotes <- forA quoteCids \cid -> do
+    q <- fetch cid
+    -- Bind by the RFQ's own id: a quote settles this RFQ or nothing.
+    assertMsg "quote belongs to a different RFQ" (q.rfqId == Some rfqCid)
+    pure (cid, q)
+  -- One quote per dealer in a single auction: a dealer that happens to hold
+  -- surplus assets can't stuff the book with several of its own bids.
+  let dealers = map (\(_, q) -> q.dealer) quotes
+  assertMsg "a dealer may only have one quote in the auction"
+    (length (dedup dealers) == length dealers)
+  -- Secondary sort on dealer makes the winner deterministic on a price
+  -- tie, independent of the order the buyer listed the quotes in.
+  case sortOn (\(_, q) -> (q.price, q.dealer)) quotes of
+    (winCid, _) :: losers@((_, second) :: _) -> do
+      forA_ losers \(cid, _) -> exercise cid RejectQuote
+      pure (winCid, second.price)
+    _ -> abort "an auction needs at least two quotes: to lift a single ask, settle that quote directly"
+
 -- What the venue takes out of a cleared amount. Rounded to the cent, and zero
 -- when the desk charges nothing. The fee is not an invoice: it leaves the same
 -- transaction as the trade, or the trade does not happen.

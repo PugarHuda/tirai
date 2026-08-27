@@ -90,21 +90,29 @@ locking ten lots, where a real desk works on credit and netting.
 **Answer (EN).** The buyer awards with a list of quote contract ids. The choice fetches each
 one, asserts its `rfqId` is this RFQ, rejects duplicate ids, and asserts one quote per dealer
 so nobody can stuff the book. It sorts on price with the dealer as tie-break, so the winner
-is deterministic whatever order the buyer listed them in. The head of that sort wins; the
-clearing price is the second entry's price, or the winner's own price if there is only one
-quote. Losers are exercised with `RejectQuote` and archived unrevealed.
+is deterministic whatever order the buyer listed them in. The head of that sort wins and the
+clearing price is the second entry's price. A list of one is rejected outright: with no second
+price there is nothing to pay, and an auction that fell back to the winner's own ask would be a
+first-price auction wearing a Vickrey label. Losers are exercised with `RejectQuote` and
+archived unrevealed.
 
 **Jawaban (ID).** Buyer melakukan award dengan mengirim daftar contract id quote. Choice-nya
 fetch satu per satu, memastikan `rfqId`-nya memang RFQ ini, menolak id yang duplikat, dan
 memastikan satu dealer hanya punya satu quote, supaya buku tidak bisa dijejali. Lalu diurutkan
 berdasarkan harga dengan dealer sebagai tie-break, sehingga pemenangnya deterministik, tidak
-peduli urutan yang dikirim buyer. Yang teratas menang; clearing price-nya adalah harga entry
-kedua, atau harga si pemenang sendiri kalau quote-nya cuma satu. Yang kalah dieksekusi dengan
-`RejectQuote` dan diarsipkan tanpa pernah dibuka.
+peduli urutan yang dikirim buyer. Yang teratas menang, dan clearing price-nya adalah harga
+entry kedua. Daftar berisi satu quote ditolak mentah-mentah: tidak ada harga kedua untuk
+dibayar, dan lelang yang jatuh balik ke ask si pemenang itu first-price yang memakai label
+Vickrey. Yang kalah dieksekusi dengan `RejectQuote` dan diarsipkan tanpa pernah dibuka.
 
-**If they push back:** The buyer cannot game it by leaving a cheap quote out of the list —
-omitting a quote only ever raises the price the buyer pays. `Award`, `AwardPartial` and
-`AwardWithAllocation` share the identical selection logic.
+**If they push back:** The list is the buyer's, and nothing on the ledger says it is every
+quote received — so ask what dropping one buys them. Dropping a quote while two or more
+remain only ever raises the price the buyer pays, which is self-punishing. Dropping all but
+the winner is the case that would have paid first price, and that is the one the arity check
+refuses. A buyer that wants to lift an ask has the direct rail, which settles at the ask and
+is recorded as the direct trade it is instead of borrowing the auction's name. `Award`,
+`AwardPartial` and `AwardWithAllocation` all run the same `runAuction`, so there is one
+implementation to check rather than three.
 
 ---
 
@@ -493,8 +501,8 @@ sendiri. Satu-satunya yang bukan buatan saya adalah Canton Coin-nya, yang datang
 yang tidak saya kendalikan. Belum ada customer yang membayar, belum ada design partner yang
 tanda tangan.
 
-**If they push back:** What is verifiable rather than seeded: 41 Daml scripts, e2e 28/28,
-actions 16/16, best-exec 8/8, shell 14/14, hosted QA 87/87 across three engines, MCP 25/25,
+**If they push back:** What is verifiable rather than seeded: 42 Daml scripts, e2e 28/28,
+actions 18/18, best-exec 8/8, shell 23/23, hosted QA 87/87 across three engines, MCP 25/25,
 proxy self-test 14/14 — and `verify` green on both participants.
 
 ---

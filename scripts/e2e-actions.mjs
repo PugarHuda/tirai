@@ -24,12 +24,25 @@ const check = (n, c, d = '') => { R.push({ n, ok: !!c }); console.log((c ? '  �
   await p.locator('.side-nav a[data-view="desk"]').click(); await wait(600);
 
   console.log('\n── 1 · AwardPartial (partial-Vickrey) ──');
+  // Seal one ask and confirm it reached the buyer's book. One attempt, deliberately:
+  // the desk used to drop a click begun while another action was still in flight — no
+  // toast, no command, the quote simply did not happen — and dealer B's ask was the
+  // one that vanished here. Retrying would hide that coming back. Awarding on the one
+  // surviving quote also used to look like a pass, because the ledger then paid the
+  // winner its own ask.
+  const seal = async (role, ask) => {
+    const want = (await p.locator('#buyer-quotes .card').count()) + 1;
+    await p.waitForSelector(`button[data-quote="${role}"]`, { timeout: 15000 });
+    await wait(500);
+    await p.fill(`input[id^="ask-${role}-"]`, ask);
+    await p.click(`button[data-quote="${role}"]`);
+    return p.waitForFunction((n) => document.querySelectorAll('#buyer-quotes .card').length >= n,
+      want, { timeout: 15000 }).then(() => true, () => false);
+  };
   try {
     await rfq('TBOND30', 1000);
-    await p.waitForSelector('button[data-quote="dealerA"]', { timeout: 15000 }); await wait(600);
-    await p.fill('input[id^="ask-dealerA-"]', '4210000'); await p.click('button[data-quote="dealerA"]');
-    await p.waitForFunction(() => !!document.querySelector('button[data-quote="dealerB"]'), { timeout: 15000 }); await wait(400);
-    await p.fill('input[id^="ask-dealerB-"]', '4250000'); await p.click('button[data-quote="dealerB"]');
+    check('dealer A’s ask is sealed', await seal('dealerA', '4210000'));
+    check('dealer B’s ask is sealed', await seal('dealerB', '4250000'));
     await p.waitForSelector('#btn-award:not([disabled])', { timeout: 15000 }); await wait(700);
     check('partial-award row is visible when award is possible', await p.$eval('#award-partial-row', el => el.style.display !== 'none'));
     const settledBefore = Number(await txt('#stat-settled'));
@@ -41,7 +54,10 @@ const check = (n, c, d = '') => { R.push({ n, ok: !!c }); console.log((c ? '  �
     const m = reg.match(/TBOND30 400 @ ([\d,]+)/); // qty 400, prorated clearing price
     check('regulator sees a partial-fill report of TBOND30 400', !!m, reg);
     const price = m ? Number(m[1].replace(/,/g, '')) : 0;
-    check('partial clearing price is prorated to the 400/1000 fill (< full lot)', price > 0 && price < 2000000, 'price=' + price);
+    // Exactly the second price prorated, not merely "less than a full lot". The loose
+    // bound also accepted 1,684,000 — dealer A's OWN ask on a one-quote award — so it
+    // could not tell a Vickrey clear from a first-price one.
+    check('partial clearing price is the 2nd price prorated to 400/1000', price === 1700000, 'price=' + price);
     check('settled tile incremented', Number(await txt('#stat-settled')) === settledBefore + 1);
   } catch (e) { check('AwardPartial flow', false, e.message.split('\n')[0]); }
 

@@ -76,7 +76,7 @@ Attach four images, in this order. X shows the first one biggest.
 > me asking, which is faster than most companies I've worked with. The Token Standard is
 > genuinely usable today, I read the registry's own instrument list, asked its factories
 > for choice contexts, and settled against it with no special access. And the model stayed
-> small enough to reason about, 41 Daml test scripts cover the whole thing.
+> small enough to reason about, 42 Daml test scripts cover the whole thing.
 >
 > What didn't. DAR upload and party allocation on the hackathon node are admin only, so
 > without the operator you are simply stuck, and that isn't in the materials anywhere. My

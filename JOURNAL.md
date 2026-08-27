@@ -278,3 +278,89 @@ failing.
 The limit worth stating: on the registry rail the fee is not taken. Canton Coin and
 CBTC move through the issuer's allocation and never become a holding this desk can
 split. That is in the deck now, not buried in a commit message.
+
+## 27 August — the second price was optional, and nobody had to say so
+
+A question about the auction turned into the worst bug in the model. `Award` takes an
+explicit list of quote contract ids from the buyer, and nothing on the ledger says that
+list is every quote received. That was known and documented as safe, on the reasoning
+that dropping a quote raises the price the buyer pays. It does — while two or more
+remain. Drop everything except the winner and there is no second entry to price against,
+and the clearing expression fell back to the winner's own ask.
+
+So the buyer could read every sealed number, then choose between paying the second price
+and paying the first, and the choice left no trace. The shed quote is never revealed to
+anyone, so the losing dealer cannot see that it was dropped rather than beaten, and the
+winner cannot tell its own ask from a second price that happened to equal it. A dealer
+that expects this stops quoting its true number, which is the whole mechanism.
+
+The fix is an arity check, but the place to put it was the interesting part. All three
+award paths — `Award`, `AwardPartial`, `AwardWithAllocation` — carried a byte-identical
+copy of the validate-sort-clear block, the same shape as the three cash payout sites the
+venue fee nearly slipped through in August. One guard in one of them would have left the
+other two open. They now share `runAuction`, which is where the check lives: a quote list
+of one is refused outright. A buyer that wants to lift an ask still can, through the
+direct rail, which settles at the ask and records itself as a direct trade rather than
+borrowing the auction's name.
+
+Order of the assertions matters more than it looks. The RFQ-binding and one-quote-per-dealer
+checks run before the arity check, so `testCrossRfqRejected` and `testDuplicateDealerRejected`
+still fail for their own reasons rather than being swallowed by the new one. Three existing
+tests were passing single-quote lists into paths that were really testing something else —
+insufficient cash, counterfeit cash, no-fee settlement — and would have started failing for
+the wrong reason while still reporting green. Those now use two dealers.
+
+Shipped as 0.4.0 rather than a rebuild of 0.3.0: the behaviour changed and 0.3.0 is live
+on the validator, so reusing the number would put two different packages behind one
+version. Upgrade validation against the 0.1.0 base passes. `testCannotShedSecondPrice`
+is the regression test, and the suite is 42 scripts — the desk refuses the award, then
+takes the same trade down the direct rail and lands at the ask.
+
+Two surfaces followed. The desk no longer offers Award on a one-quote RFQ and says why,
+because a button that the ledger will refuse is worse than no button. And both Q&A packs
+asserted the old, wrong claim in English and Indonesian, as a security argument to a
+dealer — those now describe what is actually enforced, and B10 answers "worst bug you
+know about" with this one instead of a hypothetical.
+
+Closing the fallback then exposed what it had been hiding. Two suites went red —
+`e2e:actions` and `e2e:paths` — and both for the same reason: each awarded with a
+single sealed quote and had been passing on the first-price fallback without ever
+saying so. `e2e:paths` simply never sealed a second dealer's ask. `e2e:actions` tried
+to, and dealer B's quote was disappearing: click the button, no toast, no console
+error, no command on the wire, no quote.
+
+The assertion that should have caught it was too loose to. The partial award checked
+`price < 2,000,000` for an expected 1,700,000, and a one-quote award clears at
+4,210,000 × 400/1000 = 1,684,000, which also passes. Both numbers sit under the bound,
+so the check could not tell a Vickrey clear from a first-price one. It asserts the
+number exactly now.
+
+The disappearing quote cost the most time and was the best find. I spent a while on the
+wrong theory — that the 1.8-second poll rebuilds a column with `innerHTML` and a click
+in flight lands on a detached button — and the evidence looked right, because inserting
+a wait made it pass. It was not that. `guarded`, the double-click protection, held a
+single app-wide `acting` flag and returned early when it was set. Not a queue, not an
+error: a bare `return`. So any action begun while any other was still open was dropped
+on the floor, and the desk had no way to tell you. Dealer A's submit was still in flight
+when dealer B pressed its button four hundred milliseconds later, and on the
+side-by-side desk those two dealers have nothing to do with each other.
+
+The guard is per button now. Disabling the button that was pressed is what double-click
+protection actually needs, and the shared flag is deleted. Two actions that genuinely
+collide on the same contract are refused by the ledger, with a message, which beats
+silence. What makes this worth writing down is that the failure had no symptom at all —
+no error anywhere, on any surface — and it survived every suite because the one test
+that walked into it was checking a number loose enough to accept the wrong answer.
+
+The wrong theory left something worth keeping. Renders go through `setHTML`, which
+skips the write when the markup is unchanged and yields a container back while a field
+inside it has focus or a pointer just went down in it. The poll's steady state is a
+no-op now, and an ask no longer gets wiped out from under someone typing it — which it
+did, every 1.8 seconds, because the typed value lives in the DOM and not in the
+template. `guarded` releases that hold when its action finishes, since the repaint
+showing the result is the one the user is waiting for.
+
+Counts: 42 Daml scripts, e2e 28/28, actions 18/18, best-exec 8/8, shell 23/23, paths
+29/29, each on its own fresh sandbox. The seal step in `e2e:actions` gets one attempt
+and no retry on purpose — a retry loop would hide this bug coming back. `e2e:mcp` needs
+a Devnet token this machine cannot mint, so it stays unrun rather than claimed.

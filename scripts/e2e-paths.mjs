@@ -93,6 +93,18 @@ const bText = await p.locator('#view-rfqs').innerText();
 say('the rival dealer cannot see the ask', !bText.includes('4,210,000') && !bText.includes('4210000'));
 say('the rival is not offered anything to settle', (await p.locator('.rfq-act[data-act="settle"]').count()) === 0);
 
+// Seal the rival's ask as well, because the rail-bound award further down is a real
+// auction and an auction needs a second price. A one-quote award is refused by the
+// ledger now; it used to succeed and quietly pay the winner its own ask.
+const bQuote = p.locator('.rfq-act[data-act="quote"]').first();
+say('the rival is invited, and is offered its own quote', (await bQuote.count()) === 1);
+await bQuote.click();
+await wait(900);
+await p.fill('#modal-ask', '4250000');
+await p.click('#modal-submit');
+await wait(3000);
+say('the rival’s ask is sealed too', !(await p.locator('#modal-host').isVisible()));
+
 await acting('regulator');
 const regActs = await p.locator('.rfq-act[data-act="quote"], .rfq-act[data-act="settle"], .rfq-act[data-act="cancel"]').count();
 say('the regulator is offered no write action at all', regActs === 0, `${regActs} write actions`);
@@ -169,7 +181,9 @@ const awaiting = await p.evaluate(async () => {
   const rows = (Array.isArray(acs) ? acs : []).map((x) => x.contractEntry?.JsActiveContract?.createdEvent).filter(Boolean);
   const rfq = rows.find((c) => c.templateId.endsWith(':Tirai:RFQ') && c.createArgument.instrument === 'TBOND30');
   const quotes = rows.filter((c) => c.templateId.endsWith(':Tirai:Quote') && (c.createArgument.rfqId === rfq?.contractId));
-  if (!rfq || !quotes.length) return { error: 'no quoted RFQ to award' };
+  // Two sealed quotes, not one: a single-quote award has no second price to pay and
+  // the ledger refuses it, so a one-quote RFQ is not a fixture for this path.
+  if (!rfq || quotes.length < 2) return { error: 'no auction-ready RFQ to award (needs two sealed quotes)' };
   const iso = (ms) => new Date(ms).toISOString().replace(/\.\d+Z$/, 'Z');
   // The desk's own cash issuer is a perfectly good {admin, id}: the model does not
   // care who the registrar is, which is exactly the property under test.
