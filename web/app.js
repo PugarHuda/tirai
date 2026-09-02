@@ -660,8 +660,16 @@ function renderActive() {
     + '</tbody></table>'
     : `<div class="audit-empty">${ledgerDown && !lastLoaded
         ? '<b>This desk cannot reach its validator right now</b>, so there is nothing to read. '
-          + 'Nothing is wrong with the model or the code — clone the repo and run '
-          + '<span class="mono">npm run demo</span> to drive the whole desk locally.'
+          + 'The hosted deployment reads Devnet through service credentials that have expired; '
+          + 'a replacement is being arranged. Nothing is wrong with the model or the code.'
+          // A dead end is the wrong thing to hand someone who followed a link here.
+          // Point at the two things that still work before pointing at a clone.
+          + '<div class="sub" style="margin-top:10px">In the meantime: '
+          + '<a href="/media/tirai-demo.mp4">the sixty-second film of this desk running</a>, '
+          + 'the <a href="/deck">deck</a>, or clone '
+          + '<a href="https://github.com/PugarHuda/tirai">the repo</a> and run '
+          + '<span class="mono">npm run demo</span> — a Canton sandbox, seeded, serving this '
+          + 'same desk on your machine in about two minutes.</div>'
           + `<div class="sub" style="margin-top:8px">${esc(ledgerDown)}</div>`
         : !P.buyer || !lastLoaded
         ? 'Reading the book from the ledger…'
