@@ -12,29 +12,23 @@ checklist and the copy-paste text.
 
 ### 1 · To Jason — closes the `[Pugar to confirm demo assets]` open item
 
-The run of show has that bracket sitting against your name. Close it, and warn him
-about the link in the same message so it isn't a surprise on air.
+The run of show still has that bracket sitting against your name. Close it.
 
-> Hi Jason — confirming demo assets for my segment.
+> Hi Jason — confirming demo assets for my segment. Like Samuel, I'm presenting slides:
+> the 5N sandbox validator rotated its client keys and I lost access too, so rather than
+> point at a desk that can't read its ledger I've built the walkthrough from screenshots
+> captured off the real thing. Eleven slides, about four minutes, leaving six for your
+> questions.
 >
-> **Screen share:** a live Canton participant node running on my machine, driving the
-> desk end to end — buyer opens an RFQ to two dealers, each seals a quote, and you
-> watch the second dealer's column stay empty while the first one's quote exists.
-> Then the privacy verifier, which opens a separate read against each party's node and
-> counts what came back. About four minutes, leaving six for your questions.
+> One heads-up on the links: `tirai.vercel.app/app` currently shows a "cannot reach its
+> validator" notice for that same reason. The landing page, the deck and the repo are all
+> fine — if you'd rather drop `tirai.vercel.app/deck` and `github.com/PugarHuda/tirai` as
+> the primary links today, that works better for me.
 >
-> **One heads-up on the links.** The hosted desk reads Devnet through service
-> credentials that expired last week, and I don't have the replacement yet — so
-> `tirai.vercel.app/app` currently shows a "cannot reach its validator" notice instead
-> of the book. The landing page, the deck and the repo are all fine. My demo is a
-> local node so the session itself is unaffected; I just didn't want anyone clicking
-> through cold. If you'd rather drop `tirai.vercel.app/deck` and
-> `github.com/PugarHuda/tirai` as the primary links today, that works better for me.
->
-> Also, a small correction you're welcome to use or ignore: your intro says "about
-> forty lines of Daml". The privacy part is honestly two — the quote template declares
-> `signatory dealer, buyer` and has no observer clause at all. Happy to make that
-> point myself when you ask Q1.
+> Also, a small correction you're welcome to use or ignore: your intro says "about forty
+> lines of Daml". The privacy part is honestly two — the quote template declares
+> `signatory dealer, buyer` and has no observer clause at all. Happy to make that point
+> myself when you ask Q1.
 
 ### 2 · To Samuel (Umbra) — before you're both on air
 
@@ -63,40 +57,32 @@ He is the HackCanton lead and a validator operator. He knows which of NODERS' te
 > runs block enquiries over chat today and will put ten through Tirai and tell me where
 > it breaks. You see who is actually transacting on Canton rather than just holding —
 > if one or two names come to mind while I'm talking, I'd rather hear them from you
-> than guess. Also, separately: my hosted desk's 5N Devnet service credentials expired
-> and I'm trying to get them reissued. If you know who to ask, that's a small favour
-> with a disproportionate effect.
+> than guess. Also, separately: the 5N sandbox validator rotated its client keys and
+> I lost access, same as Samuel — my hosted desk has been reading an empty book since.
+> If you know who to ask for the replacement, that's a small favour with a
+> disproportionate effect.
 
 ---
 
-## T-30 — boot, and don't touch it
+## T-30 — open the deck, then leave it alone
 
-```powershell
-# Kill anything squatting on the ports first. A shadowed 8080 answers with someone
-# else's 404 and looks exactly like your bug.
-Get-NetTCPConnection -LocalPort 8080,6865,7575 -ErrorAction SilentlyContinue |
-  ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }
-cd "C:\Hackathons\Hackathon Build on Canton\tirai"
-npm run demo        # 1-2 min. "Party already exists" on first try = just run it again.
-```
-
-- Open `http://localhost:8080/app`. **One tab.** Zoom **125%**.
-- Warm the paint: click **Side-by-side proof**, then back to **Active RFQs**.
-- Open `media\tirai-demo.mp4` in a second window, **paused at 0:00**. That is your
-  parachute if the sandbox dies mid-segment.
-- Quit Slack, Discord DMs, mail. You are sharing a full screen for four minutes.
-
-> **If you rehearse, restart afterwards.** The seed gives each dealer `TBOND30 ×1000`
-> and `GILT10 ×100` — exactly two auctions per boot. A rehearsal spends one. A dealer
-> with no lot left cannot quote, live, in front of the room.
-
----
+- Open **`deck/office-hours.html`** from the repo — a local file, so nothing about your
+  segment depends on the network. Press `f` for full screen; arrow keys or click to
+  advance. (Hosted copy, if you want to link it: `tirai.vercel.app/deck/office-hours.html`.)
+- Check **slide 4** renders — the two dealer columns side by side. That is the slide the
+  whole segment rests on.
+- **Fallback ready:** `deck/tirai-office-hours.pdf`, same eleven pages, in case the
+  browser deck misbehaves.
+- Second window: `media/tirai-demo.mp4`, paused at 0:00. Sixty narrated seconds of the
+  real desk, if anyone asks to see it move.
+- Quit Slack, Discord DMs, mail. You are sharing a screen for ten minutes.
 
 ## During the session
 
 ### 0:00–0:22 — you are not speaking. Do these things.
 
-- Have `DEMO-4MIN.md` open on your second screen, scrolled to the spine.
+- Have `DEMO-4MIN.md` (or `DEMO-4MIN-ID.md`) open on your second screen, scrolled to the
+  spine — one paragraph per slide.
 - **Listen to Samuel's segment properly.** He answers four questions you are about to
   be asked variants of. If he says something you agree with, say so in the group
   discussion by name — it reads as generosity and costs you nothing.
@@ -105,15 +91,15 @@ npm run demo        # 1-2 min. "Party already exists" on first try = just run it
 > Tirai — confidential multi-dealer RFQ desk on Canton.
 > Deck: https://tirai.vercel.app/deck · Code: https://github.com/PugarHuda/tirai
 > Landing: https://tirai.vercel.app
-> (Heads-up: the hosted desk itself is showing a "cannot reach validator" notice today —
-> its Devnet service credentials expired and I'm getting them reissued. The demo you're
-> about to see is a live participant node. `npm run demo` from the repo gives you the
-> same desk on your own machine in two minutes.)
+> (Heads-up: the hosted desk is showing a "cannot reach validator" notice today — the 5N
+> sandbox validator rotated its client keys, which is the same thing that hit Umbra. Every
+> screenshot in my slides is off the real desk, and `npm run demo` from the repo gives you
+> that desk on your own machine in about two minutes if you want to break it yourself.)
 
 ### 0:22–0:32 — your segment
 
-Four minutes of demo from the spine in `DEMO-4MIN.md`, then Jason's four questions —
-all four are drafted there in full. The three that matter most:
+Eleven slides, about four minutes, then Jason's four questions — all four are drafted
+in full in `DEMO-4MIN.md`. The three that matter most:
 
 - **Q1 (forty lines)** — correct it downward to two, and explain *why* absence beats
   encryption. This is your best moment in the hour; don't hurry it.

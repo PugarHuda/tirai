@@ -1,179 +1,191 @@
 # Tirai — 4 menit, versi paham dulu
 
+*(Formatnya slide, bukan demo live — validator sandbox 5N merotasi client key dan Umbra
+kena hal yang sama. Deck: `deck/office-hours.html`.)*
+
 Kamu tetap **ngomong bahasa Inggris** di sesi itu. File ini bukan pengganti
 `DEMO-4MIN.md`, tapi supaya kamu tahu *apa* yang kamu ucapkan dan kenapa — jadi kalau
 pertanyaannya datang beda dari yang ditulis, kamu bisa nyusun sendiri, bukan lupa naskah.
 
-Pola tiap beat: **klik** → *kalimat Inggris yang kamu baca* → **arti + kenapa kalimat itu**.
+Pola tiap slide: *kalimat Inggris yang kamu baca* → **arti** → **kenapa kalimat itu**.
 
 ---
 
-## Spine 4 menit
+## Sebelas slide, 4 menit
 
-### 0:00–0:20 · Pembuka
-> *"Thanks Jason. I'm going to skip straight to the thing a screenshot can't show you,
-> which is a dealer's node not receiving something. This is a live participant node on
-> my machine — I'd have pointed at the hosted Devnet desk, but its service credentials
-> expired last week and I'd rather show you something real than something cached."*
+Deck-nya `deck/office-hours.html` — panah kiri/kanan untuk maju, `f` untuk layar penuh.
+Cadangan: `deck/tirai-office-hours.pdf`, isi sama.
 
-**Artinya:** "Makasih Jason. Aku langsung ke hal yang tidak bisa ditunjukkan screenshot:
-node seorang dealer yang *tidak menerima* sesuatu. Ini node participant hidup di mesinku
-— aku sebenarnya mau menunjuk desk Devnet yang di-hosting, tapi kredensial layanannya
-kedaluwarsa minggu lalu, dan aku lebih suka menunjukkan yang nyata daripada yang basi."
+**Semua screenshot di deck ini diambil dari desk asli yang jalan di node Canton hidup**,
+bukan mockup. Itu penting kalau ada yang bertanya: kamu bisa jawab bahwa gambarnya foto,
+bukan gambaran.
 
-**Kenapa begini:** Jason baru saja membaca intro panjang. Kalau kamu mengulanginya, kamu
-membuang 30 detik dari 240 detik yang kamu punya. Dan menyebut kredensial mati *duluan*
-mengubahnya dari aib jadi kejujuran. Kalau orang lain yang menemukannya, itu proyek mati.
-Kalau kamu yang bilang, itu rotasi kunci.
+### Slide 1 · sampul · 0:00–0:20
+> *"Thanks Jason. I'm going to skip straight to the thing a screenshot normally can't
+> show you — a dealer's node **not** receiving something. These are screenshots off a live
+> Canton node rather than a live desk, because the 5N sandbox validator rotated its client
+> keys last week and, like Samuel, I lost access. Same event, not two problems."*
 
-### 0:20–0:50 · Buka lelangnya
-**Klik:** `Create RFQ` → `Auction` → instrumen `TBOND30`, qty `1000` → `Open the auction`
-→ lalu `Side-by-side proof` di sidebar.
+**Artinya:** "Makasih Jason. Aku langsung ke hal yang biasanya tidak bisa ditunjukkan
+screenshot — node seorang dealer yang *tidak menerima* sesuatu. Ini screenshot dari node
+Canton hidup, bukan desk hidup, karena validator sandbox 5N merotasi client key-nya minggu
+lalu dan, seperti Samuel, aku kehilangan akses. Satu peristiwa yang sama, bukan dua
+masalah."
 
-> *"A buyer wants a thirty-year treasury, a thousand units. Two dealers are invited. The
-> market never sees that this exists — not the instrument, not the size."*
-> *"Three columns, three participant nodes: the buyer, and the two dealers. Not three
-> apps. One ledger, seen from three places."*
+**Kenapa begini:** Samuel sudah bilang hal yang sama sebelum kamu, ke Jason dan ke Ales.
+Dengan menyebutnya sebagai *satu* peristiwa, kamu berhenti terdengar seperti orang yang
+proyeknya rusak dan mulai terdengar seperti orang yang tahu persis kenapa. Dan kamu
+membela Samuel sekaligus, yang akan dia sadari.
 
-**Artinya:** "Seorang buyer mau obligasi negara tenor 30 tahun, seribu unit. Dua dealer
-diundang. Pasar tidak pernah tahu ini ada — instrumennya tidak, ukurannya tidak."
-"Tiga kolom, tiga node participant: si buyer, dan dua dealer. Ini bukan tiga aplikasi.
-Satu ledger, dilihat dari tiga tempat."
+### Slide 2 · masalahnya · 0:20–0:45
+> *"An institution wants to move a block of bonds. Before it can trade, it has to ask
+> several dealers what they'd pay. And the moment anyone sees you asking, they know your
+> size and your direction — so the price moves against you before you trade. Which is why
+> block trading in 2026 still happens on the telephone."*
 
-**Kenapa begini:** Kalimat kedua itu penting dan sering disalahpahami penonton. Orang
-mengira kamu bikin tiga UI yang saling menyembunyikan. Yang sebenarnya: satu ledger, dan
-tiap kolom membaca node yang berbeda. Kalau ini tidak lurus di awal, seluruh bukti
-privasimu terbaca sebagai trik tampilan.
+**Artinya:** "Sebuah institusi mau memindahkan satu blok obligasi. Sebelum bisa trade, dia
+harus bertanya ke beberapa dealer berapa mereka mau bayar. Dan begitu ada yang melihat kamu
+bertanya, mereka tahu ukuranmu dan arahmu — jadi harganya bergerak melawanmu sebelum kamu
+sempat trade. Itulah kenapa block trading di tahun 2026 masih terjadi lewat telepon."
 
-### 0:50–1:50 · Momen inti
-**Klik:** kolom Dealer A → `Quote` → `4210000` → submit.
+**Kenapa kalimat terakhir:** itu bukan lelucon, itu argumen pasar. Kalau produkmu tidak
+lebih baik dari telepon, tidak ada gunanya. Menyebut telepon membuat pesaingmu jelas.
 
-> *"Dealer A answers with a sealed quote. Four million two hundred and ten thousand."*
+### Slide 3 · mekanismenya · 0:45–1:10
+> *"Four steps. The buyer invites a panel it chooses. Each dealer answers sealed, and
+> quoting moves that dealer's bond into escrow — a price is a commitment, not a bluff. The
+> cheapest ask wins and is paid the second-cheapest price. Bond and cash then move in one
+> transaction: both legs, or neither."*
 
-**Berhenti. Tunjuk kolom Dealer B. Tahan tiga detik penuh — jangan buru-buru.**
+**Artinya:** "Empat langkah. Buyer mengundang panel yang dia pilih sendiri. Tiap dealer
+menjawab tersegel, dan memberi quote memindahkan obligasi dealer itu ke escrow — harga
+adalah komitmen, bukan gertakan. Ask termurah menang dan dibayar harga termurah kedua.
+Obligasi dan uang lalu bergerak dalam satu transaksi: dua kaki sekaligus, atau tidak sama
+sekali."
 
-> *"Now Dealer B. Not a masked row. Not a commitment hash waiting to be revealed.
-> **Nothing.** That quote was never transmitted to Dealer B's node."*
+### Slide 4 · MOMEN INTI · 1:10–1:50
+**Diam tiga detik penuh sesudah slide ini muncul. Biarkan mereka membaca.** Ini satu-satunya
+slide yang akan mereka ingat besok.
 
-**Artinya:** "Sekarang Dealer B. Bukan baris yang disamarkan. Bukan commitment hash yang
-menunggu dibuka. **Tidak ada apa-apa.** Quote itu tidak pernah dikirim ke node Dealer B."
+> *"Two dealers, same auction, same moment. On the left, Dealer A has sealed four million
+> two hundred and ten thousand. On the right is Dealer B's own session, reading Dealer B's
+> own participant node."*
+>
+> *"Not a masked row. Not a commitment hash waiting to be revealed. Nothing. And that line
+> in Dealer B's column is the product telling you why: rival dealers' quotes are never sent
+> to your node."*
 
-**Kenapa tiga kalimat penyangkalan itu:** penonton teknis akan otomatis menebak "oh,
-pasti di-hash dulu terus di-reveal" — itu cara transparent chain menyelesaikannya. Kamu
-harus menutup tebakan itu sebelum muncul. *Masked row* = baris disamarkan. *Commitment
-hash* = sidik jari harga yang dibuka belakangan.
+**Artinya:** "Dua dealer, lelang yang sama, saat yang sama. Di kiri, Dealer A sudah
+menyegel empat juta dua ratus sepuluh ribu. Di kanan, sesi milik Dealer B sendiri, membaca
+node participant milik Dealer B sendiri."
+"Bukan baris yang disamarkan. Bukan commitment hash yang menunggu dibuka. Tidak ada
+apa-apa. Dan kalimat di kolom Dealer B itu adalah produknya sendiri yang menjelaskan
+kenapa: quote dealer pesaing tidak pernah dikirim ke node-mu."
 
-> *"Jason said forty lines of Daml. Honestly, the part that does this is two. The quote
-> template says `signatory dealer, buyer`, and then it says nothing else — there is no
-> observer clause. The regulator's party id is written on that contract as a field, and
-> the regulator still cannot see it, because being named in a contract is not the same as
-> being a stakeholder in it. On a transparent chain this beat costs you a TEE, a ZK
-> circuit, or an FHE scheme. Here it costs you a line you didn't write."*
+**Kenapa tiga penyangkalan itu:** penonton teknis akan otomatis menebak "pasti di-hash
+lalu di-reveal" — begitulah transparent chain menyelesaikannya. Kamu harus menutup tebakan
+itu sebelum sempat muncul. Dan kalimat terakhir bagus karena bukan *kamu* yang mengklaim —
+produknya yang menulis itu di layar, dan mereka bisa membacanya sendiri.
 
-**Artinya:** "Jason bilang empat puluh baris Daml. Jujurnya, bagian yang melakukan ini
-cuma dua. Template quote menulis `signatory dealer, buyer`, lalu berhenti — tidak ada
-klausa observer sama sekali. Party id regulator itu *tertulis* di kontrak tersebut sebagai
-sebuah field, dan regulator tetap tidak bisa melihatnya, karena disebut namanya di dalam
-kontrak tidak sama dengan menjadi stakeholder-nya. Di chain transparan, momen ini
-membuatmu bayar TEE, sirkuit ZK, atau skema FHE. Di sini, harganya adalah satu baris yang
-tidak kamu tulis."
+### Slide 5 · dua barisnya · 1:50–2:35
+> *"Jason said about forty lines of Daml. Honestly, the part that does this is two. The
+> quote template declares `signatory dealer, buyer`, and then it stops — there's no
+> observer clause at all."*
+>
+> *"Look at the regulator. Its party id is written on that contract as a field, and the
+> regulator still cannot see it — because being named in a contract isn't the same as being
+> a stakeholder in it. On a transparent chain this costs you a TEE, a ZK circuit, or an FHE
+> scheme. Here there's no third party to hide from, so there's nothing to encrypt. I've
+> built this product four times on transparent chains; every time, the cryptography was
+> most of the work."*
 
-**Kenapa ini momen terbaikmu:** kamu mengoreksi host ke arah yang membuat proyekmu terlihat
-*lebih* kuat, bukan lebih lemah. Dan detail regulator itu bukti yang tidak bisa dibantah —
-menunjukkan bahwa privasinya bukan soal "data disembunyikan", tapi soal siapa yang jadi
-pihak dalam kontrak. Kalimat terakhir ("satu baris yang tidak kamu tulis") adalah yang akan
-dikutip orang.
+**Artinya:** "Jason bilang sekitar empat puluh baris Daml. Jujurnya, bagian yang melakukan
+ini cuma dua. Template quote mendeklarasikan `signatory dealer, buyer`, lalu berhenti —
+tidak ada klausa observer sama sekali."
+"Lihat regulatornya. Party id-nya tertulis di kontrak itu sebagai sebuah field, dan
+regulator tetap tidak bisa melihatnya — karena disebut namanya di dalam kontrak tidak sama
+dengan menjadi stakeholder-nya. Di chain transparan ini membuatmu bayar TEE, sirkuit ZK,
+atau skema FHE. Di sini tidak ada pihak ketiga untuk disembunyikan, jadi tidak ada yang
+perlu dienkripsi. Aku sudah membangun produk ini empat kali di chain transparan; tiap kali,
+kriptografinya yang menghabiskan sebagian besar pekerjaan."
 
-**Klik:** kolom Dealer B → `Quote` → `4250000` → submit.
-> *"Dealer B prices blind. Neither dealer has ever seen the other's number."*
+**Ini momen terbaikmu di seluruh sesi.** Kamu mengoreksi host ke arah yang membuat proyekmu
+terdengar lebih kuat. Jangan buru-buru — beri jeda sesudah "the part that does this is two."
 
-**Artinya:** "Dealer B memberi harga dalam keadaan buta. Tidak satu pun dealer pernah
-melihat angka lawannya."
+### Slide 6 · escrow, dan bugnya · 2:35–3:00
+> *"Quoting locks the dealer's bond in escrow, so the buyer never awards into a bluff. And
+> on the right — this is the worst bug I've shipped. With one quote there's no second price,
+> and awarding used to fall back to the winner's own ask. First price wearing a Vickrey
+> label, chosen after the buyer had seen every sealed number. The ledger refuses it outright
+> now, and the regression test is named after the bug."*
 
-### 1:50–2:05 · Buka segel ke regulator — **WAJIB SEBELUM AWARD**
-**Klik:** kolom buyer, di dua kartu quote → `⚖ Disclose to regulator`. Dua klik, jeda ~2 detik.
+**Artinya:** "Memberi quote mengunci obligasi dealer di escrow, jadi buyer tidak pernah
+meng-award ke gertakan. Dan di kanan — ini bug terburuk yang pernah kukirim. Dengan satu
+quote tidak ada harga kedua, dan meng-award dulu jatuh balik ke ask si pemenang sendiri.
+First price yang memakai label Vickrey, dipilih *sesudah* buyer melihat semua angka
+tersegel. Ledger menolaknya mentah sekarang, dan regression test-nya dinamai persis seperti
+bugnya."
 
-> *"Before I award — either side can reveal one sealed quote to a regulator, on demand,
-> without showing it to a rival and without publishing anything."*
+**Kenapa mengaku bug di depan umum:** orang yang pernah membangun sistem uang akan langsung
+mengenali kelas bug itu, dan Ales termasuk. Mengakuinya duluan menjual keinsinyuranmu jauh
+lebih keras daripada klaim apa pun. Ini juga jawaban Q3 moderator, jadi kalau sudah kamu
+tanam di sini, jawabanmu nanti tinggal melanjutkan.
 
-**Artinya:** "Sebelum aku award — pihak mana pun bisa membuka satu quote tersegel ke
-regulator, kapan diminta, tanpa memperlihatkannya ke pesaing dan tanpa mempublikasikan
-apa pun."
+### Slide 7 · verifier · 3:00–3:20
+> *"You shouldn't trust a demo about privacy. This view opens one read per party, addressed
+> to that party's node, and counts what came back. Four reads, four parties, four different
+> answers — checkable in your own devtools, from your side of the screen."*
 
-> ⚠ **Urutan ini tidak bisa ditawar.** `Award` mengarsip quote-nya, dan tombol disclose
-> ikut hilang. Kalau kamu award duluan, beat best execution di menit 3:10 mati total —
-> kartunya baca *"No competing asks disclosed"* dan tidak ada jalan balik di atas panggung.
-> Sudah kuuji: nol tombol disclose tersisa sesudah award.
+**Artinya:** "Kamu memang tidak seharusnya percaya pada demo soal privasi. View ini membuka
+satu pembacaan per party, dialamatkan ke node party itu, lalu menghitung apa yang kembali.
+Empat pembacaan, empat party, empat jawaban berbeda — bisa dicek di devtools-mu sendiri,
+dari sisi layarmu."
 
-### 2:05–2:30 · Award — harga kedua, atomik
-**Klik:** kolom buyer → `Award`. Tunggu banner `landed` muncul.
+**Kenapa "from your side of the screen" penting:** kamu memindahkan beban pembuktian ke
+penonton. Itu inti seluruh posisimu, dan itu juga jawaban Q4 moderator.
 
-> *"The cheapest ask wins — Dealer A — and is paid the second price. Four million two
-> hundred and fifty. Bond and cash move in one transaction: both legs or neither."*
-
-**Artinya:** "Ask termurah menang — Dealer A — dan dibayar harga kedua. Empat juta dua
-ratus lima puluh ribu. Obligasi dan uang bergerak dalam satu transaksi: dua kaki sekaligus,
-atau tidak sama sekali."
-
-**Kenapa "both legs or neither" penting:** itu istilah orang settlement. Artinya tidak ada
-jendela waktu di mana satu pihak sudah menyerahkan dan pihak lain belum. Bukan fitur
-sampingan — itu justru alasan meja institusi mau melihat chain sama sekali.
-
-### 2:30–3:10 · Privacy verifier
-**Klik:** sidebar → `Verify privacy`.
-
-> *"You should not trust a demo about privacy, so this doesn't ask you to. This view opens
-> a separate read against each party's node, as that party, and counts what came back.
-> Each dealer's node holds its own quote and nothing else. The regulator held zero
-> contracts until the trade executed."*
-> *"If you have devtools open you can watch it: four reads, four different parties, four
-> different answers. That is the whole claim, and it is checkable from your side of the
-> screen, not mine."*
-
-**Artinya:** "Kamu memang tidak seharusnya percaya pada demo soal privasi, jadi ini tidak
-memintamu percaya. View ini membuka pembacaan terpisah ke node tiap party, *sebagai* party
-itu, lalu menghitung apa yang kembali. Node tiap dealer memegang quote-nya sendiri dan
-tidak ada yang lain. Regulator memegang nol kontrak sampai trade-nya eksekusi."
-"Kalau devtools-mu terbuka, kamu bisa melihatnya sendiri: empat pembacaan, empat party
-berbeda, empat jawaban berbeda. Itu seluruh klaimnya, dan bisa dicek dari sisi layarmu,
-bukan sisiku."
-
-**Kenapa kalimat terakhir itu senjatanya:** kamu memindahkan beban pembuktian ke penonton.
-Ini juga jawaban Q4 moderator, jadi kalau kamu sudah menanamnya di sini, jawabanmu nanti
-tinggal melanjutkan, bukan mengulang.
-
-### 3:10–3:35 · Best execution tanpa order book
-**Klik:** sidebar → `Best execution`.
-
-> *"A public exchange proves best execution against a visible order book. There is no book
-> here. It still proves it, from the two asks disclosed a minute ago: the winner quoted the
-> lowest, and the buyer paid no worse than anyone. Confidential before the trade, auditable
-> after it — and everyone says you have to pick one."*
+### Slide 8 · best execution · 3:20–3:35
+> *"A public exchange proves best execution against a visible order book. There's no book
+> here, and it still proves it — from the sealed asks either side chose to reveal to the
+> regulator. Confidential before the trade, auditable after it. Everyone says you have to
+> pick one."*
 
 **Artinya:** "Bursa publik membuktikan best execution dengan membandingkan ke order book
-yang terlihat. Di sini tidak ada order book. Tetap terbukti, dari dua ask yang dibuka
-semenit lalu: pemenangnya memang menawar paling rendah, dan buyer tidak membayar lebih
-buruk dari siapa pun. Rahasia sebelum trade, bisa diaudit sesudahnya — padahal semua orang
-bilang kamu harus memilih salah satu."
+yang terlihat. Di sini tidak ada order book, dan tetap terbukti — dari ask tersegel yang
+salah satu pihak pilih untuk dibuka ke regulator. Rahasia sebelum trade, bisa diaudit
+sesudahnya. Semua orang bilang kamu harus memilih salah satu."
 
 **Istilah:** *best execution* = kewajiban regulatoris membuktikan nasabah dapat harga
-terbaik yang wajar. Ini bahasa compliance, bukan bahasa crypto — dan itulah kenapa kalimat
-ini yang paling menempel di telinga orang institusi.
+terbaik yang wajar. Ini bahasa compliance, dan justru itu yang menempel di telinga orang
+institusi.
 
-### 3:35–4:00 · Tutup, serahkan balik
-> *"That's the mechanism. Fifty settled trades on Devnet behind it, cash legs in real
-> Canton Coin and in BitSafe's CBTC through registries I don't control, and it shipped as a
-> package upgrade rather than a redeploy — the validator is running version 0.1 through 0.5
-> side by side. Jason, over to you."*
+### Slide 9 · jawaban soal front-running · 3:35–3:50
+> *"A judge asked me this at the grand final. An invited dealer does see the enquiry, and no
+> ledger stops that. What changed is that every award now writes a record: who was invited,
+> who answered, and how far each ask was from the winner's — in basis points, never the ask
+> itself. A losing price stays unrevealed even in the buyer's own record."*
 
-**Artinya:** "Itu mekanismenya. Di belakangnya ada lima puluh trade yang sudah settle di
-Devnet, kaki uangnya pakai Canton Coin asli dan CBTC-nya BitSafe lewat registry yang bukan
-aku yang kendalikan, dan ini dirilis sebagai upgrade paket, bukan deploy ulang — validator
-menjalankan versi 0.1 sampai 0.5 berdampingan. Jason, kembali ke kamu."
+**Artinya:** "Seorang juri menanyakan ini di grand final. Dealer yang diundang memang
+melihat enquiry-nya, dan tidak ada ledger yang bisa mencegah itu. Yang berubah: tiap award
+sekarang menulis satu catatan — siapa diundang, siapa menjawab, dan seberapa jauh tiap ask
+dari ask pemenang — dalam basis point, bukan ask-nya. Harga yang kalah tetap tak terungkap
+bahkan di catatan buyer sendiri."
 
-**Jangan pakai slot ini buat minta design partner.** Kamu punya 30 detik khusus di 0:58.
+**Kenapa mengulang pertanyaan juri:** menunjukkan kamu tidak berhenti sesudah menang.
+Itu persis yang Ales bilang ingin dia lihat dari builder pasca-hackathon.
 
----
+### Slide 10–11 · status, lalu serahkan balik · 3:50–4:00
+> *"Fifty settled trades on Devnet, cash legs in real Canton Coin and BitSafe's CBTC through
+> registries I don't control, shipped as a package upgrade rather than a redeploy. What I
+> won't claim: no design partner, no revenue, and the fee doesn't work on a registry rail.
+> Jason, over to you."*
+
+**Artinya:** "Lima puluh trade settled di Devnet, kaki uangnya pakai Canton Coin asli dan
+CBTC-nya BitSafe lewat registry yang bukan aku yang kendalikan, dirilis sebagai upgrade
+paket bukan deploy ulang. Yang tidak akan kuklaim: belum ada design partner, belum ada
+pendapatan, dan fee-nya tidak jalan di rail registry. Jason, kembali ke kamu."
+
+**JANGAN sampaikan permintaan design partner di sini.** Kamu punya 30 detik khusus di 0:58.
 
 ## Empat pertanyaan moderator — pahami argumennya, bukan hafal kalimatnya
 

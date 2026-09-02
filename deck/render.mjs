@@ -1,4 +1,6 @@
-// Render the Grand Final deck to a landscape PDF, one page per slide.
+// Render a deck to a landscape PDF, one page per slide.
+//   node deck/render.mjs             -> index.html      -> tirai-deck.pdf
+//   node deck/render.mjs office-hours -> office-hours.html -> tirai-office-hours.pdf
 // Same approach as scripts/make-pdf.mjs: the Playwright that is already a dev
 // dependency, no extra tooling.
 //   node deck/render.mjs
@@ -12,8 +14,9 @@ import { fileURLToPath } from 'node:url';
 import { pathToFileURL } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SRC = join(HERE, 'index.html');
-const OUT = join(HERE, 'tirai-deck.pdf');
+const NAME = process.argv[2] ?? 'index';
+const SRC = join(HERE, `${NAME}.html`);
+const OUT = join(HERE, NAME === 'index' ? 'tirai-deck.pdf' : `tirai-${NAME}.pdf`);
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });

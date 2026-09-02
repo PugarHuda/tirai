@@ -1,142 +1,156 @@
 # Tirai — the 4 minute demo
 
-One spine, two wrappers: **Canton Builders Office Hours** (public, slot 0:22–0:32 —
-~4 min demo then 4 moderator questions) and **the accelerator call with Ty** (1:1).
+One deck, two wrappers: **Canton Builders Office Hours** (public, slot 0:22–0:32 —
+~4 min presented, then 4 moderator questions) and **the accelerator call with Ty** (1:1).
 
-The clicks are identical. Only the first 20 seconds and the last 25 seconds change.
+The eleven slides are identical for both. Only the first 20 seconds and the last 25
+change.
 
-Every beat below was walked against a live sandbox on 2 Sep with Playwright — 12/14
-first pass, 5/5 after the disclose-order fix. It is a driving script, not a speech.
-
-Narration: ~470 words ≈ 3:10 at 150 wpm. The remaining ~50 seconds is typing and
-ledger round-trips. That silence is correct. Do not fill it.
+The screenshots in the deck were captured off the real desk running on a live Canton
+node on 2 Sep, walking the same path Playwright had already verified end to end. They
+are the product, not a mock-up.
 
 ---
 
 ## Before you go on
 
-```powershell
-Get-NetTCPConnection -LocalPort 8080,6865,7575 -ErrorAction SilentlyContinue |
-  Select-Object LocalPort, OwningProcess        # kill anything that answers
-cd "C:\Hackathons\Hackathon Build on Canton\tirai"
-npm run demo                                     # 1-2 min. "Party already exists" = just rerun.
-```
+**You are presenting slides**, matching Samuel — the 5N sandbox validator rotated its
+client keys and both of you lost access. That is one external event, not two project
+failures, and it is worth saying plainly if it comes up.
 
-- **Restart after every rehearsal.** `holdingsOnly` gives each dealer `TBOND30 ×1000`
-  and `GILT10 ×100` — exactly **two** auctions per boot. Rehearse and you have spent
-  them; a dealer with no lot left cannot quote, live, in front of everyone.
-- `http://localhost:8080/app`, **one tab**, browser zoom **125%**.
-- Warm the first paint: click **Side-by-side proof** once, then back to **Active RFQs**.
-- Close Slack, Discord DMs, and anything with a notification badge. You are sharing
-  a full screen for four minutes.
+The deck is **`deck/office-hours.html`** — 11 slides, arrow keys or click to advance,
+`f` for full screen, and the URL hash keeps your place if you reload. Every screenshot
+in it was captured from the real desk running on a live Canton node, not mocked up.
 
-### The hosted-desk problem — deal with this before 13:00
+- **Fallback:** `deck/tirai-office-hours.pdf`, same 11 pages. If the browser deck
+  misbehaves mid-session, open the PDF and keep going.
+- Open the deck **before** you join, press `f`, and check slide 4 renders — that is the
+  one that matters.
+- Zoom is irrelevant for the deck (it scales to the viewport), but close everything with
+  a notification badge. You are sharing a screen for ten minutes.
+- Have `media/tirai-demo.mp4` open in a second window, paused. If someone asks to see it
+  move, that is sixty narrated seconds of the real desk.
 
-Jason's script says "live on DevNet" and drops **tirai.vercel.app** in chat to the
-whole room. The landing page is fine (its numbers are hardcoded, and it is honest
-that the history was seeded by you). But it links straight to the desk, and the
-desk's DevNet credentials expired around 27 Aug: `/app` cannot reach the validator.
+### The hosted link — deal with this before 13:00
 
-It already fails honestly — *"This desk cannot reach its validator right now… nothing
-is wrong with the model or the code — clone the repo and run `npm run demo`."* That
-is survivable, but not if it surprises you on air.
+Jason drops **tirai.vercel.app** in chat to the whole room. The landing page is fine.
+The desk behind it cannot reach its validator, for the same key rotation. It now fails
+with a route out — the film, the deck, and a clone — rather than a dead end, but do not
+open it live.
 
 **Message to send Jason before the session:**
 
-> Quick heads-up for the links: the hosted desk's DevNet service credentials expired
-> last week and I haven't got the replacement yet, so tirai.vercel.app/app currently
-> shows a "cannot reach its validator" notice instead of the book. The landing page
-> and the deck are fine. My demo is a live participant node on my own machine, so the
-> session itself is unaffected — I just didn't want anyone clicking through cold.
-
-**If it comes up live:** *"The hosted deployment is read-only against DevNet and its
-service credentials expired last week — that's a key rotation, not a ledger problem.
-What you're watching here is a live participant node."* Do not open it.
+> Hi Jason — confirming demo assets for my segment. Like Samuel, I'm presenting slides:
+> the 5N sandbox validator rotated its client keys and I lost access too, so rather than
+> point at a desk that can't read its ledger I've built the walkthrough from screenshots
+> captured off the real thing. Eleven slides, about four minutes, leaving six for your
+> questions.
+>
+> One heads-up on the links: `tirai.vercel.app/app` currently shows a "cannot reach its
+> validator" notice for that same reason. The landing page, the deck and the repo are all
+> fine — if you'd rather drop `tirai.vercel.app/deck` and `github.com/PugarHuda/tirai` as
+> the primary links today, that works better for me.
+>
+> Also, a small correction you're welcome to use or ignore: your intro says "about forty
+> lines of Daml". The privacy part is honestly two — the quote template declares
+> `signatory dealer, buyer` and has no observer clause at all. Happy to make that point
+> myself when you ask Q1.
 
 ---
 
-## The spine · 4:00
+## The spine · 4:00 · eleven slides
 
-### 0:00 – 0:20 · frame
-*(wrapper-specific — see below)*
+~470 words ≈ 3:10 at 150 wpm. The rest is the pauses. Slide 4 gets a real one.
 
-### 0:20 – 0:50 · Open the auction, live
-*Click **Create RFQ** → **Auction** → Instrument `TBOND30`, Quantity `1000` →
-**Open the auction**. Then **Side-by-side proof** in the sidebar.*
+### Slide 1 · cover · 0:00–0:20
+> *"Thanks Jason. I'm going to skip straight to the thing a screenshot normally can't
+> show you — a dealer's node **not** receiving something. These are screenshots off a
+> live Canton node rather than a live desk, because the 5N sandbox validator rotated its
+> client keys last week and, like Samuel, I lost access. Same event, not two problems."*
 
-> A buyer wants a thirty-year treasury, a thousand units. Two dealers are invited.
-> The market never sees that this exists — not the instrument, not the size.
+### Slide 2 · the problem · 0:20–0:45
+> *"An institution wants to move a block of bonds. Before it can trade, it has to ask
+> several dealers what they'd pay. And the moment anyone sees you asking, they know your
+> size and your direction — so the price moves against you before you trade. Which is why
+> block trading in 2026 still happens on the telephone."*
+
+### Slide 3 · the mechanism · 0:45–1:10
+> *"Four steps. The buyer invites a panel it chooses. Each dealer answers sealed, and
+> quoting moves that dealer's bond into escrow — a price is a commitment, not a bluff.
+> The cheapest ask wins and is paid the second-cheapest price. Bond and cash then move in
+> one transaction: both legs, or neither."*
+
+### Slide 4 · THE MONEY SHOT · 1:10–1:50
+**Stop talking for three seconds after you land on this slide. Let them read it.**
+
+> *"Two dealers, same auction, same moment. On the left, Dealer A has sealed four million
+> two hundred and ten thousand. On the right is Dealer B's own session, reading Dealer B's
+> own participant node."*
 >
-> Three columns, three participant nodes: the buyer, and the two dealers. Not three
-> apps. One ledger, seen from three places.
+> *"Not a masked row. Not a commitment hash waiting to be revealed. Nothing. And that
+> line in Dealer B's column is the product telling you why: rival dealers' quotes are
+> never sent to your node."*
 
-### 0:50 – 1:50 · The money shot, and the two lines behind it
-*Dealer A column → **Quote** → `4210000` → submit.*
-
-> Dealer A answers with a sealed quote. Four million two hundred and ten thousand.
-
-*Pause. Point at Dealer B's column. Hold it — three full seconds.*
-
-> Now Dealer B. Not a masked row. Not a commitment hash waiting to be revealed.
-> **Nothing.** That quote was never transmitted to Dealer B's node.
+### Slide 5 · the two lines · 1:50–2:35
+> *"Jason said about forty lines of Daml. Honestly, the part that does this is two. The
+> quote template declares `signatory dealer, buyer`, and then it stops — there's no
+> observer clause at all."*
 >
-> Jason said forty lines of Daml. Honestly, the part that does this is two. The quote
-> template says `signatory dealer, buyer`, and then it says nothing else — there is no
-> observer clause. The regulator's party id is *written on that contract as a field*,
-> and the regulator still cannot see it, because being named in a contract is not the
-> same as being a stakeholder in it. On a transparent chain this beat costs you a TEE,
-> a ZK circuit, or an FHE scheme. Here it costs you a line you didn't write.
+> *"Look at the regulator. Its party id is written on that contract as a field, and the
+> regulator still cannot see it — because being named in a contract isn't the same as
+> being a stakeholder in it. On a transparent chain this costs you a TEE, a ZK circuit,
+> or an FHE scheme. Here there's no third party to hide from, so there's nothing to
+> encrypt. I've built this product four times on transparent chains; every time, the
+> cryptography was most of the work."*
 
-*Dealer B column → **Quote** → `4250000` → submit.*
+### Slide 6 · escrow, and the bug · 2:35–3:00
+> *"Quoting locks the dealer's bond in escrow, so the buyer never awards into a bluff.
+> And on the right — this is the worst bug I've shipped. With one quote there's no second
+> price, and awarding used to fall back to the winner's own ask. First price wearing a
+> Vickrey label, chosen after the buyer had seen every sealed number. The ledger refuses
+> it outright now, and the regression test is named after the bug."*
 
-> Dealer B prices blind. Neither dealer has ever seen the other's number.
+### Slide 7 · the verifier · 3:00–3:20
+> *"You shouldn't trust a demo about privacy. This view opens one read per party,
+> addressed to that party's node, and counts what came back. Four reads, four parties,
+> four different answers — checkable in your own devtools, from your side of the screen."*
 
-### 1:50 – 2:05 · Selective disclosure — **before the award, never after**
-*Buyer column: on each of the two sealed quote cards click
-**⚖ Disclose to regulator**. Two clicks, ~2s apart.*
+### Slide 8 · best execution · 3:20–3:35
+> *"A public exchange proves best execution against a visible order book. There's no book
+> here, and it still proves it — from the sealed asks either side chose to reveal to the
+> regulator. Confidential before the trade, auditable after it. Everyone says you have to
+> pick one."*
 
-> Before I award — either side can reveal one sealed quote to a regulator, on demand,
-> without showing it to a rival and without publishing anything.
+### Slide 9 · the front-running answer · 3:35–3:50
+> *"A judge asked me this at the grand final. An invited dealer does see the enquiry, and
+> no ledger stops that. What changed is that every award now writes a record: who was
+> invited, who answered, and how far each ask was from the winner's — in basis points,
+> never the ask itself. A losing price stays unrevealed even in the buyer's own record."*
 
-> ⚠ **Order is not optional.** The award archives the quotes and takes the disclose
-> buttons with them. Award first and the best-execution beat at 3:10 is dead: the card
-> reads *"No competing asks disclosed"* and there is no way back on stage. Verified —
-> zero disclose controls survive an award.
+### Slides 10–11 · status, then hand back · 3:50–4:00
+> *"Fifty settled trades on Devnet, cash legs in real Canton Coin and BitSafe's CBTC
+> through registries I don't control, shipped as a package upgrade rather than a redeploy.
+> What I won't claim: no design partner, no revenue, and the fee doesn't work on a
+> registry rail. Jason, over to you."*
 
-### 2:05 – 2:30 · Award — second price, atomic
-*Buyer column → **Award**. Wait for the `landed` banner.*
-
-> The cheapest ask wins — Dealer A — and is paid the **second** price. Four million
-> two hundred and fifty. Bond and cash move in one transaction: both legs or neither.
-
-### 2:30 – 3:10 · The privacy verifier
-*Sidebar → **Verify privacy**.*
-
-> You should not trust a demo about privacy, so this doesn't ask you to. This view
-> opens a separate read against each party's node, as that party, and counts what came
-> back. Each dealer's node holds its own quote and nothing else. The regulator held
-> zero contracts until the trade executed.
->
-> If you have devtools open you can watch it: four reads, four different parties, four
-> different answers. That is the whole claim, and it is checkable from your side of the
-> screen, not mine.
-
-### 3:10 – 3:35 · Best execution without a public book
-*Sidebar → **Best execution**.*
-
-> A public exchange proves best execution against a visible order book. There is no
-> book here. It still proves it, from the two asks disclosed a minute ago: the winner
-> quoted the lowest, and the buyer paid no worse than anyone. Confidential before the
-> trade, auditable after it — and everyone says you have to pick one.
-
-### 3:35 – 4:00 · close
-*(wrapper-specific)*
+**Do not deliver the ask here.** It has its own slot at 0:58, and slide 11 is there for it.
 
 ---
+
+## If it breaks
+
+| What happens | Do this |
+|---|---|
+| Browser deck misbehaves | `deck/tirai-office-hours.pdf`, same eleven pages. Keep talking while you open it. |
+| Someone asks to see it move | `media/tirai-demo.mp4` — sixty narrated seconds of the real desk. Second window, already paused. |
+| Someone asks to see it live | "The 5N sandbox rotated its client keys last week — same thing that hit Umbra. `npm run demo` from the repo boots a Canton sandbox and serves this desk on your own machine in about two minutes, and that's the version I'd rather you judge it on anyway." |
+| Someone asks about the hosted desk | Do not open it. Same answer as above. |
+| You're at 3:30 and on slide 6 | Skip 7 and 8, go straight to 9 and 10. The front-running answer and the honest-gaps slide both survive; the verifier gets covered again in moderator Q4 anyway. |
 
 ## Wrapper A — Canton Builders Office Hours
 
-**0:00 – 0:20 opening.** Jason has just read a long intro. Do not repeat it.
+**0:00 – 0:20 opening.** Jason has just read a long intro. Do not repeat it. (This is
+slide 1; the line is already in the spine above.)
 
 > Thanks Jason. I'm going to skip straight to the thing a screenshot can't show you,
 > which is a dealer's node *not* receiving something. This is a live participant node
@@ -144,7 +158,7 @@ What you're watching here is a live participant node."* Do not open it.
 > credentials expired last week and I'd rather show you something real than something
 > cached.
 
-**3:35 – 4:00 close.** Hand back cleanly — the moderator has four questions ready and
+**3:50 – 4:00 close.** Hand back cleanly — the moderator has four questions ready and
 your ask has its own slot at 0:58. Don't spend it here.
 
 > That's the mechanism. Fifty settled trades on DevNet behind it, cash legs in real
@@ -170,8 +184,12 @@ your ask has its own slot at 0:58. Don't spend it here.
 
 **Opening (0:00 – 0:20).** He has read the application. Skip the origin story.
 
-> Rather than talk about it — four minutes, and then I want to ask you about three
-> things I'm stuck on. This is a live Canton node, and I'm going to run a real auction.
+> Rather than talk about it — four minutes of slides, and then I want to ask you about
+> three things I'm stuck on.
+
+**On a 1:1 call you can afford the live version instead** — `npm run demo` boots in two
+minutes and there is no room to lose if it stumbles. `DEMO-4MIN-ID.md` still carries the
+click path if you want it. Your call on the day.
 
 **Close (3:35 – 4:00).** Then move to the asks — this is the actual point of the call.
 
@@ -200,23 +218,21 @@ answer is itself the data.
 
 ---
 
-## If it breaks, and traps baked into this build
+## If you drive it live instead (the Ty call, or anyone who asks for it)
 
-| What happens | Do this |
-|---|---|
-| A click does nothing | Per-button guard, not a hang. Click once more. **Never double-click** — a genuine collision is rejected by the ledger with a message on screen, which is worse than a pause. |
-| Sandbox dies / page won't load | Don't debug live. `media/tirai-demo.mp4` is a 60-second narrated cut of this exact flow. Third tab, paused, ready. Play it and keep talking. |
-| Ledger seems stuck | The desk polls every 1.8s. Count to four before you say anything. |
-| You're at 3:00 and not at the verifier | Skip best execution — the moderator's Q4 is about the verifier, so that is the one that must survive. |
+`npm run demo` boots a Canton sandbox and serves the desk in about two minutes, with no
+credentials of any kind. The click path is in `DEMO-4MIN-ID.md`. Four things that will
+bite you, all found the hard way:
 
-- **Disclose before award, always.** The controls do not survive the award.
-- **Best execution attests only when an instrument has exactly one settlement.**
-  Settle `TBOND30` twice and the card turns into "ambiguous" and the beat dies.
-- **No "Desk fee" field in the local demo** — the form only renders it when a `venue`
-  party exists in server config, and the sandbox seed allocates none. The fee is
-  spoken about, never pointed at. Don't go looking for the input on stage.
-- **Dealer panel is buyer-only.** Switching identity to a dealer hides the nav item.
-- **Landing page is safe to show. Hosted `/app` is not.**
+- **Disclose to the regulator BEFORE you award.** The award archives the quotes and takes
+  the disclose controls with them — zero survive it. Award first and the best-execution
+  view reads "No competing asks disclosed" for that trade, permanently.
+- **Rehearsing eats the ledger.** The seed gives each dealer `TBOND30 ×1000` and
+  `GILT10 ×100` — exactly two auctions per boot. Restart after every rehearsal.
+- **Best execution attests only when an instrument has exactly one settlement.** Settle
+  `TBOND30` twice and the card turns into "ambiguous".
+- **Dealer panel is buyer-only**, and there is no "Desk fee" field locally — the sandbox
+  seed allocates no venue party.
 
 ## The four moderator questions — answer them properly, they published them
 

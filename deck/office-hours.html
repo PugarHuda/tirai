@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Tirai — Canton Builders Office Hours</title>
+<meta name="description" content="Confidential multi-dealer RFQ desk on Canton. Canton Builders Office Hours, 2 September 2026." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" />
+<style>
+/* ==========================================================================
+   Tirai — Grand Final deck. Deliberately dark and high-contrast: this is projected
+   into a video call, not read on a screen next to the product. The product itself
+   is light (a dark navigation rail against white); the deck shares its typeface
+   (Manrope) and its green accent, not its surface.
+
+   Sizing: 1rem tracks the viewport (min of width/height so a 16:9 slide never
+   overflows on a squarer laptop screen). Print pins it to a 1280x720 page, so
+   the PDF is pixel-identical in proportion to the screen deck.
+   ========================================================================== */
+:root{
+  --bg:#0b0d10; --panel:#14181d; --panel-2:#191f28; --line:#3a4553;
+  --ink:#e7ecf2; --muted:#8b97a6; --accent:#6ee7b7; --accent-dim:#2b5a48;
+  --warn:#f0b45e; --shadow:#04060a;
+}
+*{ box-sizing:border-box; border-radius:0 !important; }
+html{ font-size:min(1vw, 1.7778vh); }
+body{
+  margin:0; background:var(--bg); color:var(--ink); font-weight:450;
+  font-family:'Manrope',ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  overflow:hidden;   /* a deck, not a document: nothing scrolls */
+}
+:focus-visible{ outline:2px solid var(--accent); outline-offset:2px }
+
+.slide{
+  position:fixed; inset:0; width:100vw; height:100vh;
+  opacity:0; visibility:hidden; transition:opacity .22s ease;
+  padding:5.2rem 6rem 4.4rem; display:flex; flex-direction:column;
+  justify-content:center; border-top:0.32rem solid var(--accent);
+  background:var(--bg); overflow:hidden;
+}
+.slide > *{ max-width:88rem }
+
+/* --- running head: block label left, slide number right ------------------ */
+.meta{
+  position:absolute; top:2.1rem; left:6rem; right:6rem;
+  display:flex; justify-content:space-between; align-items:baseline;
+  font-size:.92rem; letter-spacing:.16em; text-transform:uppercase; font-weight:800;
+}
+.meta .blk{ color:var(--accent) }
+.meta .num{ color:var(--muted); font-variant-numeric:tabular-nums }
+.foot{
+  position:absolute; bottom:2.1rem; left:6rem; right:6rem;
+  font-size:.86rem; letter-spacing:.09em; text-transform:uppercase;
+  color:#5e6b7a; font-weight:700;
+}
+
+/* --- type ---------------------------------------------------------------- */
+.kicker{ font-size:1.05rem; letter-spacing:.17em; text-transform:uppercase;
+  color:var(--accent); font-weight:800; margin:0 0 1.6rem }
+h1{ font-size:7.2rem; line-height:.98; letter-spacing:-.028em; font-weight:800;
+  margin:0 0 2rem; color:#fff }
+h2{ font-size:3.7rem; line-height:1.06; letter-spacing:-.022em; font-weight:800;
+  margin:0 0 2.2rem; color:#fff }
+h2 em{ font-style:normal; color:var(--accent) }
+p{ margin:0 0 1.4rem; font-size:1.5rem; line-height:1.5; color:#b9c5d2 }
+.lede{ font-size:2rem; line-height:1.4; color:var(--ink); max-width:66rem }
+.punch{ font-size:2.5rem; line-height:1.25; font-weight:800; color:#fff;
+  letter-spacing:-.015em; margin-top:.6rem }
+.punch em{ font-style:normal; color:var(--accent) }
+strong{ color:var(--accent); font-weight:800 }
+.small{ font-size:1.15rem; color:var(--muted) }
+.mono{ font-family:ui-monospace,SFMono-Regular,Menlo,monospace }
+
+/* --- brutalist boxes ----------------------------------------------------- */
+.cols{ display:grid; grid-template-columns:1fr 1fr; gap:2.4rem; margin:.6rem 0 1.8rem }
+.cols-3{ grid-template-columns:repeat(3,1fr) }
+.card{ background:var(--panel-2); border:.16rem solid var(--line);
+  box-shadow:.42rem .42rem 0 var(--shadow); padding:2.1rem 2.3rem }
+.card .n{ font-size:.9rem; letter-spacing:.14em; text-transform:uppercase;
+  font-weight:800; color:var(--accent); display:block; margin-bottom:.9rem }
+.card h3{ margin:0 0 .9rem; font-size:1.85rem; font-weight:800; color:#fff; letter-spacing:-.01em }
+.card p{ margin:0; font-size:1.32rem; line-height:1.45 }
+.card.bad{ border-color:#5a3030 } .card.bad .n{ color:#fca5a5 }
+.card.good{ border-color:var(--accent-dim) }
+
+.flow{ display:grid; grid-template-columns:repeat(5,1fr); gap:0;
+  border:.16rem solid var(--line); box-shadow:.42rem .42rem 0 var(--shadow); margin:.4rem 0 2rem }
+.step{ padding:1.9rem 1.7rem; border-right:.16rem solid var(--line); background:var(--panel) }
+.step:last-child{ border-right:0 }
+.step .s{ font-size:.88rem; letter-spacing:.13em; text-transform:uppercase;
+  font-weight:800; color:var(--accent); display:block; margin-bottom:.8rem }
+.step h4{ margin:0 0 .7rem; font-size:1.5rem; font-weight:800; color:#fff }
+.step p{ margin:0; font-size:1.14rem; line-height:1.42 }
+
+.stats{ display:grid; grid-template-columns:repeat(4,1fr); gap:2rem; margin:.4rem 0 2rem }
+.stat{ background:var(--panel-2); border:.16rem solid var(--line);
+  box-shadow:.42rem .42rem 0 var(--shadow); padding:1.9rem 1.9rem }
+.stat b{ display:block; font-size:4.6rem; line-height:.92; font-weight:800;
+  color:var(--accent); letter-spacing:-.03em; font-variant-numeric:tabular-nums }
+.stat span{ display:block; margin-top:.8rem; font-size:1.1rem; line-height:1.35;
+  color:var(--muted); letter-spacing:.04em; text-transform:uppercase; font-weight:700 }
+
+table{ width:100%; border-collapse:collapse; font-size:1.35rem; margin:.4rem 0 1.4rem }
+th{ text-align:left; padding:1rem 1.3rem; font-size:.92rem; font-weight:800;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--accent);
+  border-bottom:.16rem solid var(--line) }
+td{ padding:1rem 1.3rem; border-bottom:.08rem solid #232c37; color:#b9c5d2 }
+td.hi{ color:#fff; font-weight:700 }
+tr.on td{ color:#fff }
+tr.on td.hi{ color:var(--accent) }
+
+ul{ margin:0 0 1.4rem; padding-left:2.2rem }
+li{ margin:0 0 1rem; font-size:1.5rem; line-height:1.45; color:#b9c5d2 }
+li::marker{ color:var(--accent) }
+
+.rule{ height:.32rem; background:var(--accent); width:9rem; margin:0 0 2.2rem }
+.tag{ display:inline-block; border:.16rem solid var(--line); background:var(--panel-2);
+  box-shadow:.3rem .3rem 0 var(--shadow); padding:.7rem 1.3rem; margin:0 1rem 1rem 0;
+  font-size:1.05rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:#c3cddb }
+.tag b{ color:var(--accent) }
+.tbc{ color:var(--warn); font-weight:800 }
+
+/* --- title & closing ----------------------------------------------------- */
+.cover{ border-top-width:.55rem }
+.cover .wordmark{ font-size:9.5rem; line-height:.9; font-weight:800; letter-spacing:-.04em; color:#fff; margin:0 }
+.cover .wordmark span{ color:var(--accent) }
+
+/* --- graceful degradation on small / non-16:9 screens -------------------- */
+@media (max-aspect-ratio:5/4){
+  .flow{ grid-template-columns:repeat(2,1fr) }
+  .step{ border-right:0; border-bottom:.16rem solid var(--line) }
+  .stats{ grid-template-columns:repeat(2,1fr) }
+}
+@media (max-width:760px){
+  html{ font-size:min(2.6vw,1.7vh) }
+  .slide{ padding:5rem 3rem 4rem }
+  .cols,.cols-3{ grid-template-columns:1fr }
+  .meta,.foot{ left:3rem; right:3rem }
+}
+
+/* --- print: one 1280x720 page per slide ---------------------------------- */
+@page{ size:1280px 720px; margin:0 }
+.slide.on{ opacity:1; visibility:visible }
+@media (prefers-reduced-motion:reduce){ .slide{ transition:none } }
+/* Where you are in the deck, and how to move. */
+#rail{ position:fixed; left:0; right:0; bottom:0; height:.28rem; background:#1b212a; z-index:40 }
+#rail i{ display:block; height:100%; background:var(--accent); transition:width .22s ease }
+#hint{ position:fixed; right:2.1rem; bottom:1.4rem; z-index:40; font-size:.9rem; letter-spacing:.1em;
+  text-transform:uppercase; font-weight:700; color:#5e6b7a; user-select:none }
+#fs{ position:fixed; right:5.6rem; bottom:1.05rem; z-index:41; width:2rem; height:2rem;
+  display:grid; place-items:center; padding:0; color:#5e6b7a; background:transparent;
+  border:.11rem solid #232b36; border-radius:.35rem; cursor:pointer; opacity:.55;
+  transition:opacity .18s ease, color .18s ease, border-color .18s ease }
+#fs:hover, #fs:focus-visible{ opacity:1; color:var(--accent); border-color:var(--accent-dim); outline:none }
+#fs svg{ width:1rem; height:1rem; fill:currentColor; display:block }
+/* Once you are full screen the control has done its job — findable, not loud. */
+:fullscreen #fs{ opacity:.22 }
+:fullscreen #fs:hover{ opacity:1 }
+.print-only{ display:none }
+@media print{
+  .print-only{ display:block }
+  #clip{ display:none }
+  /* Printing wants every slide, stacked, one per page. */
+  .slide{ position:relative; opacity:1; visibility:visible; inset:auto }
+  #rail, #hint, #fs{ display:none }
+  html{ font-size:12.8px }
+  body{ background:#0b0d10 }
+  .slide{ width:1280px; height:720px; break-after:page; page-break-after:always; min-height:0 }
+  .slide:last-child{ break-after:auto; page-break-after:auto }
+}
+</style>
+</head>
+<body>
+
+<!-- ===================== TITLE ========================================== -->
+<style>
+/* Screenshot slides: the picture is the argument, so it gets the room. */
+.full{ padding:3.2rem 4.2rem 3.4rem }
+.full h2{ font-size:2.4rem; margin:0 0 1.1rem }
+.shot,.crop{ border:.16rem solid var(--line); box-shadow:.42rem .42rem 0 var(--shadow); overflow:hidden; background:#fff }
+.shot img{ display:block; width:100% }
+.crop img{ display:block }
+.crop-dealers img{ width:149.6%; margin-left:-49.6% }   /* drop the buyer column */
+.figsplit{ display:grid; grid-template-columns:1fr 1.15fr; gap:2.6rem; align-items:start }
+.figsplit .shot img{ width:100% }
+.figsplit p{ font-size:1.32rem; line-height:1.5 }
+.cap{ font-size:1.06rem; color:var(--muted); margin:.9rem 0 0; line-height:1.5 }
+.code{ background:var(--panel); border:.16rem solid var(--line); padding:1.2rem 1.6rem;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:1.28rem; line-height:1.6;
+  color:#cfe3d8; white-space:pre; margin:.2rem 0 1.2rem }
+.code b{ color:var(--accent); font-weight:800 }
+.code i{ color:#6c7a8a; font-style:normal }
+</style>
+
+<section class="slide cover">
+  <p class="kicker">Canton Builders Office Hours &middot; 2 September 2026</p>
+  <p class="wordmark">tirai<span>.</span></p>
+  <p class="lede" style="margin-top:1.6rem">The confidential multi-dealer RFQ desk, built native
+    on Canton. Sealed quotes, atomic delivery-versus-payment, provable best execution.</p>
+  <p class="punch">You whisper quotes. <em>The market hears nothing.</em></p>
+  <p class="foot">Pugar Huda Mantoro &middot; solo builder &middot; HackCanton Season 2 &mdash; 3rd place</p>
+</section>
+
+<section class="slide">
+  <div class="meta"><span class="blk">The problem</span><span class="num">02 / 11</span></div>
+  <div class="rule"></div>
+  <h2>Asking for a price <em>is</em> the information</h2>
+  <p class="lede">An institution wants to move a block of bonds. Before it can trade, it has to
+    ask several dealers what they would pay.</p>
+  <p class="punch">The moment anyone sees you asking,<br>they know your size and your direction.</p>
+  <p class="foot">Which is why block trading in 2026 still happens on the telephone</p>
+</section>
+
+<section class="slide">
+  <div class="meta"><span class="blk">The mechanism</span><span class="num">03 / 11</span></div>
+  <p class="kicker">Four steps, and the market sees none of them</p>
+  <h2>A panel you choose.<br>Answers nobody else hears.</h2>
+  <div class="cols">
+    <div class="card">
+      <span class="n">01 &middot; Enquire</span><h3>The buyer invites a panel</h3>
+      <p>Two, three, five dealers &mdash; chosen by the buyer. The request reaches their nodes
+        and no others.</p>
+    </div>
+    <div class="card">
+      <span class="n">02 &middot; Quote</span><h3>Each answers sealed</h3>
+      <p>Quoting moves that dealer&rsquo;s bond into escrow. A price is a commitment, not a
+        bluff.</p>
+    </div>
+    <div class="card">
+      <span class="n">03 &middot; Award</span><h3>Cheapest wins, second price paid</h3>
+      <p>So shading your quote costs you deals without ever improving your margin.</p>
+    </div>
+    <div class="card">
+      <span class="n">04 &middot; Settle</span><h3>One transaction, both legs</h3>
+      <p>Bond and cash move together, or neither moves. No settlement window.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide full">
+  <div class="meta"><span class="blk">The part that matters</span><span class="num">04 / 11</span></div>
+  <h2>Two dealers. One has priced.<br>The other&rsquo;s node was never told.</h2>
+  <div class="crop crop-dealers"><img src="shots/02-moneyshot.png" alt="Dealer A holds a sealed quote of 4,210,000. Dealer B's own session shows no rival quote at all." /></div>
+  <p class="cap">Left: Dealer A, having sealed 4,210,000. Right: Dealer B&rsquo;s own session, at
+    the same moment, reading its own participant node. Not a masked row. Not a commitment hash
+    waiting to be revealed. Nothing.</p>
+</section>
+
+<section class="slide">
+  <div class="meta"><span class="blk">Why</span><span class="num">05 / 11</span></div>
+  <p class="kicker">Jason said about forty lines of Daml. Honestly, this part is two.</p>
+  <h2>The privacy is a <em>declaration</em>, not a mechanism</h2>
+  <div class="code">template Quote
+  with
+    <i>regulator : Party</i>
+    &hellip;
+  where
+    <b>signatory dealer, buyer</b>
+    <i>-- and nothing else. No observer clause.</i></div>
+  <p class="lede">The regulator&rsquo;s party id is a field on that contract &mdash; and the
+    regulator still cannot see it. Being <em>named</em> in a contract is not being a
+    <em>stakeholder</em> in it.</p>
+  <p class="punch">No third party to hide from,<br>so <em>nothing to encrypt.</em></p>
+  <p class="foot">Four previous builds of this product on transparent chains &mdash; TEE &middot; ZK circuits &middot; threshold encryption &middot; FHE</p>
+</section>
+
+<section class="slide full">
+  <div class="meta"><span class="blk">Mechanism design</span><span class="num">06 / 11</span></div>
+  <h2>A price you cannot walk away from &mdash;<br>and an auction that cannot be talked down</h2>
+  <div class="figsplit">
+    <div class="shot"><img src="shots/08-escrow-guard.png" alt="The buyer's own session: escrow controls on the received quote, and the ledger refusing to award a one-quote auction." /></div>
+    <div>
+      <p><b style="color:var(--accent)">Escrow on quote.</b> Submitting a price moves that
+        dealer&rsquo;s bond into escrow before the buyer ever sees the number. An indication is
+        free, and anything free gets abused in a sealed auction &mdash; quote aggressively
+        everywhere, decide later whether to honour it. Here the buyer never awards into a bluff,
+        and the dealer is never left holding a counterparty who changed their mind.</p>
+      <p><b style="color:var(--accent)">And the worst bug I have shipped.</b> With one quote there
+        is no second price. Awarding used to fall back to the winner&rsquo;s own ask &mdash; first
+        price wearing a Vickrey label, chosen <em>after</em> the buyer had seen every sealed
+        number, with the dropped quote never revealed to anyone.</p>
+      <p class="cap" style="margin-top:1.2rem">The ledger refuses it outright now. A buyer who
+        wants to lift an ask uses the direct rail, where it is recorded as the direct trade it is.
+        The regression test is named after the bug.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide full">
+  <div class="meta"><span class="blk">Proof, not assurance</span><span class="num">07 / 11</span></div>
+  <h2>Don&rsquo;t trust the demo. Count the nodes.</h2>
+  <div class="shot"><img src="shots/05-verify.png" alt="The privacy verifier, counting what each party's node actually holds." /></div>
+  <p class="cap">One read per party, addressed to that party&rsquo;s node, counting what came
+    back. Four reads, four parties, four different answers &mdash; visible in your own devtools.
+    The claim is checkable from your side of the screen, not mine.</p>
+</section>
+
+<section class="slide full">
+  <div class="meta"><span class="blk">The institutional payoff</span><span class="num">08 / 11</span></div>
+  <h2>Provable best execution, with no public book</h2>
+  <div class="shot"><img src="shots/06-bestexec.png" alt="Best execution attested against the sealed asks disclosed to the regulator." /></div>
+  <p class="cap">A public exchange proves best execution against a visible order book. There is no
+    book here. Either side can reveal a sealed ask to the regulator on demand &mdash; without
+    ever showing a rival &mdash; and the executed price is checked against it. Confidential
+    before the trade, auditable after it.</p>
+</section>
+
+<section class="slide full">
+  <div class="meta"><span class="blk">The question the judges asked</span><span class="num">09 / 11</span></div>
+  <h2>&ldquo;What if I&rsquo;m an invited dealer, and I front-run you?&rdquo;</h2>
+  <div class="shot"><img src="shots/07-panel.png" alt="The dealer panel: who was invited, who answered, how far each was from the winner in basis points." /></div>
+  <p class="cap">An invited dealer does see the enquiry, and no ledger stops that. What changed:
+    every award now writes a record the buyer keeps &mdash; who was invited, who answered, and how
+    far each ask was from the winner&rsquo;s <em>in basis points, never the ask itself</em>. A
+    losing price stays unrevealed even in the buyer&rsquo;s own record. A dealer who takes the
+    look and never prices is on the ledger, timestamped, attributable.</p>
+</section>
+
+<section class="slide">
+  <div class="meta"><span class="blk">Status</span><span class="num">10 / 11</span></div>
+  <h2>What is running, and what I <em>won&rsquo;t</em> claim</h2>
+  <div class="stats">
+    <div class="stat"><b>50</b><span>settled trades on Devnet</span></div>
+    <div class="stat"><b>8</b><span>in real Canton Coin and CBTC</span></div>
+    <div class="stat"><b>16</b><span>best-execution attestations</span></div>
+    <div class="stat"><b>44</b><span>Daml test scripts green</span></div>
+  </div>
+  <p class="lede" style="margin-top:1rem;font-size:1.6rem">Cash legs settle through registries I
+    neither control nor can mint into. Shipped as a package upgrade &mdash; the validator runs 0.1
+    through 0.5 side by side.</p>
+  <div class="cols">
+    <div class="card bad">
+      <span class="n">Built, but limited</span><h3>No fee on a registry rail</h3>
+      <p>Those settle by issuer allocation, not by splitting a holding I hold. cETH still waits
+        on a token grant.</p>
+    </div>
+    <div class="card bad">
+      <span class="n">Not yet true</span><h3>No design partner, no revenue</h3>
+      <p>The trading history was seeded by me to exercise the flows. It is not customer volume,
+        and I won&rsquo;t present it as any.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide cover">
+  <div class="meta"><span class="blk">The ask</span><span class="num">11 / 11</span></div>
+  <p class="kicker">If someone here can make one introduction</p>
+  <h2>One desk. Ten enquiries.<br>Ninety days.</h2>
+  <p class="lede">A dealer, a desk, or a fund administrator that runs block enquiries over chat
+    today &mdash; and will put ten of them through this and tell me where it breaks. Not a
+    contract. Ten enquiries.</p>
+  <p class="punch">I have written down where I stop: <em>two quiet weeks, or one quote visible to
+    a rival,</em> and the pilot ends there.</p>
+  <p class="foot">hudapugar@gmail.com &middot; github.com/PugarHuda/tirai &middot; also: a second Token Standard implementation to test your registry against</p>
+</section>
+
+<script>
+// A deck, not a document. One slide is visible at a time; arrows, space, click and
+// swipe move between them, and the URL hash keeps your place across a reload.
+(() => {
+  const slides = [...document.querySelectorAll('.slide')];
+  const rail = document.createElement('div'); rail.id = 'rail'; rail.innerHTML = '<i></i>';
+  const hint = document.createElement('div'); hint.id = 'hint';
+
+  // Full screen. `f` has always worked, but a shortcut nobody is told about is not a
+  // feature — so there is a button, it says which key does the same thing, and it
+  // toggles rather than only entering (Escape already exits; this makes it symmetric).
+  const fs = document.createElement('button');
+  fs.id = 'fs'; fs.type = 'button';
+  const ICON_IN = '<svg viewBox="0 0 24 24"><path d="M4 9V4h5v2H6v3H4zm11-5h5v5h-2V6h-3V4zM4 15h2v3h3v2H4v-5zm14 0h2v5h-5v-2h3v-3z"/></svg>';
+  const ICON_OUT = '<svg viewBox="0 0 24 24"><path d="M9 4v5H4V7h3V4h2zm6 0h2v3h3v2h-5V4zM4 15h5v5H7v-3H4v-2zm11 0h5v2h-3v3h-2v-5z"/></svg>';
+  const paint = () => {
+    const on = !!document.fullscreenElement;
+    fs.innerHTML = on ? ICON_OUT : ICON_IN;
+    const label = on ? 'Leave full screen (F)' : 'Present full screen (F)';
+    fs.setAttribute('aria-label', label);
+    fs.title = label;
+  };
+  const toggleFs = () => {
+    // Safari and older WebKit still only have the webkit-prefixed pair.
+    const el = document.documentElement;
+    if (document.fullscreenElement) (document.exitFullscreen ?? document.webkitExitFullscreen)?.call(document);
+    else (el.requestFullscreen ?? el.webkitRequestFullscreen)?.call(el);
+  };
+  fs.addEventListener('click', (e) => { e.stopPropagation(); toggleFs(); });
+  addEventListener('fullscreenchange', paint);
+  addEventListener('webkitfullscreenchange', paint);
+  paint();
+
+  document.body.append(rail, hint, fs);
+  let i = 0;
+
+  const show = (n, push = true) => {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, k) => s.classList.toggle('on', k === i));
+    rail.firstChild.style.width = `${((i + 1) / slides.length) * 100}%`;
+    hint.textContent = `${i + 1} / ${slides.length}`;
+    // Pause a video when you leave its slide, so sound never follows you.
+    slides.forEach((s, k) => { if (k !== i) s.querySelectorAll('video').forEach((v) => v.pause()); });
+    if (push) history.replaceState(null, '', `#${i + 1}`);
+  };
+  const move = (d) => show(i + d);
+
+  addEventListener('keydown', (e) => {
+    if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); move(1); }
+    else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) { e.preventDefault(); move(-1); }
+    else if (e.key === 'Home') { e.preventDefault(); show(0); }
+    else if (e.key === 'End') { e.preventDefault(); show(slides.length - 1); }
+    else if (e.key === 'f' || e.key === 'F') { e.preventDefault(); toggleFs(); }
+  });
+
+  // Click to advance, but never when the click was meant for something on the slide.
+  addEventListener('click', (e) => {
+    if (e.target.closest('a, button, video, input, select, #fs')) return;
+    move(e.clientX < innerWidth * 0.22 ? -1 : 1);
+  });
+
+  let x0 = null;
+  addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; }, { passive: true });
+  addEventListener('touchend', (e) => {
+    if (x0 === null) return;
+    const dx = e.changedTouches[0].clientX - x0;
+    if (Math.abs(dx) > 40) move(dx < 0 ? 1 : -1);
+    x0 = null;
+  }, { passive: true });
+
+  show(Math.max(0, (Number(location.hash.slice(1)) || 1) - 1), false);
+})();
+
+  // The thesis clip. Scrubbing a video by hand on stage is a way to lose ten seconds in
+  // front of judges, so the button seeks to the beat and stops itself at the end of it.
+  // 15.2s-35.2s: "Now Dealer A ... seals its ask" through "Same request. No price."
+  (() => {
+    const v = document.getElementById('demo'), b = document.getElementById('clip');
+    if (!v || !b) return;
+    const IN = 15.2, OUT = 35.2;
+    const stop = () => { if (v.currentTime >= OUT) { v.pause(); v.removeEventListener('timeupdate', stop); } };
+    b.addEventListener('click', () => {
+      v.removeEventListener('timeupdate', stop);
+      v.currentTime = IN;
+      v.addEventListener('timeupdate', stop);
+      v.play().catch(() => {});
+    });
+  })();
+</script>
+</body>
+</html>
