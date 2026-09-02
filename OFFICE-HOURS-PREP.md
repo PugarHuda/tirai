@@ -71,6 +71,9 @@ He is the HackCanton lead and a validator operator. He knows which of NODERS' te
   advance. (Hosted copy, if you want to link it: `tirai.vercel.app/deck/office-hours.html`.)
 - Check **slide 4** renders — the two dealer columns side by side. That is the slide the
   whole segment rests on.
+- **Press the right arrow through slides 4 and 7 once before you join.** Five slides
+  reveal their callout boxes one press at a time; if that surprises you live it reads as
+  a stuck deck. The table in `DEMO-4MIN.md` says how many presses each slide takes.
 - **Fallback ready:** `deck/tirai-office-hours.pdf`, same eleven pages, in case the
   browser deck misbehaves.
 - Second window: `media/tirai-demo.mp4`, paused at 0:00. Sixty narrated seconds of the

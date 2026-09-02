@@ -30,7 +30,9 @@
     "record:desk": "node scripts/record-desk.mjs",
     "e2e:fee": "node scripts/e2e-fee.mjs",
     "devnet:fee": "node scripts/devnet.mjs seed-fee",
-    "e2e:upgrade": "node scripts/e2e-upgrade.mjs"
+    "e2e:upgrade": "node scripts/e2e-upgrade.mjs",
+    "deck:shots": "node scripts/deck-shots.mjs",
+    "deck:pdf": "node deck/render.mjs office-hours"
   },
   "devDependencies": {
     "playwright": "^1.48.0"

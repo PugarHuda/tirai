@@ -31,6 +31,26 @@ in it was captured from the real desk running on a live Canton node, not mocked 
 - Have `media/tirai-demo.mp4` open in a second window, paused. If someone asks to see it
   move, that is sixty narrated seconds of the real desk.
 
+### Advancing the deck — the right arrow walks the callouts first
+
+Five slides annotate their screenshot one box at a time, so a still frame can be talked
+through in the order the sentence needs. **The right arrow reveals the next callout, and
+only moves to the next slide once that slide's callouts are all up.** Left arrow reverses,
+landing on the previous slide with all of its callouts already shown.
+
+| Slide | Callouts | Presses to leave it |
+|---|---|---|
+| 4 · the money shot | A seals 4,210,000 → B's node, nothing arrived | 3 |
+| 6 · escrow and the bug | the bond is held → one quote, refused | 3 |
+| 7 · the verifier | Dealer A → Dealer B → the regulator | 4 |
+| 8 · best execution | the verdict → the winner's row | 3 |
+| 9 · the panel record | distance in bps → silence is visible | 3 |
+
+Every other slide is one press. If you lose your place, `Home` returns to slide 1 and the
+number in the corner is always the slide, never the build.
+
+The PDF shows every callout at once — it has no keyboard to press.
+
 ### The hosted link — deal with this before 13:00
 
 Jason drops **tirai.vercel.app** in chat to the whole room. The landing page is fine.

@@ -20,6 +20,29 @@ Cadangan: `deck/tirai-office-hours.pdf`, isi sama.
 bukan mockup. Itu penting kalau ada yang bertanya: kamu bisa jawab bahwa gambarnya foto,
 bukan gambaran.
 
+### Cara maju: panah kanan menyusuri kotak dulu, baru pindah slide
+
+Lima slide menyorot screenshot-nya **satu kotak setiap kali kamu tekan panah kanan** —
+jadi gambar diam bisa diceritakan urut sesuai kalimatmu. Panah kanan baru pindah slide
+setelah semua kotak di slide itu muncul. Panah kiri mundur, dan mendarat di slide
+sebelumnya dengan semua kotaknya sudah tampil.
+
+| Slide | Kotaknya | Tekan berapa kali untuk pindah |
+|---|---|---|
+| 4 · momen inti | A menyegel 4.210.000 → node B, tidak ada apa-apa | 3 |
+| 6 · escrow & bug | obligasinya ditahan → satu quote, ditolak | 3 |
+| 7 · verifier | Dealer A → Dealer B → regulator | 4 |
+| 8 · best execution | vonisnya → baris pemenang | 3 |
+| 9 · catatan panel | jarak dalam bps → diam pun terlihat | 3 |
+
+Slide lain cukup sekali tekan. Kalau kehilangan tempat, `Home` balik ke slide 1, dan
+angka di pojok selalu nomor slide, bukan nomor kotak.
+
+**Ini penting dilatih sekali sebelum naik**: kalau kamu tidak tahu ada tahapannya, kamu
+akan mengira deck-nya macet waktu menekan panah dan slide-nya tidak berganti.
+
+Versi PDF menampilkan semua kotak sekaligus — tidak ada tombol untuk ditekan di kertas.
+
 ### Slide 1 · sampul · 0:00–0:20
 > *"Thanks Jason. I'm going to skip straight to the thing a screenshot normally can't
 > show you — a dealer's node **not** receiving something. These are screenshots off a live

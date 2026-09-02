@@ -177,12 +177,48 @@ li::marker{ color:var(--accent) }
 <!-- ===================== TITLE ========================================== -->
 <style>
 /* Screenshot slides: the picture is the argument, so it gets the room. */
-.full{ padding:3.2rem 4.2rem 3.4rem }
+.full{ padding:4.6rem 4.2rem 3.2rem }
 .full h2{ font-size:2.4rem; margin:0 0 1.1rem }
 .shot,.crop{ border:.16rem solid var(--line); box-shadow:.42rem .42rem 0 var(--shadow); overflow:hidden; background:#fff }
 .shot img{ display:block; width:100% }
 .crop img{ display:block }
-.crop-dealers img{ width:149.6%; margin-left:-49.6% }   /* drop the buyer column */
+
+/* Callouts drawn over a screenshot. Every box is a percentage of the image, measured
+   off the live DOM by scripts/deck-shots.mjs — so they stay on target at any size and
+   nobody has to eyeball pixels again when a shot is regenerated.
+   `data-step` builds them one keypress at a time: the right arrow walks the callouts
+   before it moves to the next slide. */
+/* inline-block so the box hugs the image: the callouts are percentages OF THE IMAGE,
+   so the frame must not be wider than what it frames. --figh caps the height on the
+   slides whose screenshot is tall enough to push the caption off the bottom. */
+.fig{ position:relative; display:inline-block; max-width:100%; border:.16rem solid var(--line);
+  box-shadow:.42rem .42rem 0 var(--shadow); background:#fff; vertical-align:top }
+.fig img{ display:block; width:auto; height:auto; max-width:100%; max-height:var(--figh, 60vh) }
+.ann{
+  position:absolute; left:calc(var(--l) * 1%); top:calc(var(--t) * 1%);
+  width:calc(var(--w) * 1%); height:calc(var(--h) * 1%);
+  border:.22rem solid var(--accent); background:rgba(110,231,183,.10);
+  box-shadow:0 0 0 .45rem rgba(110,231,183,.13);
+  opacity:0; transform:scale(1.04); transform-origin:center;
+  transition:opacity .36s ease, transform .36s cubic-bezier(.2,.85,.25,1);
+  pointer-events:none;
+}
+.ann.shown{ opacity:1; transform:scale(1) }
+.ann::after{
+  content:attr(data-label); position:absolute; left:-.16rem; bottom:calc(100% + .5rem);
+  white-space:nowrap; background:var(--accent); color:#06231a;
+  font-size:1.02rem; font-weight:800; letter-spacing:.01em; padding:.38rem .8rem;
+}
+.ann.below::after{ bottom:auto; top:calc(100% + .5rem) }
+/* For a box as wide as a table row, an outside label would land on the next row's
+   box. Sit it inside, against the empty right end of the row. */
+.ann.inside::after{ left:auto; right:.45rem; bottom:auto; top:50%; transform:translateY(-50%) }
+.ann.right::after{ left:auto; right:-.16rem }
+.ann.warn{ border-color:var(--warn); background:rgba(240,180,94,.10);
+  box-shadow:0 0 0 .45rem rgba(240,180,94,.13) }
+.ann.warn::after{ background:var(--warn); color:#2b1c05 }
+/* A printed page has no keyboard: show every build. */
+@media print{ .ann{ opacity:1; transform:none } }
 .figsplit{ display:grid; grid-template-columns:1fr 1.15fr; gap:2.6rem; align-items:start }
 .figsplit .shot img{ width:100% }
 .figsplit p{ font-size:1.32rem; line-height:1.5 }
@@ -242,7 +278,11 @@ li::marker{ color:var(--accent) }
 <section class="slide full">
   <div class="meta"><span class="blk">The part that matters</span><span class="num">04 / 11</span></div>
   <h2>Two dealers. One has priced.<br>The other&rsquo;s node was never told.</h2>
-  <div class="crop crop-dealers"><img src="shots/02-moneyshot.png" alt="Dealer A holds a sealed quote of 4,210,000. Dealer B's own session shows no rival quote at all." /></div>
+  <div class="fig">
+    <img src="shots/02-moneyshot.png" alt="Dealer A holds a sealed quote of 4,210,000. Dealer B's own session shows no rival quote at all." />
+    <i class="ann" data-step="1" data-label="1 &middot; Dealer A seals 4,210,000" style="--l:3.8;--t:54.8;--w:42.34;--h:5.47"></i>
+    <i class="ann warn below" data-step="2" data-label="2 &middot; Dealer B&rsquo;s own node &mdash; nothing arrived" style="--l:52.2;--t:69.38;--w:45.67;--h:17.01"></i>
+  </div>
   <p class="cap">Left: Dealer A, having sealed 4,210,000. Right: Dealer B&rsquo;s own session, at
     the same moment, reading its own participant node. Not a masked row. Not a commitment hash
     waiting to be revealed. Nothing.</p>
@@ -270,7 +310,11 @@ li::marker{ color:var(--accent) }
   <div class="meta"><span class="blk">Mechanism design</span><span class="num">06 / 11</span></div>
   <h2>A price you cannot walk away from &mdash;<br>and an auction that cannot be talked down</h2>
   <div class="figsplit">
-    <div class="shot"><img src="shots/08-escrow-guard.png" alt="The buyer's own session: escrow controls on the received quote, and the ledger refusing to award a one-quote auction." /></div>
+    <div class="fig">
+      <img src="shots/08-escrow-guard.png" alt="The buyer's own session: escrow controls on the received quote, and the ledger refusing to award a one-quote auction." />
+      <i class="ann" data-step="1" data-label="1 &middot; the bond is held, not promised" style="--l:3.64;--t:56.16;--w:50.71;--h:9.06"></i>
+      <i class="ann warn" data-step="2" data-label="2 &middot; one quote, no second price &mdash; refused" style="--l:0;--t:70.05;--w:100;--h:29.95"></i>
+    </div>
     <div>
       <p><b style="color:var(--accent)">Escrow on quote.</b> Submitting a price moves that
         dealer&rsquo;s bond into escrow before the buyer ever sees the number. An indication is
@@ -291,7 +335,12 @@ li::marker{ color:var(--accent) }
 <section class="slide full">
   <div class="meta"><span class="blk">Proof, not assurance</span><span class="num">07 / 11</span></div>
   <h2>Don&rsquo;t trust the demo. Count the nodes.</h2>
-  <div class="shot"><img src="shots/05-verify.png" alt="The privacy verifier, counting what each party's node actually holds." /></div>
+  <div class="fig">
+    <img src="shots/05-verify.png" alt="The privacy verifier, counting what each party's node actually holds." />
+    <i class="ann inside" data-step="1" data-label="1 &middot; its own quote, and no rival&rsquo;s" style="--l:1.13;--t:17.48;--w:93.04;--h:18.29"></i>
+    <i class="ann inside" data-step="2" data-label="2 &middot; the same, from the other side" style="--l:1.13;--t:38.99;--w:93.04;--h:18.29"></i>
+    <i class="ann warn inside" data-step="3" data-label="3 &middot; the regulator sees nothing yet" style="--l:1.13;--t:60.5;--w:93.04;--h:18.29"></i>
+  </div>
   <p class="cap">One read per party, addressed to that party&rsquo;s node, counting what came
     back. Four reads, four parties, four different answers &mdash; visible in your own devtools.
     The claim is checkable from your side of the screen, not mine.</p>
@@ -300,7 +349,11 @@ li::marker{ color:var(--accent) }
 <section class="slide full">
   <div class="meta"><span class="blk">The institutional payoff</span><span class="num">08 / 11</span></div>
   <h2>Provable best execution, with no public book</h2>
-  <div class="shot"><img src="shots/06-bestexec.png" alt="Best execution attested against the sealed asks disclosed to the regulator." /></div>
+  <div class="fig" style="--figh:50vh">
+    <img src="shots/06-bestexec.png" alt="Best execution attested against the sealed asks disclosed to the regulator." />
+    <i class="ann right" data-step="1" data-label="1 &middot; the verdict, computed not asserted" style="--l:67.7;--t:29.87;--w:13.18;--h:7.99"></i>
+    <i class="ann below" data-step="2" data-label="2 &middot; winner quoted lowest; buyer paid the runner-up" style="--l:1.9;--t:51.92;--w:78.97;--h:25.62"></i>
+  </div>
   <p class="cap">A public exchange proves best execution against a visible order book. There is no
     book here. Either side can reveal a sealed ask to the regulator on demand &mdash; without
     ever showing a rival &mdash; and the executed price is checked against it. Confidential
@@ -310,7 +363,11 @@ li::marker{ color:var(--accent) }
 <section class="slide full">
   <div class="meta"><span class="blk">The question the judges asked</span><span class="num">09 / 11</span></div>
   <h2>&ldquo;What if I&rsquo;m an invited dealer, and I front-run you?&rdquo;</h2>
-  <div class="shot"><img src="shots/07-panel.png" alt="The dealer panel: who was invited, who answered, how far each was from the winner in basis points." /></div>
+  <div class="fig" style="--figh:46vh">
+    <img src="shots/07-panel.png" alt="The dealer panel: who was invited, who answered, how far each was from the winner in basis points." />
+    <i class="ann below" data-step="1" data-label="1 &middot; distance in bps &mdash; never the losing ask" style="--l:0.08;--t:18.83;--w:99.83;--h:39.8"></i>
+    <i class="ann warn inside" data-step="2" data-label="2 &middot; and silence is the only thing it cannot hide" style="--l:0;--t:69.53;--w:86.92;--h:30.47"></i>
+  </div>
   <p class="cap">An invited dealer does see the enquiry, and no ledger stops that. What changed:
     every award now writes a record the buyer keeps &mdash; who was invited, who answered, and how
     far each ask was from the winner&rsquo;s <em>in basis points, never the ask itself</em>. A
@@ -392,16 +449,33 @@ li::marker{ color:var(--accent) }
   document.body.append(rail, hint, fs);
   let i = 0;
 
-  const show = (n, push = true) => {
+  // Builds. A slide may reveal its callouts one at a time: `data-step="1"`, `"2"`, …
+  // Right arrow walks the steps first and only then moves on, so a screenshot can be
+  // talked through in the order the sentence needs, rather than all at once.
+  let st = 0;
+  const stepsOf = (s) => (s ? [...new Set([...s.querySelectorAll('[data-step]')]
+    .map((e) => Number(e.dataset.step)))].sort((a, b) => a - b).length : 0);
+  const paintSteps = () => {
+    const s = slides[i]; if (!s) return;
+    s.querySelectorAll('[data-step]').forEach((e) => e.classList.toggle('shown', Number(e.dataset.step) <= st));
+  };
+  const show = (n, push = true, atEnd = false) => {
     i = Math.max(0, Math.min(slides.length - 1, n));
+    st = atEnd ? stepsOf(slides[i]) : 0;
     slides.forEach((s, k) => s.classList.toggle('on', k === i));
+    paintSteps();
     rail.firstChild.style.width = `${((i + 1) / slides.length) * 100}%`;
     hint.textContent = `${i + 1} / ${slides.length}`;
     // Pause a video when you leave its slide, so sound never follows you.
     slides.forEach((s, k) => { if (k !== i) s.querySelectorAll('video').forEach((v) => v.pause()); });
     if (push) history.replaceState(null, '', `#${i + 1}`);
   };
-  const move = (d) => show(i + d);
+  const move = (d) => {
+    const n = stepsOf(slides[i]);
+    if (d > 0 && st < n) { st++; paintSteps(); return; }
+    if (d < 0 && st > 0) { st--; paintSteps(); return; }
+    show(i + d, true, d < 0);
+  };
 
   addEventListener('keydown', (e) => {
     if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); move(1); }
