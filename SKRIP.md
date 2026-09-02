@@ -41,22 +41,34 @@ mockup. Kalau ada yang bertanya, itu foto, bukan gambaran.
 
 ## Slide 1, sampul, 0:00
 
-> *"Thanks Jason. I'm going to skip straight to the thing a screenshot normally can't
-> show you, which is a dealer's node not receiving something. These are screenshots off
-> a live Canton node rather than a live desk, because the 5N sandbox validator rotated
-> its client keys last week and, like Samuel, I lost access. Same event, not two
-> problems."*
+> *"Thanks Jason. In four minutes I want to show you one thing, and it is the thing that
+> made me build this on Canton rather than anywhere else. A dealer's node not receiving a
+> price. Everything else in Tirai follows from that."*
 
-**Artinya.** "Makasih Jason. Aku langsung ke hal yang biasanya tidak bisa ditunjukkan
-screenshot, yaitu node seorang dealer yang tidak menerima sesuatu. Ini screenshot dari
-node Canton hidup, bukan desk hidup, karena validator sandbox 5N merotasi client key-nya
-minggu lalu dan, seperti Samuel, aku kehilangan akses. Satu peristiwa yang sama, bukan
-dua masalah."
+**Artinya.** "Makasih Jason. Dalam empat menit aku mau menunjukkan satu hal, dan itu hal
+yang membuatku membangun ini di Canton dan bukan di tempat lain. Node seorang dealer yang
+tidak menerima sebuah harga. Semua yang lain di Tirai mengikuti dari situ."
 
-**Kenapa begini.** Samuel sudah bilang hal yang sama sebelum kamu, ke Jason dan ke Ales.
-Dengan menyebutnya sebagai satu peristiwa, kamu berhenti terdengar seperti orang yang
-proyeknya rusak dan mulai terdengar seperti orang yang tahu persis kenapa. Dan kamu
-membela Samuel sekaligus, yang akan dia sadari.
+**Kenapa begini.** Jason baru saja membaca intro panjang, jadi mengulanginya membuang
+waktu. Dan jangan buka dengan alasan. Kredensial 5N yang mati itu masalah nyata, tapi
+kalau kalimat pertamamu menjelaskan kenapa demonya bukan live, hal pertama yang mereka
+dengar tentang Tirai adalah sesuatu yang rusak. Jason sudah tahu duluan karena kamu sudah
+mengabarinya, jadi tidak perlu diumumkan lagi.
+
+**Kalau ada yang bertanya kenapa ini screenshot dan bukan live**, baru kamu jawab, dan
+jawabnya enteng.
+
+> *"The 5N sandbox validator rotated its client keys last week, so like Samuel I lost
+> access. Every screenshot here came off the real desk on a live node, and `npm run demo`
+> gives you the same desk on your own machine in about two minutes."*
+
+**Artinya.** "Validator sandbox 5N merotasi client key-nya minggu lalu, jadi seperti
+Samuel aku kehilangan akses. Semua screenshot di sini diambil dari desk asli di node
+hidup, dan `npm run demo` memberimu desk yang sama di mesinmu sendiri dalam sekitar dua
+menit."
+
+Menyebutnya sebagai peristiwa yang sama dengan Umbra membuatnya jadi kabar infrastruktur,
+bukan kegagalanmu. Tapi tunggu ditanya.
 
 ## Slide 2, masalahnya, 0:20
 
