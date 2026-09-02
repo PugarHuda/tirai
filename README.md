@@ -255,7 +255,8 @@ vetted version. Pin one with `TIRAI_PKG` if you need the old template.
 | `api/` | read-only serverless proxy (hosted deployment) |
 | `scripts/` | Devnet deployer, local demo, e2e suites, recorder, PDF/logo generators |
 | `mcp/` | MCP server — 6 tools: 5 read-only + `post_rfq`, which writes a real RFQ |
-| `deck/` | the pitch deck — 15 slides, keyboard/click/swipe, full screen, and the film on slide 14. Served at [`/deck`](https://tirai.vercel.app/deck); `deck/NOTES.md` is the per-slide speaker guide |
+| `deck/` | two decks, same harness (keyboard/click/swipe, full screen, print to PDF). `index.html` is the Grand Final pitch, 15 slides with the film on slide 14, served at [`/deck`](https://tirai.vercel.app/deck), speaker guide in `deck/NOTES.md`. `office-hours.html` is the Canton Builders Office Hours walkthrough, 11 slides built from real screenshots, whose callout boxes reveal one keypress at a time |
+| `deck/shots/` | the walkthrough's screenshots, captured off the running desk by `npm run deck:shots`, plus `boxes.json` — the measured position of everything the slides point at, so no callout coordinate is ever eyeballed |
 | `video/` | Remotion source for the film, and `video/vo/` — the narration script and the mixer that places each line inside the shot it belongs to |
 | `web/logo-mark.svg` | the mark. Colours baked in for the favicon; the same path is inlined in both headers with `currentColor` |
 | `media/` | the film (narrated `tirai-demo.mp4` + its silent master), deck screenshots, logo variants, submission PDFs |
@@ -264,6 +265,8 @@ vetted version. Pin one with `TIRAI_PKG` if you need the old template.
 | [`DECK-SCRIPT.md`](DECK-SCRIPT.md) | what to say over each slide, timed to the four-minute slot |
 | [`PITCH-QA.md`](PITCH-QA.md) · [`PITCH-QA-DECK.md`](PITCH-QA-DECK.md) | 20 long-form answers, and 44 short ones keyed to the slide they point at |
 | [`DEMO-VO.md`](DEMO-VO.md) | demo video script, for a human read of the same walkthrough |
+| [`SKRIP.md`](SKRIP.md) | the Office Hours reading script. Every line spoken, in English, each with its Indonesian meaning and the reason that wording was chosen — slides, the four published moderator questions, the group discussion, and the closing ask |
+| [`OFFICE-HOURS-PREP.md`](OFFICE-HOURS-PREP.md) | the other half of the same session. What to do rather than what to say: the messages to send beforehand, the boot sequence, and the follow-up |
 
 Submission documents are generated, not hand-maintained binaries:
 `npm run pdf` (or `node scripts/make-pdf.mjs value|icp|gtm|metrics|pitch` for

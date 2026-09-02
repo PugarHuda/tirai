@@ -191,7 +191,12 @@ li::marker{ color:var(--accent) }
 /* inline-block so the box hugs the image: the callouts are percentages OF THE IMAGE,
    so the frame must not be wider than what it frames. --figh caps the height on the
    slides whose screenshot is tall enough to push the caption off the bottom. */
-.fig{ position:relative; display:inline-block; max-width:100%; border:.16rem solid var(--line);
+/* A flex or grid child is blockified, so display:inline-block alone leaves the frame
+   the full width of the slide while the image inside it is narrower, and every callout
+   lands to the right of what it points at. width:fit-content plus the two self-aligns
+   is what actually makes the box hug the picture. */
+.fig{ position:relative; display:block; width:fit-content; max-width:100%;
+  align-self:flex-start; justify-self:start; border:.16rem solid var(--line);
   box-shadow:.42rem .42rem 0 var(--shadow); background:#fff; vertical-align:top }
 .fig img{ display:block; width:auto; height:auto; max-width:100%; max-height:var(--figh, 60vh) }
 .ann{
@@ -236,7 +241,7 @@ li::marker{ color:var(--accent) }
   <p class="lede" style="margin-top:1.6rem">The confidential multi-dealer RFQ desk, built native
     on Canton. Sealed quotes, atomic delivery-versus-payment, provable best execution.</p>
   <p class="punch">You whisper quotes. <em>The market hears nothing.</em></p>
-  <p class="foot">Pugar Huda Mantoro &middot; solo builder &middot; HackCanton Season 2 &mdash; 3rd place</p>
+  <p class="foot">Pugar Huda Mantoro &middot; solo builder &middot; HackCanton Season 2, 3rd place</p>
 </section>
 
 <section class="slide">
@@ -256,8 +261,8 @@ li::marker{ color:var(--accent) }
   <div class="cols">
     <div class="card">
       <span class="n">01 &middot; Enquire</span><h3>The buyer invites a panel</h3>
-      <p>Two, three, five dealers &mdash; chosen by the buyer. The request reaches their nodes
-        and no others.</p>
+      <p>Two, three, five dealers, chosen by the buyer. The request reaches their nodes and
+        no others.</p>
     </div>
     <div class="card">
       <span class="n">02 &middot; Quote</span><h3>Each answers sealed</h3>
@@ -281,11 +286,11 @@ li::marker{ color:var(--accent) }
   <div class="fig">
     <img src="shots/02-moneyshot.png" alt="Dealer A holds a sealed quote of 4,210,000. Dealer B's own session shows no rival quote at all." />
     <i class="ann" data-step="1" data-label="1 &middot; Dealer A seals 4,210,000" style="--l:3.8;--t:54.8;--w:42.34;--h:5.47"></i>
-    <i class="ann warn below" data-step="2" data-label="2 &middot; Dealer B&rsquo;s own node &mdash; nothing arrived" style="--l:52.2;--t:69.38;--w:45.67;--h:17.01"></i>
+    <i class="ann warn below" data-step="2" data-label="2 &middot; Dealer B&rsquo;s own node, nothing arrived" style="--l:52.2;--t:69.38;--w:45.67;--h:17.01"></i>
   </div>
-  <p class="cap">Left: Dealer A, having sealed 4,210,000. Right: Dealer B&rsquo;s own session, at
-    the same moment, reading its own participant node. Not a masked row. Not a commitment hash
-    waiting to be revealed. Nothing.</p>
+  <p class="cap">On the left, Dealer A, having sealed 4,210,000. On the right, Dealer B&rsquo;s own
+    session at the same moment, reading its own participant node. Not a masked row. Not a
+    commitment hash waiting to be revealed. Nothing.</p>
 </section>
 
 <section class="slide">
@@ -299,30 +304,30 @@ li::marker{ color:var(--accent) }
   where
     <b>signatory dealer, buyer</b>
     <i>-- and nothing else. No observer clause.</i></div>
-  <p class="lede">The regulator&rsquo;s party id is a field on that contract &mdash; and the
+  <p class="lede">The regulator&rsquo;s party id is a field on that contract, and the
     regulator still cannot see it. Being <em>named</em> in a contract is not being a
     <em>stakeholder</em> in it.</p>
   <p class="punch">No third party to hide from,<br>so <em>nothing to encrypt.</em></p>
-  <p class="foot">Four previous builds of this product on transparent chains &mdash; TEE &middot; ZK circuits &middot; threshold encryption &middot; FHE</p>
+  <p class="foot">Four previous builds of this product on transparent chains. TEE &middot; ZK circuits &middot; threshold encryption &middot; FHE</p>
 </section>
 
 <section class="slide full">
   <div class="meta"><span class="blk">Mechanism design</span><span class="num">06 / 11</span></div>
-  <h2>A price you cannot walk away from &mdash;<br>and an auction that cannot be talked down</h2>
+  <h2>A price you cannot walk away from,<br>and an auction that cannot be talked down</h2>
   <div class="figsplit">
     <div class="fig">
       <img src="shots/08-escrow-guard.png" alt="The buyer's own session: escrow controls on the received quote, and the ledger refusing to award a one-quote auction." />
       <i class="ann" data-step="1" data-label="1 &middot; the bond is held, not promised" style="--l:3.64;--t:56.16;--w:50.71;--h:9.06"></i>
-      <i class="ann warn" data-step="2" data-label="2 &middot; one quote, no second price &mdash; refused" style="--l:0;--t:70.05;--w:100;--h:29.95"></i>
+      <i class="ann warn" data-step="2" data-label="2 &middot; one quote, no second price, refused" style="--l:0;--t:70.05;--w:100;--h:29.95"></i>
     </div>
     <div>
       <p><b style="color:var(--accent)">Escrow on quote.</b> Submitting a price moves that
         dealer&rsquo;s bond into escrow before the buyer ever sees the number. An indication is
-        free, and anything free gets abused in a sealed auction &mdash; quote aggressively
+        free, and anything free gets abused in a sealed auction. Quote aggressively
         everywhere, decide later whether to honour it. Here the buyer never awards into a bluff,
         and the dealer is never left holding a counterparty who changed their mind.</p>
       <p><b style="color:var(--accent)">And the worst bug I have shipped.</b> With one quote there
-        is no second price. Awarding used to fall back to the winner&rsquo;s own ask &mdash; first
+        is no second price. Awarding used to fall back to the winner&rsquo;s own ask. First
         price wearing a Vickrey label, chosen <em>after</em> the buyer had seen every sealed
         number, with the dropped quote never revealed to anyone.</p>
       <p class="cap" style="margin-top:1.2rem">The ledger refuses it outright now. A buyer who
@@ -342,7 +347,7 @@ li::marker{ color:var(--accent) }
     <i class="ann warn inside" data-step="3" data-label="3 &middot; the regulator sees nothing yet" style="--l:1.13;--t:60.5;--w:93.04;--h:18.29"></i>
   </div>
   <p class="cap">One read per party, addressed to that party&rsquo;s node, counting what came
-    back. Four reads, four parties, four different answers &mdash; visible in your own devtools.
+    back. Four reads, four parties, four different answers, visible in your own devtools.
     The claim is checkable from your side of the screen, not mine.</p>
 </section>
 
@@ -355,8 +360,8 @@ li::marker{ color:var(--accent) }
     <i class="ann below" data-step="2" data-label="2 &middot; winner quoted lowest; buyer paid the runner-up" style="--l:1.9;--t:51.92;--w:78.97;--h:25.62"></i>
   </div>
   <p class="cap">A public exchange proves best execution against a visible order book. There is no
-    book here. Either side can reveal a sealed ask to the regulator on demand &mdash; without
-    ever showing a rival &mdash; and the executed price is checked against it. Confidential
+    book here. Either side can reveal a sealed ask to the regulator on demand, without ever
+    showing a rival, and the executed price is checked against it. Confidential
     before the trade, auditable after it.</p>
 </section>
 
@@ -365,12 +370,12 @@ li::marker{ color:var(--accent) }
   <h2>&ldquo;What if I&rsquo;m an invited dealer, and I front-run you?&rdquo;</h2>
   <div class="fig" style="--figh:46vh">
     <img src="shots/07-panel.png" alt="The dealer panel: who was invited, who answered, how far each was from the winner in basis points." />
-    <i class="ann below" data-step="1" data-label="1 &middot; distance in bps &mdash; never the losing ask" style="--l:0.08;--t:18.83;--w:99.83;--h:39.8"></i>
+    <i class="ann below" data-step="1" data-label="1 &middot; distance in bps, never the losing ask" style="--l:0.08;--t:18.83;--w:99.83;--h:39.8"></i>
     <i class="ann warn inside" data-step="2" data-label="2 &middot; and silence is the only thing it cannot hide" style="--l:0;--t:69.53;--w:86.92;--h:30.47"></i>
   </div>
   <p class="cap">An invited dealer does see the enquiry, and no ledger stops that. What changed:
-    every award now writes a record the buyer keeps &mdash; who was invited, who answered, and how
-    far each ask was from the winner&rsquo;s <em>in basis points, never the ask itself</em>. A
+    every award now writes a record the buyer keeps. Who was invited, who answered, and how far
+    each ask was from the winner&rsquo;s <em>in basis points, never the ask itself</em>. A
     losing price stays unrevealed even in the buyer&rsquo;s own record. A dealer who takes the
     look and never prices is on the ledger, timestamped, attributable.</p>
 </section>
@@ -385,7 +390,7 @@ li::marker{ color:var(--accent) }
     <div class="stat"><b>44</b><span>Daml test scripts green</span></div>
   </div>
   <p class="lede" style="margin-top:1rem;font-size:1.6rem">Cash legs settle through registries I
-    neither control nor can mint into. Shipped as a package upgrade &mdash; the validator runs 0.1
+    neither control nor can mint into. Shipped as a package upgrade, and the validator runs 0.1
     through 0.5 side by side.</p>
   <div class="cols">
     <div class="card bad">
@@ -406,7 +411,7 @@ li::marker{ color:var(--accent) }
   <p class="kicker">If someone here can make one introduction</p>
   <h2>One desk. Ten enquiries.<br>Ninety days.</h2>
   <p class="lede">A dealer, a desk, or a fund administrator that runs block enquiries over chat
-    today &mdash; and will put ten of them through this and tell me where it breaks. Not a
+    today, and will put ten of them through this and tell me where it breaks. Not a
     contract. Ten enquiries.</p>
   <p class="punch">I have written down where I stop: <em>two quiet weeks, or one quote visible to
     a rival,</em> and the pilot ends there.</p>

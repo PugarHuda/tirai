@@ -3,8 +3,8 @@
 Your slot is **0:22–0:32**. You also speak in the group discussion (0:42–0:55), the
 open Q&A (0:55–0:58), and you get **30 seconds at 0:58** for one ask.
 
-The demo script and every prepared answer live in **`DEMO-4MIN.md`**. This file is the
-checklist and the copy-paste text.
+Everything you **say** is in **`SKRIP.md`**, one file, in order. This one is everything
+you **do**. Checklist and copy-paste text.
 
 ---
 
@@ -73,7 +73,7 @@ He is the HackCanton lead and a validator operator. He knows which of NODERS' te
   whole segment rests on.
 - **Press the right arrow through slides 4 and 7 once before you join.** Five slides
   reveal their callout boxes one press at a time; if that surprises you live it reads as
-  a stuck deck. The table in `DEMO-4MIN.md` says how many presses each slide takes.
+  a stuck deck. `SKRIP.md` has the table of how many presses each slide takes.
 - **Fallback ready:** `deck/tirai-office-hours.pdf`, same eleven pages, in case the
   browser deck misbehaves.
 - Second window: `media/tirai-demo.mp4`, paused at 0:00. Sixty narrated seconds of the
@@ -84,8 +84,7 @@ He is the HackCanton lead and a validator operator. He knows which of NODERS' te
 
 ### 0:00–0:22 — you are not speaking. Do these things.
 
-- Have `DEMO-4MIN.md` (or `DEMO-4MIN-ID.md`) open on your second screen, scrolled to the
-  spine — one paragraph per slide.
+- Have `SKRIP.md` open on your second screen, scrolled to Bagian 1.
 - **Listen to Samuel's segment properly.** He answers four questions you are about to
   be asked variants of. If he says something you agree with, say so in the group
   discussion by name — it reads as generosity and costs you nothing.
@@ -101,8 +100,8 @@ He is the HackCanton lead and a validator operator. He knows which of NODERS' te
 
 ### 0:22–0:32 — your segment
 
-Eleven slides, about four minutes, then Jason's four questions — all four are drafted
-in full in `DEMO-4MIN.md`. The three that matter most:
+Eleven slides, about four minutes, then Jason's four questions. All four are written out
+in `SKRIP.md` Bagian 2. The three that matter most:
 
 - **Q1 (forty lines)** — correct it downward to two, and explain *why* absence beats
   encryption. This is your best moment in the hour; don't hurry it.
@@ -114,7 +113,7 @@ in full in `DEMO-4MIN.md`. The three that matter most:
 
 ### 0:42–0:55 — group discussion
 
-One line each, all six drafted in `DEMO-4MIN.md`. Your two strongest are **Q5** (the
+One line each, all six drafted in `SKRIP.md` Bagian 3. Your two strongest are **Q5** (the
 `/v2/updates/flats` dead end and the 200-element ACS cap) and **Q6** (the read-side DX
 gaps a builder could go and fix). Both are specific, both are things nobody else in the
 room can say, and Q6 is the answer Ales explicitly said he wants to hear.
