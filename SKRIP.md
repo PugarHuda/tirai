@@ -271,6 +271,16 @@ slide, baris Inggris yang kamu ucapkan, lalu artinya, lalu kenapa.
 
 ## Q1. Kenapa model signatory dan observer menangani ini secara native
 
+**Yang ditanya.**
+
+> The forty lines of Daml point is striking. On a transparent chain, you'd need TEEs, ZK
+> circuits, or FHE to get dealer blindness. Walk us through why Canton's signatory and
+> observer model handles this natively.
+
+**Artinya.** Poin empat puluh baris Daml itu mencolok. Di chain transparan kamu butuh TEE, sirkuit ZK, atau FHE untuk membuat dealer buta. Jelaskan kenapa model signatory dan observer milik Canton menangani ini secara bawaan.
+
+**Jawabmu.**
+
 > *"Because on a transparent chain, privacy is something you add on top of a ledger that
 > has already broadcast everything. You encrypt, or you prove in zero knowledge, or you
 > compute inside hardware you have to trust. All three are machinery for hiding data from
@@ -302,6 +312,16 @@ Dan paragraf ketiga penting karena kamu mengoreksi host tanpa membuatnya salah.
 
 ## Q2. Kenapa mengunci jaminan dealer di escrow saat quote
 
+**Yang ditanya.**
+
+> You lock dealer collateral into escrow when they submit a quote. What problem were you
+> solving with that mechanism, why is a commitment necessary rather than just a price
+> indication?
+
+**Artinya.** Kamu mengunci jaminan dealer ke escrow waktu mereka mengirim quote. Masalah apa yang kamu selesaikan dengan mekanisme itu, kenapa harus komitmen dan bukan sekadar indikasi harga?
+
+**Jawabmu.**
+
 > *"Because an indication is free, and anything free gets abused in a sealed auction. If
 > quoting costs nothing, the winning move is to quote aggressively everywhere and decide
 > later whether to honour it, which is exactly the behaviour that makes desks distrust
@@ -328,6 +348,15 @@ kamu pegang juga terbatas."
 menjawab pertanyaan mekanisme dengan bahasa pasar, bukan bahasa kode.
 
 ## Q3. Kenapa harga kedua, bukan ask pemenang sendiri
+
+**Yang ditanya.**
+
+> You chose a second price auction structure. Why does that change the strategic behaviour
+> of dealers compared to settling at the winning dealer's original price?
+
+**Artinya.** Kamu memilih struktur lelang harga kedua. Kenapa itu mengubah perilaku strategis dealer dibanding settle di ask asli si pemenang?
+
+**Jawabmu.**
 
 > *"Because at first price, your best strategy is never to quote your real level. You
 > shade it, and how much you shade depends on guessing the other dealers. That guessing
@@ -364,6 +393,16 @@ Dan kamu sudah menanamnya di slide 6, jadi ini terdengar konsisten, bukan defens
 
 ## Q4. Bagaimana verifier dipakai meyakinkan institusi yang skeptis
 
+**Yang ditanya.**
+
+> The privacy verifier is a remarkable feature, it counts what each party's node actually
+> holds while the audience watches. How do you use that as a demonstration tool for
+> institutional counterparties who are skeptical about whether the privacy claim is real?
+
+**Artinya.** Privacy verifier itu fitur yang mengesankan, dia menghitung apa yang sebenarnya dipegang node tiap party sementara penonton melihat. Bagaimana kamu memakainya sebagai alat demonstrasi ke lawan institusional yang skeptis apakah klaim privasinya nyata?
+
+**Jawabmu.**
+
 > *"I don't ask them to believe it, and I don't demo it to them. I get them to run it.
 > The verifier issues one read per party, addressed to that party's node, and counts what
 > comes back by template. A skeptic can watch the four requests in their own devtools and
@@ -396,6 +435,16 @@ dan ajakan jadi satu kalimat, dan tidak terdengar seperti jualan.
 
 Jason menyiapkan ini kalau chat sepi.
 
+**Yang ditanya.**
+
+> How does the privacy verifier work technically, how do you prove what a node holds
+> without revealing the contents?
+
+**Artinya.** "Secara teknis privacy verifier itu bekerja bagaimana, bagaimana kamu
+membuktikan apa yang dipegang sebuah node tanpa membuka isinya?"
+
+**Jawabmu.**
+
 > *"To be precise, I don't prove the contents. I prove absence, which is the claim that
 > matters. Each read is an active contract query submitted as one party, and what comes
 > back is that party's own view. The rival's view is empty, and it is empty at the source,
@@ -427,6 +476,16 @@ bagus mengalahkan enam yang tipis. Yang paling kuat buatmu Q5 dan Q6.
 
 ## Q1. Di mana privasi mengubah ekonomi produkmu
 
+**Yang ditanya.**
+
+> All three projects use privacy as part of the actual market mechanism rather than simply
+> as a compliance feature. Where does privacy materially change the economics or usability
+> of what you're building?
+
+**Artinya.** Ketiga proyek memakai privasi sebagai bagian dari mekanisme pasarnya, bukan sekadar fitur compliance. Di mana privasi benar-benar mengubah ekonomi atau kebergunaan yang kamu bangun?
+
+**Jawabmu.**
+
 > *"It isn't a compliance wrapper on the product, it is the product. Remove the blindness
 > and the second price auction stops working, because everyone can see the field. The
 > privacy and the pricing mechanism are one thing."*
@@ -436,6 +495,16 @@ kebutaannya dan lelang harga kedua berhenti bekerja, karena semua orang bisa mel
 lapangan. Privasi dan mekanisme harganya itu satu hal."
 
 ## Q2. Apa yang rusak duluan kalau semua transaksi terlihat global
+
+**Yang ditanya.**
+
+> If you had to rebuild your application on a blockchain where every transaction and
+> contract was globally visible, what part of your architecture would become the hardest to
+> reproduce?
+
+**Artinya.** Kalau kamu harus membangun ulang aplikasimu di blockchain yang tiap transaksi dan kontraknya terlihat global, bagian arsitektur mana yang paling sulit ditiru?
+
+**Jawabmu.**
 
 > *"The mechanism, immediately. I'd have to rebuild sealed quoting as commit reveal, and
 > commit reveal leaks timing and lets a dealer simply not reveal. Every version of that
@@ -448,6 +517,16 @@ Tiap versi perbaikan itu lebih buruk dari yang digantinya. Aku sudah membangun p
 empat kali di chain transparan, dan kriptografinya selalu jadi sebagian besar kerjanya."
 
 ## Q3. Apa yang kamu pelajari soal menyusun dengan infrastruktur orang lain
+
+**Yang ditanya.**
+
+> Your applications increasingly need to work with assets, registries, wallets, and
+> infrastructure you don't control. What have you learned about building something that can
+> compose with the rest of the Canton ecosystem?
+
+**Artinya.** Aplikasimu makin harus bekerja dengan aset, registry, wallet, dan infrastruktur yang bukan kamu yang kendalikan. Apa yang kamu pelajari soal membangun sesuatu yang bisa menyatu dengan sisa ekosistem Canton?
+
+**Jawabmu.**
 
 > *"Three scars. Registry choice contexts are round scoped, so a retry has to refetch and
 > never replay. A replay comes back as UNKNOWN_CONTRACT_SYNCHRONIZERS and reads exactly
@@ -465,6 +544,16 @@ Aku lebih suka menyebutnya sendiri daripada ada yang menemukannya."
 
 ## Q4. Apa yang masih harus terjadi sebelum institusi memakainya di produksi
 
+**Yang ditanya.**
+
+> HackCanton demonstrated that these systems can work technically. What still needs to
+> happen before an institution would be comfortable using one of these workflows in
+> production?
+
+**Artinya.** HackCanton membuktikan sistem ini bisa jalan secara teknis. Apa yang masih harus terjadi sebelum sebuah institusi nyaman memakai alur kerja ini di produksi?
+
+**Jawabmu.**
+
 > *"A design partner, honestly. The code is further along than the evidence. After that,
 > a custody story that isn't my key, and the fee working on registry rails."*
 
@@ -472,6 +561,15 @@ Aku lebih suka menyebutnya sendiri daripada ada yang menemukannya."
 itu, cerita kustodi yang bukan kunciku sendiri, dan fee yang jalan di rail registry."
 
 ## Q5. Asumsi apa yang tidak selamat kena ledger sungguhan
+
+**Yang ditanya.**
+
+> What was one assumption or architectural decision you had to rethink while building your
+> HackCanton project, something that didn't survive contact with the actual Canton ledger?
+
+**Artinya.** Apa satu asumsi atau keputusan arsitektur yang harus kamu pikir ulang waktu membangun proyek HackCanton-mu, sesuatu yang tidak selamat kena ledger Canton yang sebenarnya?
+
+**Jawabmu.**
 
 > *"Two. I assumed I could reconstruct dealer behaviour from ledger history. The updates
 > endpoint gave me a live pipe and zero historical events across six request shapes, so I
@@ -492,6 +590,15 @@ ini berguna buat orang lain di ruangan, bukan sekadar cerita.
 
 ## Q6. Apa yang masih hilang dari ekosistem
 
+**Yang ditanya.**
+
+> Having now built deeply on Canton, what is something you think is still missing from the
+> ecosystem that another builder could go and create?
+
+**Artinya.** Setelah membangun cukup dalam di Canton, apa yang menurutmu masih hilang dari ekosistemnya dan bisa dibuat builder lain?
+
+**Jawabmu.**
+
 > *"Read side developer experience. Historical event replay that actually returns events,
 > an active contract read that pages instead of refusing at two hundred, and a shared
 > client library for the Token Standard allocation flow. I hand rolled the two phase
@@ -511,7 +618,17 @@ builder pasca-hackathon. Jangan lewatkan Q6.
 
 # Bagian 4. Slot 30 detik, menit 58
 
-Tempel di kertas. Ini satu-satunya bagian yang boleh kamu baca kata per kata.
+**Yang ditanya.**
+
+> Before we close, I want to give each of you 30 seconds to make one very specific ask to
+> this community. If someone watching today could make one introduction for you, who would
+> you want to meet?
+
+**Artinya.** "Sebelum kita tutup, aku mau memberi kalian masing-masing 30 detik untuk
+menyampaikan satu permintaan yang sangat spesifik ke komunitas ini. Kalau ada yang menonton
+hari ini bisa membuat satu perkenalan buatmu, siapa yang mau kamu temui?"
+
+**Jawabmu.** Tempel di kertas. Ini satu-satunya bagian yang boleh kamu baca kata per kata.
 
 > *"One introduction. A desk, a dealer, or a fund administrator that runs block enquiries
 > over chat today, and will put ten of them through this and tell me where it breaks. Not
